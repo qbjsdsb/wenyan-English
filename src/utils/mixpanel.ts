@@ -7,19 +7,30 @@ import { useCallback } from 'react'
 // local no-ops: personal study behavior is not sent to Mixpanel or another third party.
 
 export type starAction = 'star' | 'dismiss'
-export function recordStarAction(_action: starAction) {}
+export function recordStarAction(action: starAction) {
+  void action
+}
 
 export type openInfoPanelLocation = 'footer' | 'resultScreen'
-export function recordOpenInfoPanelAction(_type: InfoPanelType, _location: openInfoPanelLocation) {}
+export function recordOpenInfoPanelAction(type: InfoPanelType, location: openInfoPanelLocation) {
+  void type
+  void location
+}
 
 export type shareType = 'open' | 'download'
-export function recordShareAction(_type: shareType) {}
+export function recordShareAction(type: shareType) {
+  void type
+}
 
 export type analysisType = 'open'
-export function recordAnalysisAction(_type: analysisType) {}
+export function recordAnalysisAction(type: analysisType) {
+  void type
+}
 
 export type errorBookType = 'open' | 'detail'
-export function recordErrorBookAction(_type: errorBookType) {}
+export function recordErrorBookAction(type: errorBookType) {
+  void type
+}
 
 export type donateCardInfo = {
   type: 'donate' | 'dismiss'
@@ -31,7 +42,9 @@ export type donateCardInfo = {
   amount: number
 }
 
-export function reportDonateCard(_info: donateCardInfo) {}
+export function reportDonateCard(info: donateCardInfo) {
+  void info
+}
 
 export type ModeInfo = {
   modeDictation: boolean
@@ -66,23 +79,29 @@ export type ChapterLogUpload = ModeInfo & {
   countTypo: number
 }
 
-export function useMixPanelWordLogUploader(_typingState: TypingState) {
+export function useMixPanelWordLogUploader(typingState: TypingState) {
+  void typingState
   return useCallback(
-    (_wordLog: { headword: string; timeStart: string; timeEnd: string; countInput: number; countCorrect: number; countTypo: number }) => {},
+    (wordLog: { headword: string; timeStart: string; timeEnd: string; countInput: number; countCorrect: number; countTypo: number }) => {
+      void wordLog
+    },
     [],
   )
 }
 
-export function useMixPanelChapterLogUploader(_typingState: TypingState) {
-  return useCallback(() => {}, [])
+export function useMixPanelChapterLogUploader(typingState: TypingState) {
+  void typingState
+  return useCallback(() => undefined, [])
 }
 
-export function recordDataAction(_info: {
+export function recordDataAction(info: {
   type: 'export' | 'import'
   size: number
   wordCount: number
   chapterCount: number
-}) {}
+}) {
+  void info
+}
 
 export function getUtcStringForMixpanel() {
   const now = new Date()
