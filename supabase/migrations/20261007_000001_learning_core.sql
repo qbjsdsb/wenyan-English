@@ -21,7 +21,7 @@ create index if not exists learning_events_user_type_occurred_idx
 
 alter table public.learning_events enable row level security;
 
-revoke all on table public.learning_events from anon;
+revoke all on table public.learning_events from public, anon, authenticated;
 grant select, insert on table public.learning_events to authenticated;
 
 drop policy if exists "learning_events_select_own" on public.learning_events;
@@ -29,14 +29,21 @@ create policy "learning_events_select_own"
   on public.learning_events
   for select
   to authenticated
-  using ((select auth.uid()) = user_id);
+  using (
+    (select auth.uid()) is not null
+    and (select auth.uid()) = user_id
+  );
 
-drop policy if exists "learning_events_insert_own" on public.learning_events;
-create policy "learning_events_insert_own"
+drop policy if exists "learning_events_insert_own_direct_session" on public.learning_events;
+create policy "learning_events_insert_own_direct_session"
   on public.learning_events
   for insert
   to authenticated
-  with check ((select auth.uid()) = user_id);
+  with check (
+    (select auth.uid()) is not null
+    and (select auth.uid()) = user_id
+    and ((select auth.jwt()) ->> 'client_id') is null
+  );
 
 create or replace function public.ingest_learning_events(p_events jsonb)
 returns integer
@@ -49,6 +56,10 @@ declare
 begin
   if (select auth.uid()) is null then
     raise exception 'authentication required';
+  end if;
+
+  if ((select auth.jwt()) ->> 'client_id') is not null then
+    raise exception 'OAuth clients are read-only';
   end if;
 
   if jsonb_typeof(p_events) <> 'array' then
@@ -90,7 +101,7 @@ begin
 end;
 $$;
 
-revoke all on function public.ingest_learning_events(jsonb) from public, anon;
+revoke all on function public.ingest_learning_events(jsonb) from public, anon, authenticated;
 grant execute on function public.ingest_learning_events(jsonb) to authenticated;
 
 create or replace function public.get_learning_overview(p_days integer default 7)
@@ -145,7 +156,7 @@ as $$
   from word_stats;
 $$;
 
-revoke all on function public.get_learning_overview(integer) from public, anon;
+revoke all on function public.get_learning_overview(integer) from public, anon, authenticated;
 grant execute on function public.get_learning_overview(integer) to authenticated;
 
 create or replace function public.get_weak_words(p_days integer default 30, p_limit integer default 50)
@@ -187,7 +198,7 @@ as $$
   limit least(greatest(coalesce(p_limit, 50), 1), 200);
 $$;
 
-revoke all on function public.get_weak_words(integer, integer) from public, anon;
+revoke all on function public.get_weak_words(integer, integer) from public, anon, authenticated;
 grant execute on function public.get_weak_words(integer, integer) to authenticated;
 
 commit;
