@@ -1,10 +1,8 @@
 name: Bootstrap Qwerty Learner baseline
 
 on:
-  push:
+  pull_request:
     branches: [main]
-    paths:
-      - .github/workflows/bootstrap-upstream.yml
   workflow_dispatch:
 
 permissions:
@@ -12,12 +10,13 @@ permissions:
 
 jobs:
   bootstrap:
-    if: github.repository == 'qbjsdsb/wenyan-English'
+    if: github.repository == 'qbjsdsb/wenyan-English' && (github.event_name == 'workflow_dispatch' || github.head_ref == 'bootstrap/qwerty-baseline')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Wenyan English
+      - name: Checkout bootstrap branch
         uses: actions/checkout@v4
         with:
+          ref: bootstrap/qwerty-baseline
           fetch-depth: 0
 
       - name: Fetch pinned Qwerty Learner baseline
@@ -49,7 +48,7 @@ jobs:
           The initial import is intentionally pinned to an exact upstream commit so later Wenyan-specific changes remain reviewable and upstream updates can be evaluated deliberately rather than pulled blindly.
           EOF
 
-      - name: Commit imported baseline
+      - name: Commit imported baseline to bootstrap branch
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -59,4 +58,4 @@ jobs:
             exit 0
           fi
           git commit -m 'chore: import Qwerty Learner baseline at 1182426'
-          git push origin HEAD:main
+          git push origin HEAD:bootstrap/qwerty-baseline
