@@ -5,6 +5,7 @@ import { FriendLinks } from './pages/FriendLinks'
 import MobilePage from './pages/Mobile'
 import TypingPage from './pages/Typing'
 import { isOpenDarkModeAtom } from '@/store'
+import { startLearningSync } from '@/sync/syncLearningEvents'
 import 'animate.css'
 import { useAtomValue } from 'jotai'
 import React, { Suspense, lazy, useEffect, useState } from 'react'
@@ -14,12 +15,15 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 const AnalysisPage = lazy(() => import('./pages/Analysis'))
 const GalleryPage = lazy(() => import('./pages/Gallery-N'))
+const SyncPage = lazy(() => import('./pages/Sync'))
 
 function Root() {
   const darkMode = useAtomValue(isOpenDarkModeAtom)
   useEffect(() => {
     darkMode ? document.documentElement.classList.add('dark') : document.documentElement.classList.remove('dark')
   }, [darkMode])
+
+  useEffect(() => startLearningSync(), [])
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 600)
 
@@ -50,6 +54,7 @@ function Root() {
                 <Route path="/analysis" element={<AnalysisPage />} />
                 <Route path="/error-book" element={<ErrorBook />} />
                 <Route path="/friend-links" element={<FriendLinks />} />
+                <Route path="/sync" element={<SyncPage />} />
                 <Route path="/*" element={<Navigate to="/" />} />
               </>
             )}
