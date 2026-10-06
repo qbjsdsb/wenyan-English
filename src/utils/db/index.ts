@@ -1,5 +1,5 @@
-import type { IChapterRecord, IReviewRecord, IRevisionDictRecord, IWordRecord, LetterMistakes } from './record'
-import { ChapterRecord, ReviewRecord, WordRecord } from './record'
+import type { ChapterCompletedPayload, LearningEventRecord, WordAttemptedPayload } from '@/learning/types'
+import { createLearningEvent } from '@/learning/types'
 import { TypingContext, TypingStateActionType } from '@/pages/Typing/store'
 import type { TypingState } from '@/pages/Typing/store/type'
 import { currentChapterAtom, currentDictIdAtom, isReviewModeAtom } from '@/store'
@@ -7,6 +7,8 @@ import type { Table } from 'dexie'
 import Dexie from 'dexie'
 import { useAtomValue } from 'jotai'
 import { useCallback, useContext } from 'react'
+import type { IChapterRecord, IReviewRecord, IRevisionDictRecord, IWordRecord, LetterMistakes } from './record'
+import { ChapterRecord, ReviewRecord, WordRecord } from './record'
 
 class RecordDB extends Dexie {
   wordRecords!: Table<IWordRecord, number>
@@ -15,6 +17,8 @@ class RecordDB extends Dexie {
 
   revisionDictRecords!: Table<IRevisionDictRecord, number>
   revisionWordRecords!: Table<IWordRecord, number>
+
+  learningEvents!: Table<LearningEventRecord, string>
 
   constructor() {
     super('RecordDB')
@@ -30,6 +34,9 @@ class RecordDB extends Dexie {
       wordRecords: '++id,word,timeStamp,dict,chapter,wrongCount,[dict+chapter]',
       chapterRecords: '++id,timeStamp,dict,chapter,time,[dict+chapter]',
       reviewRecords: '++id,dict,createTime,isFinished',
+    })
+    this.version(4).stores({
+      learningEvents: '&id,eventType,occurredAt,syncState,[syncState+occurredAt]',
     })
   }
 }
@@ -53,9 +60,10 @@ export function useSaveChapterRecord() {
       } = typingState
       const correctWordIndexes = userInputLogs.filter((log) => log.correctCount > 0 && log.wrongCount === 0).map((log) => log.index)
 
+      const chapter = isRevision ? -1 : currentChapter
       const chapterRecord = new ChapterRecord(
         dictID,
-        isRevision ? -1 : currentChapter,
+        chapter,
         time,
         correctCount,
         wrongCount,
@@ -65,6 +73,19 @@ export function useSaveChapterRecord() {
         wordRecordIds ?? [],
       )
       db.chapterRecords.add(chapterRecord)
+
+      const event = createLearningEvent<ChapterCompletedPayload>('chapter_completed', {
+        dict: dictID,
+        chapter,
+        reviewMode: isRevision,
+        durationSeconds: time,
+        correctCount,
+        wrongCount,
+        wordCount,
+        wordNumber: words.length,
+        firstTryCorrectCount: correctWordIndexes.length,
+      })
+      void db.learningEvents.add(event).catch((error) => console.error('保存章节学习事件失败：', error))
     },
     [currentChapter, dictID, isRevision],
   )
@@ -102,7 +123,8 @@ export function useSaveWordRecord() {
         timing.push(diff)
       }
 
-      const wordRecord = new WordRecord(word, dictID, isRevision ? -1 : currentChapter, timing, wrongCount, letterMistake)
+      const chapter = isRevision ? -1 : currentChapter
+      const wordRecord = new WordRecord(word, dictID, chapter, timing, wrongCount, letterMistake)
 
       let dbID = -1
       try {
@@ -110,6 +132,26 @@ export function useSaveWordRecord() {
       } catch (e) {
         console.error(e)
       }
+
+      if (dbID > 0) {
+        const event = createLearningEvent<WordAttemptedPayload>('word_attempted', {
+          word,
+          dict: dictID,
+          chapter,
+          reviewMode: isRevision,
+          wrongCount,
+          durationMs: timing.reduce((total, value) => total + value, 0),
+          timing,
+          mistakes: letterMistake,
+        })
+
+        try {
+          await db.learningEvents.add(event)
+        } catch (error) {
+          console.error('保存单词学习事件失败：', error)
+        }
+      }
+
       if (dispatch) {
         dbID > 0 && dispatch({ type: TypingStateActionType.ADD_WORD_RECORD_ID, payload: dbID })
         dispatch({ type: TypingStateActionType.SET_IS_SAVING_RECORD, payload: false })
