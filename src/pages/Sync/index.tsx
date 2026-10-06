@@ -1,7 +1,7 @@
 import Header from '@/components/Header'
-import { db } from '@/utils/db'
 import { getWenyanRedirectUrl, supabase } from '@/supabase/client'
-import { syncLearningEvents, type LearningSyncResult } from '@/sync/syncLearningEvents'
+import { type LearningSyncResult, syncLearningEvents } from '@/sync/syncLearningEvents'
+import { db } from '@/utils/db'
 import type { Session } from '@supabase/supabase-js'
 import { useCallback, useEffect, useState } from 'react'
 
