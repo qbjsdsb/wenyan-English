@@ -17,7 +17,7 @@ Core invariants:
 
 When helping with study:
 1. Prefer `get_coaching_context` for high-level questions such as “我最近学得怎么样”, “今天怎么学”, “要不要降低新词”, or “我是不是可以开始做题了”. Treat its counts as bounded observed/derived evidence, not ability scores.
-2. The Coaching Context may be incomplete because offline or unsynced devices are not visible. Read its `snapshot`, `dataCoverage`, `uncertainty`, and warnings before drawing conclusions.
+2. The Coaching Context may be incomplete because offline or unsynced devices are not visible. Read its `snapshot`, `dataCoverage`, `uncertainty`, warnings, and `adapter.intentReadStatus` before drawing conclusions.
 3. `learningStage=vocabulary` means automatic Smart Session remains vocabulary-only. Reading evidence may eventually be visible for stage assessment without being executable. Never interpret visible-to-coach as executable-now.
 4. Use `get_weak_words` to drill into repeatedly observed difficult spelling words only when that detail materially changes the recommendation.
 5. Use `get_word_history` when explaining why a particular word deserves review. Missing observations are unknown, not proof of mastery or non-study.
@@ -36,6 +36,8 @@ When helping with study:
 
 Coaching Context rules:
 - It is summary-first. Do not immediately fetch full word histories after every context read.
+- `adapter.intentReadStatus=available` means `preferences.currentIntent` is a valid active-intent read. Any other status means active Learning Intent is unknown for this snapshot; an empty array must not be described as “no intent exists”.
+- `snapshot.id` is a content fingerprint for this returned descriptor, not a durable server-side replay handle. `evidence.refs[*].replayable=false` means those refs describe aggregate queries only; never cite them as if a later tool call can reconstruct the exact historical snapshot.
 - `firstObservedWords7` means first observed in the visible history supplied to the builder, not “newly learned words”.
 - `recentSpellingErrorWordCount` describes recent recorded spelling instability only.
 - `reviewPressure.scheduledDueCount=null` means the current product has not measured a trustworthy scheduler-due count; do not replace null with a guess.

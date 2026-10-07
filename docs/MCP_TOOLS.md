@@ -1,6 +1,6 @@
 # MCP tool contract
 
-更新：2026-10-07。
+更新：2026-10-08。
 
 Wenyan English 使用独立远程 MCP：`supabase/functions/wenyan-english-mcp/` 是英语插件的源码真相。Supabase 中更早的 `wenyan-mcp / wenyan_private` 属于旧 Wenyan 路线，不作为英语插件生产实现复用。
 
@@ -15,7 +15,28 @@ Wenyan English 使用独立远程 MCP：`supabase/functions/wenyan-english-mcp/`
 - 学习历史 `learning_events` 不可由 AI 修改或删除。
 - Learning Intent 是 future intent，不是 past truth。
 
-当前目标 MCP 版本：`0.6.0`。
+当前 MCP server contract：`0.7.0`。Coaching Context adapter：`coaching-context-v1.1`。插件包：`0.5.1`。
+
+## 首选高层入口：`get_coaching_context`
+
+读取有界、owner-scoped 的 Coaching Context，用于“最近学得怎么样”“今天怎么学”“是否应该减新词”“是否值得考虑 mixed 阶段”等高层判断。
+
+当前事实来源：
+
+- 已同步 `learning_events` 中的 `word_attempted`；
+- 有权限且可用时的 active Learning Intent；
+- 默认长期 stage=`vocabulary`；
+- 红宝书私人 provider 与 Reading 推荐 provider 当前仍 unavailable。
+
+关键语义：
+
+1. 单词事实是必需输入；Learning Intent 是可选增强。普通只读 OAuth 如果没有 Intent read capability，工具仍返回学习证据，并将 `adapter.intentReadStatus=not_authorized`、`learning_intent_unavailable` 写入 warning/uncertainty。此时 `currentIntent=[]` 只代表本快照看不到 intent，不能说“没有 intent”。
+2. cloud 读取最多 5,000 条单词事实；截断、坏行、离线/未同步设备都必须显式降低 coverage，不能当作完整人生学习史。
+3. 每次读取先冻结 `created_at <= receivedAtOrBefore` 的接收水位，避免分页过程中后来到达的事实移动页面边界。
+4. `snapshot.id` 是该次返回描述的 SHA-256 内容指纹，不是持久化数据库对象。
+5. `evidence.refs[*].replayable=false`；它们是聚合查询描述，不是以后能直接传回工具重放的证据句柄。`snapshotDescriptor.persistence=not_persisted`、`replaySupport=not_exposed` 必须被保留，不得包装成“已保存审计快照”。
+6. word facts 与 Learning Intent 由不同请求读取，`multi_source_snapshot_not_atomic` 会显式标记；不得假装是单事务快照。
+7. 输出预算 24 KiB；超限直接失败，不静默截去关键语义。
 
 ## 学习证据读取
 
@@ -31,7 +52,7 @@ Wenyan English 使用独立远程 MCP：`supabase/functions/wenyan-english-mcp/`
 ## Learning Intent / AI Coach
 
 ### `get_learning_intents`
-读取当前有效的 `ongoing / day / session` future-learning intent。只返回 active、已生效、未过期的 scope。
+读取当前有效的 `ongoing / day / session` future-learning intent。只返回 active、已生效、未过期的 scope。该工具本身仍遵守 capability；Coaching Context 不会为了可读而扩大此权限。
 
 Smart Session 合并顺序：
 
@@ -113,21 +134,24 @@ Learning Intent OAuth 写入要求：
 5. RLS ownership + RPC transaction marker；
 6. optimistic revision + mutation receipt + revision snapshot。
 
-Cloud Plan 和 Command Bus 继续使用各自 capability。ChatGPT 不能 claim/finish 浏览器命令，普通 Wenyan Web 会话不能冒充 OAuth Coach。
+Cloud Plan 和 Command Bus 继续使用各自 capability。ChatGPT 不能 claim/finish 浏览器命令，普通 Wenyan Web 会话不能冒充 OAuth Coach。`get_coaching_context` 的降级读取也不授予任何额外 capability。
 
-## 下一阶段
+## 当前未完成
 
-1. 真实 OAuth session 验收 Learning Intent：read → create → idempotent retry → revise → invalid reject → clear；
-2. Smart Session 消费云端 intent，按 `session > day > ongoing > local defaults` 合并；
-3. cloud intent 获取失败时回退本地默认值，不能阻止学习；
-4. 把 Smart Session 变成 Today 主入口；
-5. 再接阅读/真题 recommendation 与答题 evidence；
-6. Facts v3 / item-level scheduler 后置。
+- 长期学习 stage 的第一方确认、持久化与拒绝提醒 suppression 尚未上线；generic `revise_learning_intent` 继续禁止改 stage。
+- Reading Runner 已存在，但 Reading provider / eligible candidate adapter / fresh runtime admission 尚未接入自动 Smart Session。
+- snapshot descriptor 尚未作为服务端 manifest 持久化，也没有按 snapshot ID 的 replay tool；因此明确标记为不可回放。
+- Intent owner-scoped last-valid cache、正式 sessionId binding、精确 hard-stop enforcement 仍待补。
+- 红宝书 provider 尚未接入；`observedProgress` 必须保持 null，不能拿其他词书冒充。
+
+## 后续顺序
+
+1. 真实 OAuth 端到端验收 `get_coaching_context` 的普通只读和 coach-capability 两条路径。
+2. 独立完成 stage preference / user-confirmation provenance / reminder suppression。
+3. 补 intent cache、日界/session binding、hard-stop 执行。
+4. 接私人 Reading provider + eligible candidates + fresh selection guard，再开放 mixed 自动执行。
+5. 内容验收后才扩展真题/题型；FSRS 延后到有可靠 semantic/contextual evidence。
 
 不要添加 `run_sql(anything)`、`execute_js(anything)`、`control_wenyan(anything)` 这类万能工具。
 
-See also: `docs/LEARNING_INTENT_V1.md`、`docs/SMART_SESSION_V1.md`、`docs/AI_COACH_CONTRACT.md`、`docs/CLOUD_PLAN_V2.md`、`docs/COMMAND_BUS.md`。
-
-## AI Coaching Loop v1（合同已定，工具尚未上线）
-
-`get_coaching_context` 的窄输入 schema、输出、覆盖口径、token 预算与 drill-down 见 [AI_COACHING_LOOP_V1](AI_COACHING_LOOP_V1.md)。纯核心在 `src/coaching/`；本批未修改/部署 MCP 或 Supabase。`get_reading_candidates` 与 `confirm_learning_stage` 仍为后续接入；generic `revise_learning_intent` 不获得 stage 写权限。
+See also: `docs/AI_COACHING_LOOP_V1.md`、`docs/LEARNING_INTENT_V1.md`、`docs/SMART_SESSION_V1.md`、`docs/AI_COACH_CONTRACT.md`、`docs/CLOUD_PLAN_V2.md`、`docs/COMMAND_BUS.md`。
