@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "wenyan-english",
-  "version": "0.4.0",
-  "description": "Personal Wenyan English learning coach with authenticated study evidence, versioned Learning Intent, Cloud Plan writes, and device-aware semantic website control.",
+  "version": "0.5.0",
+  "description": "Personal Wenyan English learning coach with bounded Coaching Context, authenticated study evidence, versioned Learning Intent, Cloud Plan writes, and device-aware semantic website control.",
   "author": {
     "name": "qbjsdsb",
     "url": "https://github.com/qbjsdsb/wenyan-English"
