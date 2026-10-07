@@ -16,6 +16,7 @@ export async function startStudyTask(planId: string, taskId: string): Promise<St
   return db.transaction('rw', db.studyPlans, db.studyPlanRuns, async () => {
     const plan = await db.studyPlans.get(planId)
     if (!plan?.tasks.some((task) => task.id === taskId)) throw new Error('没有找到这个任务，请刷新后重试。')
+    if (plan.cloudCompletions?.[taskId]) throw new Error('这个云端任务已经有真实完成记录。可以通过词库再次练习。')
     const runs = await db.studyPlanRuns.where('planId').equals(planId).toArray()
     if (runs.some((run) => run.taskId === taskId && run.completionEventId)) throw new Error('这个任务已经完成。可以通过词库再次练习。')
     // A fresh run gives this launch its own identity; completion is linked to a real chapter event.
