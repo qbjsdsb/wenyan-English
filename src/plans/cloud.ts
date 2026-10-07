@@ -85,21 +85,21 @@ async function markOtherCloudPlansArchived(activePlanId?: string) {
 }
 
 /**
- * Pull the active Cloud Plan v2 into Dexie as an execution cache.
- * Supabase remains authoritative. The cache exists so the existing taskRun ->
- * plan/task -> actual dict/chapter evidence validation can remain unchanged and
- * continue to work offline after a successful sync.
+ * Pull Cloud Plan v2 into Dexie as an execution cache. With no planId this
+ * follows the newest active plan for Today. A specific planId is used by the
+ * website command executor before starting a task, without hiding other cached
+ * plans on the device.
  */
-export async function syncCloudPlanToLocal(): Promise<CloudPlanSyncResult> {
+export async function syncCloudPlanToLocal(requestedPlanId?: string): Promise<CloudPlanSyncResult> {
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
   if (sessionError) return { status: 'failed', message: sessionError.message }
   if (!sessionData.session) return { status: 'signed-out' }
 
-  const { data, error } = await supabase.rpc('get_plan_status', { p_plan_id: null })
+  const { data, error } = await supabase.rpc('get_plan_status', { p_plan_id: requestedPlanId ?? null })
   if (error) return { status: 'failed', message: error.message }
 
   if (data == null) {
-    await db.transaction('rw', db.studyPlans, async () => markOtherCloudPlansArchived())
+    if (!requestedPlanId) await db.transaction('rw', db.studyPlans, async () => markOtherCloudPlansArchived())
     return { status: 'none' }
   }
 
@@ -115,6 +115,9 @@ export async function syncCloudPlanToLocal(): Promise<CloudPlanSyncResult> {
 
   if (!planId || !title || !timezone || revision == null || revision < 1 || !status || !rawTasks) {
     return { status: 'failed', message: '云端计划返回了无法识别的结构。' }
+  }
+  if (requestedPlanId && planId !== requestedPlanId) {
+    return { status: 'failed', message: '云端返回的计划与请求计划不一致。' }
   }
 
   try {
@@ -161,7 +164,7 @@ export async function syncCloudPlanToLocal(): Promise<CloudPlanSyncResult> {
   await db.transaction('rw', db.studyPlans, async () => {
     const existing = await db.studyPlans.get(planId)
     if (existing && existing.origin !== 'cloud') throw new Error('云端计划 ID 与本机计划冲突，已拒绝覆盖本机计划。')
-    await markOtherCloudPlansArchived(planId)
+    if (!requestedPlanId) await markOtherCloudPlansArchived(planId)
     await db.studyPlans.put(cached)
   })
 
