@@ -3,6 +3,12 @@ name: Deploy Wenyan Pages
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - ".github/**"
+      - "docs/**"
+      - "scripts/**"
+      - "supabase/**"
+      - "*.md"
   workflow_dispatch:
 
 permissions:
