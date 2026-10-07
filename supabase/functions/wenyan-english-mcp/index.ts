@@ -81,7 +81,7 @@ async function callRpc(name: string, args: Record<string, unknown>, token: strin
       const payload = await response.json()
       if (payload && typeof payload.message === 'string') rpcMessage = payload.message
     } catch {
-      // Keep the public error bounded even when PostgREST returns a non-JSON body.
+      // Keep the public error bounded when PostgREST returns a non-JSON body.
     }
 
     const known = [
@@ -104,6 +104,35 @@ async function callRpc(name: string, args: Record<string, unknown>, token: strin
       'invalid_command',
       'invalid_command_args',
       'invalid_command_ttl',
+      'intent_read_not_granted',
+      'coach_auto_adjust_not_granted',
+      'intent_not_found',
+      'invalid_intent_scope',
+      'invalid_expected_revision',
+      'invalid_change_reason',
+      'invalid_intent_expiry',
+      'invalid_session_intent_expiry',
+      'invalid_day_intent_expiry',
+      'invalid_intent_constraints',
+      'invalid_intent_constraint_key',
+      'invalid_focus_dictionary',
+      'invalid_intent_numeric_constraint',
+      'invalid_review_preference',
+      'invalid_intensity',
+      'invalid_preferred_activities',
+      'invalid_preferred_activity',
+      'duplicate_preferred_activity',
+      'invalid_intent_goals',
+      'invalid_intent_goal_shape',
+      'invalid_intent_rationale',
+      'invalid_intent_rationale_key',
+      'invalid_intent_summary',
+      'invalid_intent_basis',
+      'invalid_intent_confidence',
+      'invalid_intent_evidence_ids',
+      'invalid_intent_evidence_id',
+      'invalid_intent_uncertainties',
+      'invalid_intent_uncertainty',
     ].find((code) => rpcMessage.includes(code))
 
     if (known) throw new Error(`RPC_${known}`)
@@ -125,7 +154,7 @@ function toolError(error: unknown, fallback: string) {
   const explanations: Record<string, string> = {
     NOT_AUTHORIZED: 'The current OAuth session is not authorized for this Wenyan operation.',
     RPC_plans_write_not_granted: 'This OAuth client has not been granted Wenyan plans:write capability.',
-    RPC_revision_conflict: 'The plan changed since it was last read. Read get_plan_status again before revising it.',
+    RPC_revision_conflict: 'The cloud state changed since it was last read. Re-read the current revision before retrying.',
     RPC_completed_task_is_immutable:
       'The requested revision would change a task that already has immutable completion evidence. Keep completed tasks unchanged.',
     RPC_plan_not_found: 'The requested Cloud Plan v2 plan is not visible to this Wenyan account.',
@@ -144,6 +173,35 @@ function toolError(error: unknown, fallback: string) {
     RPC_invalid_command: 'The requested Wenyan website command is not supported.',
     RPC_invalid_command_args: 'The Wenyan website command arguments are invalid.',
     RPC_invalid_command_ttl: 'The Wenyan website command lifetime is invalid.',
+    RPC_intent_read_not_granted: 'This OAuth client cannot read Wenyan Learning Intent.',
+    RPC_coach_auto_adjust_not_granted: 'This OAuth client has not been granted Wenyan coach:auto_adjust capability.',
+    RPC_intent_not_found: 'The requested Learning Intent scope does not exist yet.',
+    RPC_invalid_intent_scope: 'Learning Intent scope must be ongoing, day, or session.',
+    RPC_invalid_expected_revision: 'The Learning Intent expectedRevision is invalid.',
+    RPC_invalid_change_reason: 'The Learning Intent change reason is too long.',
+    RPC_invalid_intent_expiry: 'Learning Intent expiry must be after its effective time.',
+    RPC_invalid_session_intent_expiry: 'A session intent must expire within 12 hours.',
+    RPC_invalid_day_intent_expiry: 'A day intent must expire within 48 hours.',
+    RPC_invalid_intent_constraints: 'Learning Intent constraints are invalid.',
+    RPC_invalid_intent_constraint_key: 'Learning Intent contains an unsupported constraint.',
+    RPC_invalid_focus_dictionary: 'The focus dictionary constraint is invalid.',
+    RPC_invalid_intent_numeric_constraint: 'A numeric Learning Intent constraint is outside its allowed range.',
+    RPC_invalid_review_preference: 'reviewPreference must be balanced or review_first.',
+    RPC_invalid_intensity: 'intensity must be gentle or normal.',
+    RPC_invalid_preferred_activities: 'preferredActivities is invalid.',
+    RPC_invalid_preferred_activity: 'preferredActivities contains an unsupported activity.',
+    RPC_duplicate_preferred_activity: 'preferredActivities must not contain duplicates.',
+    RPC_invalid_intent_goals: 'Learning Intent goals are invalid.',
+    RPC_invalid_intent_goal_shape: 'One or more Learning Intent goals are invalid.',
+    RPC_invalid_intent_rationale: 'Learning Intent rationale is invalid.',
+    RPC_invalid_intent_rationale_key: 'Learning Intent rationale contains an unsupported field.',
+    RPC_invalid_intent_summary: 'Learning Intent rationale summary is invalid.',
+    RPC_invalid_intent_basis: 'Learning Intent rationale basis is invalid.',
+    RPC_invalid_intent_confidence: 'Learning Intent confidence must be low, medium, or high.',
+    RPC_invalid_intent_evidence_ids: 'Learning Intent evidenceIds is invalid.',
+    RPC_invalid_intent_evidence_id: 'Learning Intent contains an invalid evidence UUID.',
+    RPC_invalid_intent_uncertainties: 'Learning Intent uncertainties is invalid.',
+    RPC_invalid_intent_uncertainty: 'A Learning Intent uncertainty is invalid.',
   }
 
   return {
@@ -171,6 +229,50 @@ const taskSchema = z
 
 const requestIdSchema = z.string().min(8).max(120).regex(/^[A-Za-z0-9._:-]+$/)
 const optionalDeviceIdSchema = z.string().uuid().optional()
+const intentScopeSchema = z.enum(['ongoing', 'day', 'session'])
+const activitySchema = z.enum([
+  'vocabulary',
+  'reading',
+  'dictation',
+  'cloze',
+  'translation',
+  'writing',
+  'grammar',
+  'long_sentence',
+  'new_question_type',
+])
+const preferredActivitiesSchema = z
+  .array(activitySchema)
+  .max(9)
+  .refine((items) => new Set(items).size === items.length, 'preferredActivities must not contain duplicates')
+const intentConstraintsSchema = z
+  .object({
+    focusDictionary: z.string().trim().min(1).max(100).optional(),
+    targetMinutes: z.number().int().min(0).max(240).optional(),
+    hardStopMinutes: z.number().int().min(0).max(240).optional(),
+    newWordCeiling: z.number().int().min(0).max(50).optional(),
+    reviewPreference: z.enum(['balanced', 'review_first']).optional(),
+    intensity: z.enum(['gentle', 'normal']).optional(),
+    preferredActivities: preferredActivitiesSchema.optional(),
+  })
+  .strict()
+const intentGoalSchema = z
+  .object({
+    kind: z.enum(['exam_preparation', 'reading_transfer', 'question_practice']),
+    description: z.string().trim().min(1).max(500),
+    horizon: z.enum(['week', 'phase']),
+  })
+  .strict()
+const intentRationaleSchema = z
+  .object({
+    summary: z.string().max(1000).optional(),
+    basis: z.enum(['user_statement', 'observed_evidence', 'inference', 'default']).optional(),
+    evidenceIds: z.array(z.string().uuid()).max(50).optional(),
+    confidence: z.enum(['low', 'medium', 'high']).optional(),
+    uncertainties: z.array(z.string().max(500)).max(20).optional(),
+  })
+  .strict()
+const isoTimestampSchema = z.string().datetime({ offset: true })
 
 async function enqueueCommand(
   token: string,
@@ -202,7 +304,7 @@ function queuedCommandResult(command: unknown) {
 }
 
 function createServer(token: string) {
-  const server = new McpServer({ name: 'Wenyan English', version: '0.5.0' })
+  const server = new McpServer({ name: 'Wenyan English', version: '0.6.0' })
 
   server.registerTool(
     'get_learning_overview',
@@ -328,6 +430,117 @@ function createServer(token: string) {
         })
       } catch (error) {
         return toolError(error, 'Cloud Plan status is temporarily unavailable. Do not invent or assume plan progress.')
+      }
+    }
+  )
+
+  server.registerTool(
+    'get_learning_intents',
+    {
+      description:
+        'Read active Wenyan Learning Intent scopes. These are future-study preferences, not learning facts. Consumers should merge constraints as session > day > ongoing > local defaults; expired or archived intents are not returned.',
+      inputSchema: z.object({}).strict(),
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: { securitySchemes: [{ type: 'oauth2', scopes: ['openid'] }] },
+    },
+    async () => {
+      try {
+        const intents = await callRpc('get_learning_intents', {}, token)
+        return toolResult({
+          intents,
+          precedence: ['session', 'day', 'ongoing', 'local_defaults'],
+          invariant: 'Learning Intent can guide future study but never proves, edits, or deletes past learning truth.',
+        })
+      } catch (error) {
+        return toolError(error, 'Wenyan Learning Intent is temporarily unavailable. Do not invent active preferences.')
+      }
+    }
+  )
+
+  server.registerTool(
+    'revise_learning_intent',
+    {
+      description:
+        'Create or revise one bounded future-learning intent scope. Read get_learning_intents first. Use expectedRevision=0 only when the scope does not yet exist; otherwise pass its current revision. session intents require an expiry within 12 hours and day intents within 48 hours. This changes future intent only and never learning history.',
+      inputSchema: z
+        .object({
+          requestId: requestIdSchema,
+          scope: intentScopeSchema,
+          expectedRevision: z.number().int().min(0),
+          timezone: z.string().trim().min(1).max(64).default('Asia/Shanghai'),
+          effectiveFrom: isoTimestampSchema.optional(),
+          expiresAt: isoTimestampSchema.optional(),
+          constraints: intentConstraintsSchema.default({}),
+          goals: z.array(intentGoalSchema).max(20).default([]),
+          rationale: intentRationaleSchema.default({}),
+          changeReason: z.string().max(1000).default(''),
+        })
+        .strict(),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: { securitySchemes: [{ type: 'oauth2', scopes: ['openid'] }] },
+    },
+    async ({ requestId, scope, expectedRevision, timezone, effectiveFrom, expiresAt, constraints, goals, rationale, changeReason }) => {
+      try {
+        const result = await callRpc(
+          'revise_learning_intent',
+          {
+            p_request_id: requestId,
+            p_scope: scope,
+            p_expected_revision: expectedRevision,
+            p_timezone: timezone,
+            p_effective_from: effectiveFrom ?? null,
+            p_expires_at: expiresAt ?? null,
+            p_constraints: constraints,
+            p_goals: goals,
+            p_rationale: rationale,
+            p_change_reason: changeReason,
+          },
+          token
+        )
+        return toolResult({
+          result,
+          invariant: 'Only future learning intent changed. No learning event, answer, completion fact, or historical evidence was rewritten.',
+        })
+      } catch (error) {
+        return toolError(error, 'Wenyan could not revise Learning Intent. Re-read the active intents before retrying.')
+      }
+    }
+  )
+
+  server.registerTool(
+    'clear_learning_intent',
+    {
+      description:
+        'Archive one active Learning Intent scope so it stops affecting future Smart Sessions. Read get_learning_intents first and pass the scope current revision. This does not delete revision history or any learning evidence.',
+      inputSchema: z
+        .object({
+          requestId: requestIdSchema,
+          scope: intentScopeSchema,
+          expectedRevision: z.number().int().min(1),
+          changeReason: z.string().max(1000).default(''),
+        })
+        .strict(),
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+      _meta: { securitySchemes: [{ type: 'oauth2', scopes: ['openid'] }] },
+    },
+    async ({ requestId, scope, expectedRevision, changeReason }) => {
+      try {
+        const result = await callRpc(
+          'clear_learning_intent',
+          {
+            p_request_id: requestId,
+            p_scope: scope,
+            p_expected_revision: expectedRevision,
+            p_change_reason: changeReason,
+          },
+          token
+        )
+        return toolResult({
+          result,
+          invariant: 'The future intent scope was archived. Historical Learning Intent revisions and learning facts remain intact.',
+        })
+      } catch (error) {
+        return toolError(error, 'Wenyan could not clear Learning Intent. Do not assume the scope stopped applying.')
       }
     }
   )
