@@ -11,7 +11,8 @@ Wenyan English 的 ChatGPT 集成采用独立的远程 MCP。第一阶段严格�
 Supabase Edge Function：`wenyan-english-mcp`。
 
 - 使用 MCP Streamable HTTP。
-- 使用 Supabase OAuth access token，由函数内通过 Supabase JWKS、issuer、resource audience、session/client claims 校验。
+- 使用 Supabase OAuth access token，由函数内通过 Supabase JWKS、issuer、标准 `authenticated` audience、session/client claims 校验。
+- MCP URL 作为 OAuth protected resource 用于 discovery / challenge；Supabase 默认 OAuth access token 不会自动把 `aud` 改成 MCP URL。
 - Edge Function 自身 `verify_jwt=false` 是因为这里执行的是资源服务器级自定义 OAuth 校验；函数不会绕过鉴权。
 - 后端调用只使用浏览器安全的 Supabase key + 当前 OAuth Bearer token，不读取 `service_role`。
 - 数据查询仍由 RPC + RLS 约束。
@@ -86,6 +87,29 @@ Interpretation rules:
 
 The supporting expression index is scoped to this user+word history access path; the function still checks `auth.uid()` and table RLS as defense in depth.
 
+### `get_plan_status`
+
+Backed by `public.get_plan_status` (`SECURITY INVOKER`).
+
+Inputs:
+- optional `planId` UUID; omitted means newest active Cloud Plan v2 plan
+
+Returns:
+- plan metadata and current revision
+- ordered task list
+- task kind/config/state
+- immutable completion evidence when a matching `chapter_completed` fact contains the same `planId / taskId`
+- explicit note that local-only Plan v1 data is not yet included
+
+Interpretation rules:
+
+- plan/task rows cannot assert completion.
+- `active` means scheduled, not completed.
+- `cancelled` is a planning decision, not a learning fact.
+- only `completionEventId / completedAt` derived from matching immutable learning events may be described as completed.
+
+See `docs/CLOUD_PLAN_V2.md` for the cloud plan/control boundary.
+
 ## Next read tools
 
 Implement in this order:
@@ -96,9 +120,7 @@ Implement in this order:
 2. `get_review_pressure`
    - deterministic due / backlog summary
    - no invented causal explanation
-3. `get_plan_status`
-   - cloud plan + task + real completion evidence
-4. `get_learning_profile`
+3. `get_learning_profile`
    - explicit exam target, exam date, available time and preferences
 
 Do not add a generic `get_all_my_data`. ChatGPT should query summary first and drill into evidence only when useful.
@@ -110,9 +132,9 @@ No write tool is exposed until all of the following are true:
 - cross-device learning fact restore is stable;
 - the English read-only MCP has completed a real ChatGPT OAuth/plugin acceptance test;
 - learning facts v2 can link real sessions to plan/task IDs;
-- cloud plan schema has revision/idempotency rules;
+- Cloud Plan v2 revision/idempotency write RPCs are complete;
 - existing older `SECURITY DEFINER` Wenyan RPCs have been audited before reuse;
-- an explicit ChatGPT OAuth client policy exists.
+- a stable ChatGPT OAuth `client_id` has been observed and explicitly granted `plans:write`.
 
 The eventual write surface is narrow:
 

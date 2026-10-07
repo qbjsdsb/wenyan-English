@@ -110,7 +110,7 @@ function readError(error: unknown, fallback: string) {
 }
 
 function createServer(token: string) {
-  const server = new McpServer({ name: 'Wenyan English', version: '0.2.0' })
+  const server = new McpServer({ name: 'Wenyan English', version: '0.3.0' })
 
   server.registerTool(
     'get_learning_overview',
@@ -235,6 +235,44 @@ function createServer(token: string) {
         })
       } catch (error) {
         return readError(error, 'Word-history evidence is temporarily unavailable. Do not invent observations for this word.')
+      }
+    }
+  )
+
+  server.registerTool(
+    'get_plan_status',
+    {
+      description:
+        'Read the learner’s current Cloud Plan v2 plan, or one specific plan by UUID. Task completion is derived only from matching immutable learning events; a planned, launched or cancelled task must never be described as completed without completion evidence.',
+      inputSchema: z
+        .object({
+          planId: z.string().uuid().optional(),
+        })
+        .strict(),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      _meta: { securitySchemes: [{ type: 'oauth2', scopes: ['openid'] }] },
+    },
+    async ({ planId }) => {
+      try {
+        const status = await callRpc('get_plan_status', { p_plan_id: planId ?? null }, token)
+        return toolResult({
+          status,
+          coverage: {
+            source: 'Cloud Plan v2 rows plus immutable matching Wenyan completion events',
+            local_only_v1_plans: 'not included until Cloud Plan sync is implemented',
+          },
+          interpretation:
+            status == null
+              ? 'No matching Cloud Plan v2 plan is visible to this authenticated user. This does not prove that no local-only v1 plan exists.'
+              : 'Use task completionEventId/completedAt as the completion evidence. Plan state itself cannot assert completion.',
+        })
+      } catch (error) {
+        return readError(error, 'Cloud Plan status is temporarily unavailable. Do not invent or assume plan progress.')
       }
     }
   )
