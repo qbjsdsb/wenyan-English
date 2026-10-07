@@ -33,8 +33,8 @@ jobs:
           corepack prepare yarn@1.22.22 --activate
       - name: Install dependencies
         run: yarn install --frozen-lockfile
-      - name: Build Wenyan
-        run: yarn build
+      - name: Build Wenyan for project Pages
+        run: yarn vite build --base=/wenyan-English/
       - name: Add SPA fallback for direct OAuth/deep links
         run: cp build/index.html build/404.html
       - uses: actions/configure-pages@v5
