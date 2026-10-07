@@ -15,6 +15,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 const AnalysisPage = lazy(() => import('./pages/Analysis'))
 const GalleryPage = lazy(() => import('./pages/Gallery-N'))
+const TodayPage = lazy(() => import('./pages/Today'))
 const SyncPage = lazy(() => import('./pages/Sync'))
 
 function Root() {
@@ -30,9 +31,6 @@ function Root() {
   useEffect(() => {
     const handleResize = () => {
       const isMobile = window.innerWidth <= 600
-      if (!isMobile) {
-        window.location.href = '/'
-      }
       setIsMobile(isMobile)
     }
 
@@ -50,6 +48,7 @@ function Root() {
             ) : (
               <>
                 <Route index element={<TypingPage />} />
+                <Route path="/today" element={<TodayPage />} />
                 <Route path="/gallery" element={<GalleryPage />} />
                 <Route path="/analysis" element={<AnalysisPage />} />
                 <Route path="/error-book" element={<ErrorBook />} />
