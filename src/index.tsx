@@ -15,6 +15,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 const AnalysisPage = lazy(() => import('./pages/Analysis'))
 const GalleryPage = lazy(() => import('./pages/Gallery-N'))
+const OAuthConsentPage = lazy(() => import('./pages/OAuthConsent'))
 const TodayPage = lazy(() => import('./pages/Today'))
 const SyncPage = lazy(() => import('./pages/Sync'))
 
@@ -43,6 +44,7 @@ function Root() {
       <BrowserRouter basename={REACT_APP_DEPLOY_ENV === 'pages' ? '/wenyan-English' : ''}>
         <Suspense fallback={<Loading />}>
           <Routes>
+            <Route path="/oauth/consent" element={<OAuthConsentPage />} />
             {isMobile ? (
               <Route path="/*" element={<Navigate to="/mobile" />} />
             ) : (
