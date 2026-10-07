@@ -172,3 +172,11 @@ Facts v3增量：session_started/paused/resumed/finished、block/activity/contex
 
 先core fixtures→owner-safe adapter→独立执行上下文/恢复/停止→Today一个入口→Cloud learningIntent窄协议→一篇可信阅读及反向诊断→再扩题库和FSRS。
 本批不硬接Today：旧整章completion语义必须先解决，不能用错误glue code假装上线。
+
+## 14. 本批实现与验证命令
+
+实现范围：types.ts与planner.ts（next-block纯函数），reading仅接收未来推荐器的有序候选并检查执行能力/预算。未实现adapter、reading recommender、scheduler持久化、Coach JSON runtime validator、Today/typing glue。
+
+轻量回归：Node 22.6+运行 node --experimental-strip-types scripts/check-smart-session.mjs。当前环境Node24运行16组通过；现有CI使用Node22并已加入同一命令。不引入测试框架。独立strict typecheck已通过；完整lint/type/build因依赖下载未完成，见STATUS。
+
+core的candidate池须已由adapter校验归属/内容与来源，不能把MCP任意JSON直接断言成SmartSessionInput。跨来源相同canonical key合并UUID；冲突事实/冲突schedule会拒绝，交给adapter诊断而不是默默篡改。
