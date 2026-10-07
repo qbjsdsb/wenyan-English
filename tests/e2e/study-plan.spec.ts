@@ -46,6 +46,8 @@ test('a plan launches the right chapter and only real completed practice updates
   await page.getByRole('button', { name: '开始任务' }).click()
   await expect(page).toHaveURL(/taskRun=/)
   const runUrl = page.url()
+  const runId = new URL(runUrl).searchParams.get('taskRun')
+  expect(runId).toBeTruthy()
   await page.getByRole('link', { name: '今日学习', exact: true }).click()
   await expect(page.getByText('已完成 ✓', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '重新开始' })).toBeVisible()
@@ -59,6 +61,39 @@ test('a plan launches the right chapter and only real completed practice updates
   await expect(page.getByText('表现不错！全对了！')).toBeVisible()
   await page.getByRole('button', { name: '返回今日学习' }).click()
   await expect(page.getByText('已完成 ✓', { exact: true })).toBeVisible()
+
+  await page.addScriptTag({
+    type: 'module',
+    content: `
+      import { db } from '/src/utils/db/index.ts'
+      const events = await db.learningEvents.toArray()
+      const wordFacts = events.filter(event => event.eventType === 'word_attempted')
+      const chapterFact = events.find(event => event.eventType === 'chapter_completed')
+      window.__planFactResult = {
+        wordCount: wordFacts.length,
+        allWordsV2: wordFacts.every(event => event.sourceVersion === 2),
+        allWordsLinked: wordFacts.every(event => event.payload.planId === 'test-plan' && event.payload.taskId === 'first' && event.payload.taskRunId),
+        wordRunIds: [...new Set(wordFacts.map(event => event.payload.taskRunId))],
+        rawDictationCaptured: wordFacts.every(event => event.payload.dictationEnabled === false && event.payload.dictationType === 'hideAll'),
+        chapterVersion: chapterFact?.sourceVersion,
+        chapterPlanId: chapterFact?.payload?.planId,
+        chapterTaskId: chapterFact?.payload?.taskId,
+        chapterTaskRunId: chapterFact?.payload?.taskRunId,
+      }
+    `,
+  })
+  await page.waitForFunction(() => Boolean((window as unknown as { __planFactResult?: unknown }).__planFactResult))
+  const factResult = await page.evaluate(() => (window as unknown as { __planFactResult: Record<string, unknown> }).__planFactResult)
+  expect(factResult.wordCount).toBe(words.length)
+  expect(factResult.allWordsV2).toBe(true)
+  expect(factResult.allWordsLinked).toBe(true)
+  expect(factResult.wordRunIds).toEqual([runId])
+  expect(factResult.rawDictationCaptured).toBe(true)
+  expect(factResult.chapterVersion).toBe(2)
+  expect(factResult.chapterPlanId).toBe('test-plan')
+  expect(factResult.chapterTaskId).toBe('first')
+  expect(factResult.chapterTaskRunId).toBe(runId)
+
   await page.reload()
   await expect(page.getByText('已完成 ✓', { exact: true })).toBeVisible()
 })
