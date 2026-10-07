@@ -351,7 +351,7 @@ function createServer(token: string, capabilities: CapabilitySnapshot) {
             supabaseUrl,
             publishableKey,
             token,
-            intentReadAllowed: capabilityStatus(capabilities, 'intent_read') === 'allowed',
+            intentReadCapabilityStatus: capabilityStatus(capabilities, 'intent_read'),
             includeReadingCandidates,
             candidatePurpose,
             candidateLimit,

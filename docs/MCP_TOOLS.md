@@ -125,7 +125,7 @@ Rationale 中的 summary/basis/confidence/uncertainties 是解释信息，不是
 
 ## 权限模型
 
-Edge Function 在校验签名、issuer、audience、expiry、`sub`、`client_id`、`session_id` 与非匿名身份后，使用同一 Bearer token 按 `sub + client_id` 读取当前 OAuth client 的 capability。OAuth `openid` 仅认证身份；它不等同于 Wenyan capability。新 DCR client 默认无 grant，查询故障时受限工具失败关闭。
+Edge Function 在校验签名、issuer、audience、expiry、`sub`、`client_id`、`session_id` 与非匿名身份后，使用同一 Bearer token 按 `sub + client_id` 读取当前 OAuth client 的 capability。OAuth `openid` 仅认证身份；它不等同于 Wenyan capability。新 DCR client 默认无 grant，查询故障时受限工具失败关闭；Coaching Context 中的 Intent 会标成 unavailable，而明确无 grant 时标成 not_authorized。
 
 MCP 工具执行前按现有数据库 capability 名称做预检查，RPC/RLS 仍是最终安全边界并会再次检查：
 

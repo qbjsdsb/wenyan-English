@@ -131,11 +131,17 @@ try {
 
   intentMode = 'available'
   const intentReadsBeforeCapabilityGate = intentReads
-  const capabilityDenied = await buildCloudCoachingContext({ ...options, intentReadAllowed: false })
+  const capabilityDenied = await buildCloudCoachingContext({ ...options, intentReadCapabilityStatus: 'denied' })
   assert.equal(intentReads, intentReadsBeforeCapabilityGate)
   assert.equal(capabilityDenied.adapter.intentReadStatus, 'not_authorized')
   assert.equal(capabilityDenied.preferences.currentIntent.length, 0)
   assert.equal(capabilityDenied.derived.recentLearning.wordAttempts7, 2)
+
+  const capabilityLookupUnavailable = await buildCloudCoachingContext({ ...options, intentReadCapabilityStatus: 'unavailable' })
+  assert.equal(intentReads, intentReadsBeforeCapabilityGate)
+  assert.equal(capabilityLookupUnavailable.adapter.intentReadStatus, 'unavailable')
+  assert.equal(capabilityLookupUnavailable.preferences.currentIntent.length, 0)
+  assert.equal(capabilityLookupUnavailable.derived.recentLearning.wordAttempts7, 2)
 
   intentMode = 'transport'
   const transportFailure = await buildCloudCoachingContext(options)
@@ -151,7 +157,7 @@ try {
   assert.equal(decodeFailure.derived.recentLearning.wordAttempts7, 2)
   assert.ok(decodeFailure.snapshot.warnings.includes('learning_intent_unavailable'))
 
-  console.log('5 cloud coaching adapter scenarios passed')
+  console.log('6 cloud coaching adapter scenarios passed')
 } finally {
   globalThis.fetch = originalFetch
 }

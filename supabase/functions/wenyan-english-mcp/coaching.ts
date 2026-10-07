@@ -32,7 +32,7 @@ interface CoachingAdapterOptions {
   supabaseUrl: string
   publishableKey: string
   token: string
-  intentReadAllowed?: boolean
+  intentReadCapabilityStatus?: 'allowed' | 'denied' | 'unavailable'
   includeReadingCandidates: boolean
   candidatePurpose: 'execution' | 'stage_assessment'
   candidateLimit: number
@@ -212,8 +212,11 @@ function mapIntent(value: unknown): IntentReference | null {
 }
 
 async function readIntents(options: CoachingAdapterOptions) {
-  if (options.intentReadAllowed === false) {
+  if (options.intentReadCapabilityStatus === 'denied') {
     return { status: 'not_authorized' as IntentReadStatus, intents: [] as IntentReference[], invalidRows: 0 }
+  }
+  if (options.intentReadCapabilityStatus === 'unavailable') {
+    return { status: 'unavailable' as IntentReadStatus, intents: [] as IntentReference[], invalidRows: 0 }
   }
 
   try {
