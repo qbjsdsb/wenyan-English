@@ -15,7 +15,23 @@
   - `get_learning_overview`
   - `get_weak_words`
   - `get_word_history`
-- Edge Function 自己验证 issuer / JWKS / audience / session / client claims；不读取 service-role key。
+- Edge Function 自己验证 issuer / JWKS / Supabase `authenticated` audience / session / client claims；不读取 service-role key。
+
+### Access-token audience 说明
+
+Supabase OAuth access token 默认仍使用标准 `aud = authenticated`。MCP URL 是 OAuth protected resource 的发现/挑战标识，但 Supabase 不会因为客户端传入 resource 就自动把 JWT `aud` 改成 MCP URL。
+
+因此第一版只读 MCP 校验：
+
+- 签名来自 Supabase JWKS；
+- `iss` 必须是当前项目 Auth issuer；
+- `aud` 必须包含 `authenticated`；
+- `role=authenticated`；
+- 必须带真实 `sub / session_id / client_id`；
+- 禁止匿名用户；
+- 数据层继续由 `auth.uid()` + RLS / 窄 RPC 限定。
+
+如果以后写计划阶段需要资源专用 audience，可再用 Supabase Custom Access Token Hook 对已批准的 ChatGPT client 定向改写 `aud`，而不是在只读阶段假定默认 token 已经具有该 audience。写能力开放前仍必须增加明确的 ChatGPT `client_id` allow policy。
 
 ## Supabase Dashboard 一次性配置
 
