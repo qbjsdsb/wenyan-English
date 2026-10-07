@@ -32,6 +32,7 @@ interface CoachingAdapterOptions {
   supabaseUrl: string
   publishableKey: string
   token: string
+  intentReadAllowed?: boolean
   includeReadingCandidates: boolean
   candidatePurpose: 'execution' | 'stage_assessment'
   candidateLimit: number
@@ -211,6 +212,10 @@ function mapIntent(value: unknown): IntentReference | null {
 }
 
 async function readIntents(options: CoachingAdapterOptions) {
+  if (options.intentReadAllowed === false) {
+    return { status: 'not_authorized' as IntentReadStatus, intents: [] as IntentReference[], invalidRows: 0 }
+  }
+
   try {
     const raw = await postRpc(options.supabaseUrl, 'get_learning_intents', options.token, options.publishableKey)
     if (!Array.isArray(raw)) return { status: 'invalid_response' as IntentReadStatus, intents: [] as IntentReference[], invalidRows: 0 }

@@ -3,6 +3,7 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { z } from 'zod'
 import { buildCloudCoachingContext } from './coaching.ts'
+import { capabilityStatus, loadCapabilitySnapshot, type CapabilityFeature, type CapabilitySnapshot } from './authorization.ts'
 
 const functionName = 'wenyan-english-mcp'
 const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -36,7 +37,9 @@ function normalizeSupabaseRequest(request: Request) {
   return new Request(canonical, request)
 }
 
-async function verifyAccessToken(token: string) {
+type OAuthIdentity = { userId: string; clientId: string; sessionId: string }
+
+async function verifyAccessToken(token: string): Promise<OAuthIdentity> {
   const result = await jwtVerify(token, jwks, {
     issuer,
     audience: 'authenticated',
@@ -60,7 +63,17 @@ async function verifyAccessToken(token: string) {
     throw new Error('INVALID_AUTH')
   }
 
-  return claims
+  return {
+    userId: claims.sub as string,
+    clientId: claims.client_id as string,
+    sessionId: claims.session_id as string,
+  }
+}
+
+function assertCapability(snapshot: CapabilitySnapshot, feature: CapabilityFeature) {
+  const status = capabilityStatus(snapshot, feature)
+  if (status === 'unavailable') throw new Error('CAPABILITY_LOOKUP_UNAVAILABLE')
+  if (status === 'denied') throw new Error(`CAPABILITY_${feature.toUpperCase()}_NOT_GRANTED`)
 }
 
 async function callRpc(name: string, args: Record<string, unknown>, token: string) {
@@ -75,8 +88,6 @@ async function callRpc(name: string, args: Record<string, unknown>, token: strin
   })
 
   if (!response.ok) {
-    if (response.status === 401 || response.status === 403) throw new Error('NOT_AUTHORIZED')
-
     let rpcMessage = ''
     try {
       const payload = await response.json()
@@ -137,6 +148,7 @@ async function callRpc(name: string, args: Record<string, unknown>, token: strin
     ].find((code) => rpcMessage.includes(code))
 
     if (known) throw new Error(`RPC_${known}`)
+    if (response.status === 401 || response.status === 403) throw new Error('NOT_AUTHORIZED')
     throw new Error('CLOUD_UNAVAILABLE')
   }
 
@@ -154,6 +166,13 @@ function toolError(error: unknown, fallback: string) {
   const message = error instanceof Error ? error.message : ''
   const explanations: Record<string, string> = {
     NOT_AUTHORIZED: 'The current OAuth session is not authorized for this Wenyan operation.',
+    CAPABILITY_LOOKUP_UNAVAILABLE: 'Wenyan could not confirm this OAuth client’s capability grants. No restricted action was sent; try again later.',
+    CAPABILITY_INTENT_READ_NOT_GRANTED: 'This OAuth client has not been granted permission to read Wenyan Learning Intent.',
+    CAPABILITY_INTENT_WRITE_NOT_GRANTED: 'This OAuth client has not been granted coach:auto_adjust permission.',
+    CAPABILITY_PLANS_WRITE_NOT_GRANTED: 'This OAuth client has not been granted plans:write permission.',
+    CAPABILITY_DEVICE_READ_NOT_GRANTED: 'This OAuth client has not been granted permission to inspect Wenyan devices.',
+    CAPABILITY_NAVIGATION_CONTROL_NOT_GRANTED: 'This OAuth client has not been granted navigation:control permission.',
+    CAPABILITY_SESSION_CONTROL_NOT_GRANTED: 'This OAuth client has not been granted session:control permission.',
     COACHING_BUDGET_EXCEEDED: 'The bounded Coaching Context exceeded its transport budget. Do not infer omitted learning state.',
     RPC_plans_write_not_granted: 'This OAuth client has not been granted Wenyan plans:write capability.',
     RPC_revision_conflict: 'The cloud state changed since it was last read. Re-read the current revision before retrying.',
@@ -277,12 +296,14 @@ const intentRationaleSchema = z
 const isoTimestampSchema = z.string().datetime({ offset: true })
 
 async function enqueueCommand(
+  capabilities: CapabilitySnapshot,
   token: string,
   requestId: string,
   type: 'open_today' | 'open_dictionary' | 'open_chapter' | 'start_task',
   args: Record<string, unknown>,
   deviceId?: string
 ) {
+  assertCapability(capabilities, type === 'start_task' ? 'session_control' : 'navigation_control')
   return callRpc(
     'enqueue_website_command',
     {
@@ -305,7 +326,7 @@ function queuedCommandResult(command: unknown) {
   })
 }
 
-function createServer(token: string) {
+function createServer(token: string, capabilities: CapabilitySnapshot) {
   const server = new McpServer({ name: 'Wenyan English', version: '0.7.0' })
 
   server.registerTool(
@@ -330,6 +351,7 @@ function createServer(token: string) {
             supabaseUrl,
             publishableKey,
             token,
+            intentReadAllowed: capabilityStatus(capabilities, 'intent_read') === 'allowed',
             includeReadingCandidates,
             candidatePurpose,
             candidateLimit,
@@ -483,6 +505,7 @@ function createServer(token: string) {
     },
     async () => {
       try {
+        assertCapability(capabilities, 'intent_read')
         const intents = await callRpc('get_learning_intents', {}, token)
         return toolResult({
           intents,
@@ -519,6 +542,7 @@ function createServer(token: string) {
     },
     async ({ requestId, scope, expectedRevision, timezone, effectiveFrom, expiresAt, constraints, goals, rationale, changeReason }) => {
       try {
+        assertCapability(capabilities, 'intent_write')
         const result = await callRpc(
           'revise_learning_intent',
           {
@@ -563,6 +587,7 @@ function createServer(token: string) {
     },
     async ({ requestId, scope, expectedRevision, changeReason }) => {
       try {
+        assertCapability(capabilities, 'intent_write')
         const result = await callRpc(
           'clear_learning_intent',
           {
@@ -602,6 +627,7 @@ function createServer(token: string) {
     },
     async ({ requestId, title, timezone, changeReason, tasks }) => {
       try {
+        assertCapability(capabilities, 'plans_write')
         const result = await callRpc(
           'create_study_plan',
           { p_request_id: requestId, p_title: title, p_timezone: timezone, p_tasks: tasks, p_change_reason: changeReason },
@@ -635,6 +661,7 @@ function createServer(token: string) {
     },
     async ({ requestId, planId, expectedRevision, title, timezone, changeReason, tasks }) => {
       try {
+        assertCapability(capabilities, 'plans_write')
         const result = await callRpc(
           'revise_study_plan',
           {
@@ -677,6 +704,7 @@ function createServer(token: string) {
     },
     async ({ requestId, planId, expectedRevision, changeReason }) => {
       try {
+        assertCapability(capabilities, 'plans_write')
         const result = await callRpc(
           'archive_study_plan',
           { p_request_id: requestId, p_plan_id: planId, p_expected_revision: expectedRevision, p_change_reason: changeReason },
@@ -700,6 +728,7 @@ function createServer(token: string) {
     },
     async () => {
       try {
+        assertCapability(capabilities, 'device_read')
         const devices = await callRpc('get_active_devices', {}, token)
         return toolResult({
           devices,
@@ -723,7 +752,7 @@ function createServer(token: string) {
     },
     async ({ requestId, deviceId }) => {
       try {
-        return queuedCommandResult(await enqueueCommand(token, requestId, 'open_today', {}, deviceId))
+        return queuedCommandResult(await enqueueCommand(capabilities, token, requestId, 'open_today', {}, deviceId))
       } catch (error) {
         return toolError(error, 'Wenyan could not queue the Today navigation command. Do not claim the page changed.')
       }
@@ -743,7 +772,7 @@ function createServer(token: string) {
     },
     async ({ requestId, dictId, deviceId }) => {
       try {
-        return queuedCommandResult(await enqueueCommand(token, requestId, 'open_dictionary', { dictId }, deviceId))
+        return queuedCommandResult(await enqueueCommand(capabilities, token, requestId, 'open_dictionary', { dictId }, deviceId))
       } catch (error) {
         return toolError(error, 'Wenyan could not queue the dictionary navigation command. Do not claim the dictionary changed.')
       }
@@ -768,7 +797,7 @@ function createServer(token: string) {
     },
     async ({ requestId, dictId, chapterIndex, deviceId }) => {
       try {
-        return queuedCommandResult(await enqueueCommand(token, requestId, 'open_chapter', { dictId, chapterIndex }, deviceId))
+        return queuedCommandResult(await enqueueCommand(capabilities, token, requestId, 'open_chapter', { dictId, chapterIndex }, deviceId))
       } catch (error) {
         return toolError(error, 'Wenyan could not queue the chapter navigation command. Do not claim the chapter opened.')
       }
@@ -793,7 +822,7 @@ function createServer(token: string) {
     },
     async ({ requestId, planId, taskId, deviceId }) => {
       try {
-        return queuedCommandResult(await enqueueCommand(token, requestId, 'start_task', { planId, taskId }, deviceId))
+        return queuedCommandResult(await enqueueCommand(capabilities, token, requestId, 'start_task', { planId, taskId }, deviceId))
       } catch (error) {
         return toolError(error, 'Wenyan could not queue the plan task. Do not claim the study session started.')
       }
@@ -811,6 +840,7 @@ function createServer(token: string) {
     },
     async ({ commandId }) => {
       try {
+        assertCapability(capabilities, 'device_read')
         const status = await callRpc('get_action_status', { p_command_id: commandId }, token)
         return toolResult({
           status,
@@ -857,8 +887,9 @@ Deno.serve(async (rawRequest: Request) => {
   if (!/^Bearer [^ ]{1,8192}$/.test(authorization)) return json({ error: 'unauthorized' }, 401, challengeHeaders)
 
   const token = authorization.slice(7)
+  let identity: OAuthIdentity
   try {
-    await verifyAccessToken(token)
+    identity = await verifyAccessToken(token)
   } catch {
     return json({ error: 'unauthorized' }, 401, challengeHeaders)
   }
@@ -875,7 +906,14 @@ Deno.serve(async (rawRequest: Request) => {
     return json({ error: 'invalid_json' }, 400)
   }
 
-  const server = createServer(token)
+  const capabilities = await loadCapabilitySnapshot({
+    supabaseUrl,
+    publishableKey,
+    token,
+    userId: identity.userId,
+    clientId: identity.clientId,
+  })
+  const server = createServer(token, capabilities)
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,

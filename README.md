@@ -8,6 +8,7 @@ Wenyan English 是一个只面向个人长期使用的考研英语学习工具�
 - [详细产品与实施计划](docs/IMPLEMENTATION_PLAN.md)
 - [ChatGPT / MCP 智能闭环](docs/INTELLIGENCE_FOUNDATION.md)
 - [当前进度与下一步](docs/STATUS.md)
+- [OAuth capability 修复 v11](docs/oauth-capability-fix-v11.md)
 - [AI 工作约定](AGENTS.md)
 
 ## 当前路线
@@ -16,7 +17,7 @@ Wenyan English 是一个只面向个人长期使用的考研英语学习工具�
 2. IndexedDB / Dexie 继续作为学习时的第一写入点，断网也能正常使用。
 3. 新增不可变的 Learning Events，记录真实学习事实，而不是只同步 UI 状态。
 4. Supabase 负责跨设备同步、长期历史、RLS 与分析 RPC。
-5. ChatGPT / MCP 第一阶段只读学习数据，后续再逐步开放创建复习计划等有限写操作。
+5. ChatGPT / MCP 可读取 owner-scoped 学习证据，并按当前 OAuth client 的显式 capability 创建未来 Learning Intent / Cloud Plan 或排队有限网页命令；历史学习事实不可写。
 
 ## 上游基线
 
@@ -27,7 +28,7 @@ Wenyan English 是一个只面向个人长期使用的考研英语学习工具�
 - Local-first：网络、Supabase 或 ChatGPT 不可用时，背词本身仍应可用。
 - Facts first：原始学习事件追加写入，分析状态可以重算，历史事实不由 AI 随意修改。
 - Privacy first：Wenyan 版本不启用原项目的 Mixpanel / Vercel Analytics 行为埋点。
-- Read-only AI first：MCP 先提供查询与解释，再评估写操作。
+- Capability-gated AI：MCP 先提供 owner-scoped 查询，再按 OAuth client 显式 grant 开放未来意图、计划和受限导航写入；历史事实始终不可写。
 - Small and maintainable：不为了“架构漂亮”拆成复杂 monorepo。
 
 ## 本地开发

@@ -42,6 +42,10 @@ Edge Function 校验：
 
 Edge Function `verify_jwt=false` 是因为函数自己执行上述 OAuth resource-server 校验，不代表匿名开放。函数不读取 `service_role`。
 
+验证 token 后，MCP 使用同一 Bearer token 查询 `public.oauth_client_capabilities`，并同时按签名 token 的 `sub` 与 `client_id` 过滤；RLS 再次限制为当前用户自己的 grant。`session_id` 必须存在并通过签名校验，但现有 capability 表以 user/client 为授权键，不伪称逐 session 授权。
+
+OAuth `openid` scope 只证明身份，不代表 Wenyan capability。Dynamic Client Registration 每创建一个新的 client ID，都必须由用户为这个具体 client 显式授予能力；新 client 不继承旧 client 的权限。Edge preflight 和 SECURITY INVOKER RPC 双重检查，capability 查询故障时受限工具失败关闭。没有自动管理员授权或历史事实写权限。
+
 ## 当前 MCP 能力
 
 只读：
@@ -61,7 +65,7 @@ Edge Function `verify_jwt=false` 是因为函数自己执行上述 OAuth resourc
 
 ## 个人客户端 capability
 
-真实 ChatGPT OAuth client 已显式授予个人使用所需能力：
+Wenyan capability grant 绑定到具体 OAuth client，而不是 ChatGPT 名称；当前个人授权集包括以下 capability。新 DCR client 不继承旧 client 的 grant：
 
 - `plans:read`
 - `plans:write`

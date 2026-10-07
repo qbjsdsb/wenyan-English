@@ -129,6 +129,14 @@ try {
   assert.equal(readOnly.derived.recentLearning.wordAttempts7, 2)
   assert.ok(Buffer.byteLength(JSON.stringify(readOnly)) < 24 * 1024)
 
+  intentMode = 'available'
+  const intentReadsBeforeCapabilityGate = intentReads
+  const capabilityDenied = await buildCloudCoachingContext({ ...options, intentReadAllowed: false })
+  assert.equal(intentReads, intentReadsBeforeCapabilityGate)
+  assert.equal(capabilityDenied.adapter.intentReadStatus, 'not_authorized')
+  assert.equal(capabilityDenied.preferences.currentIntent.length, 0)
+  assert.equal(capabilityDenied.derived.recentLearning.wordAttempts7, 2)
+
   intentMode = 'transport'
   const transportFailure = await buildCloudCoachingContext(options)
   assert.equal(transportFailure.adapter.intentReadStatus, 'unavailable')
@@ -143,7 +151,7 @@ try {
   assert.equal(decodeFailure.derived.recentLearning.wordAttempts7, 2)
   assert.ok(decodeFailure.snapshot.warnings.includes('learning_intent_unavailable'))
 
-  console.log('4 cloud coaching adapter scenarios passed')
+  console.log('5 cloud coaching adapter scenarios passed')
 } finally {
   globalThis.fetch = originalFetch
 }

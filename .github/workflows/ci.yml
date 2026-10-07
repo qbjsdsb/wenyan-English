@@ -36,6 +36,8 @@ jobs:
         run: node --experimental-strip-types scripts/check-coaching.mjs
       - name: Cloud coaching adapter scenario
         run: node --experimental-strip-types scripts/check-coaching-adapter.mjs
+      - name: Wenyan OAuth capability scenarios
+        run: node --experimental-strip-types scripts/check-mcp-authorization.mjs
       - name: Build
         run: yarn build
       - name: Install Chromium

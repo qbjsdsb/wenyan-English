@@ -125,6 +125,18 @@ Rationale 中的 summary/basis/confidence/uncertainties 是解释信息，不是
 
 ## 权限模型
 
+Edge Function 在校验签名、issuer、audience、expiry、`sub`、`client_id`、`session_id` 与非匿名身份后，使用同一 Bearer token 按 `sub + client_id` 读取当前 OAuth client 的 capability。OAuth `openid` 仅认证身份；它不等同于 Wenyan capability。新 DCR client 默认无 grant，查询故障时受限工具失败关闭。
+
+MCP 工具执行前按现有数据库 capability 名称做预检查，RPC/RLS 仍是最终安全边界并会再次检查：
+
+- `get_learning_intents`：`plans:read` 或 `coach:auto_adjust`；
+- `revise_learning_intent / clear_learning_intent`：`coach:auto_adjust`；
+- 创建/修改/归档计划：`plans:write`；
+- 设备读取和命令状态：`navigation:control` 或 `session:control`；
+- 打开 Today、词书或章节：`navigation:control`；启动计划任务：`session:control`。
+
+学习事实读取继续使用当前用户的 RLS ownership 约束；本次没有新增全局读取 grant、历史事实写入权或自动 capability 授予。
+
 Learning Intent OAuth 写入要求：
 
 1. 当前真实 OAuth `client_id`；
