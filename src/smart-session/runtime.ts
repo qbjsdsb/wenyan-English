@@ -71,6 +71,18 @@ function persist(state: SmartSessionRuntime) {
   }
 }
 
+/**
+ * Keep an unfinished Smart Block recoverable even when a newer cloud intent
+ * changes the focus dictionary while the learner is away. A finished/missing
+ * review record is not sticky and the next planner refresh may follow new intent.
+ */
+export async function getRecoverableSmartSessionFocusDictionary(now = Date.now()) {
+  const state = readStored()
+  if (!state?.currentBlock || now - state.updatedAt > MAX_IDLE_MS) return undefined
+  const record = await db.reviewRecords.get(state.currentBlock.reviewRecordId)
+  return record && !record.isFinished ? state.focusDictionary : undefined
+}
+
 export async function loadSmartSessionRuntime(focusDictionary: string, now = Date.now()) {
   let state = readStored()
   if (!state || state.focusDictionary !== focusDictionary || now - state.updatedAt > MAX_IDLE_MS) {
