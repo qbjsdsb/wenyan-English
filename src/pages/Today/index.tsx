@@ -150,7 +150,7 @@ export default function TodayPage() {
                   const planToday = dateInTimezone(now, plan.timezone)
                   return <div key={task.id} className="flex items-center justify-between gap-4 py-4" data-testid={`task-${task.id}`}>
                     <div className="min-w-0">
-                      <p className="mb-1 text-xs text-gray-500">{task.dueDate === planToday ? '今天' : task.dueDate < planToday ? `${task.dueDate} · 待补上` : task.dueDate} · 约 {task.estimatedMinutes} 分钟</p>
+                      <p className="mb-1 text-xs text-gray-500">{task.dueDate === planToday ? '今天' : !complete && task.dueDate < planToday ? `${task.dueDate} · 待补上` : task.dueDate} · 约 {task.estimatedMinutes} 分钟</p>
                       <h4 className="text-sm font-medium">{task.title}</h4>
                       <p className="mt-1 text-xs text-gray-500">{idDictionaryMap[task.dictId]?.name} · 第 {task.chapterIndex + 1} 章</p>
                       <p className="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">{task.reason}</p>

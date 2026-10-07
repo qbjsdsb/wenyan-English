@@ -37,7 +37,7 @@ jobs:
       - name: Verify study plans on this app
         run: yarn playwright test tests/e2e/study-plan.spec.ts
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: study-plan-test-results
           path: test-results/
