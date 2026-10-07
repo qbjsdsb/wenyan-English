@@ -75,3 +75,53 @@ test('Smart Session uses real word facts, has no chapter taskRun, and resumes an
   expect(new URL(page.url()).searchParams.get('taskRun')).toBeNull()
   await expect(page.getByText('按任意键开始', { exact: true })).toBeVisible()
 })
+
+test('active Learning Intent is merged by scope and safely shapes the next block', async ({ page }) => {
+  await page.route('**/rest/v1/rpc/get_learning_intents', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      json: [
+        {
+          scope: 'session',
+          revision: 2,
+          constraints: { targetMinutes: 10, newWordCeiling: 1, intensity: 'gentle' },
+        },
+        {
+          scope: 'ongoing',
+          revision: 4,
+          constraints: { newWordCeiling: 3, reviewPreference: 'balanced' },
+        },
+      ],
+    }),
+  )
+  await page.addInitScript(() => {
+    const now = Math.floor(Date.now() / 1000)
+    localStorage.setItem(
+      'sb-cmjhxvpkdeheujuteqoi-auth-token',
+      JSON.stringify({
+        access_token: 'e2e-access-token',
+        refresh_token: 'e2e-refresh-token',
+        token_type: 'bearer',
+        expires_in: 3600,
+        expires_at: now + 3600,
+        user: {
+          id: '00000000-0000-4000-8000-000000000001',
+          aud: 'authenticated',
+          role: 'authenticated',
+          email: 'e2e@example.com',
+          app_metadata: {},
+          user_metadata: {},
+          identities: [],
+          created_at: new Date().toISOString(),
+        },
+      }),
+    )
+  })
+
+  await page.goto('/today')
+
+  const dock = page.getByRole('complementary', { name: '智能学习' })
+  await expect(dock).toHaveAttribute('data-intent-source', 'cloud')
+  await expect(page.getByText('继续推进 1 个新词', { exact: true })).toBeVisible()
+  await expect(page.getByText(/已按你最近的学习安排自动调整/)).toBeVisible()
+})
