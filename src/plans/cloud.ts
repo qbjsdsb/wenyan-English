@@ -105,7 +105,8 @@ export async function syncCloudPlanToLocal(): Promise<CloudPlanSyncResult> {
 
   const root = asObject(data)
   const planRow = asObject(root?.plan)
-  const rawTasks = Array.isArray(root?.tasks) ? root.tasks : undefined
+  const rawTasksValue = root?.tasks
+  const rawTasks = Array.isArray(rawTasksValue) ? rawTasksValue : undefined
   const planId = asText(planRow?.id)
   const title = asText(planRow?.title)
   const timezone = asText(planRow?.timezone)
