@@ -2,6 +2,12 @@
 
 Wenyan English 是一个只面向个人长期使用的考研英语学习工具。当前以 Qwerty Learner 的成熟打字背词体验为交互基线，在不破坏本地学习手感的前提下，逐步加入本地优先的数据层、Supabase 云同步，以及面向 ChatGPT / MCP 的可解释学习分析能力。
 
+## 开发计划与续接
+
+- [详细产品与实施计划](docs/IMPLEMENTATION_PLAN.md)
+- [当前进度与下一步](docs/STATUS.md)
+- [AI 工作约定](AGENTS.md)
+
 ## 当前路线
 
 1. 保留 Qwerty Learner 已验证的背词、听写、错词和统计体验。
