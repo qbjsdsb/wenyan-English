@@ -8,16 +8,16 @@ Wenyan English 使用独立远程 MCP：`supabase/functions/wenyan-english-mcp/`
 
 - Transport：MCP Streamable HTTP。
 - Authentication：Supabase OAuth 2.1 + DCR。
-- Access token 由 Edge Function 使用 Supabase JWKS、issuer、标准 `aud=authenticated`、session/client claims 校验。
+- Access token 由 Edge Function 使用 Supabase JWKS、issuer、`aud=authenticated`、session/client claims 校验。
 - Edge Function `verify_jwt=false` 是因为函数自己执行 OAuth resource-server 校验，不代表匿名开放。
 - 后端只使用 publishable key + 当前 OAuth Bearer token；绝不读取 `service_role`。
 - 数据层继续由 SECURITY INVOKER RPC + RLS + OAuth client capability 约束。
-- 真实 ChatGPT OAuth/DCR 接入已经完成；个人 ChatGPT client 已显式授予计划读写及后续控制能力。
-- 学习历史 `learning_events` 仍保持不可由 AI 修改或删除。
+- 学习历史 `learning_events` 不可由 AI 修改或删除。
+- Learning Intent 是 future intent，不是 past truth。
 
-当前目标 MCP 版本：`0.5.0`。
+当前目标 MCP 版本：`0.6.0`。
 
-## 学习与计划读取工具
+## 学习证据读取
 
 ### `get_learning_overview`
 读取 1–365 天内的已同步学习事实概览。拼写首次无错率不是语义掌握率；当前 duration 是键间时间聚合，不是首键回忆延迟；未同步设备数据视为未知。
@@ -26,90 +26,104 @@ Wenyan English 使用独立远程 MCP：`supabase/functions/wenyan-english-mcp/`
 读取可解释的近期易错词排序。排名代表“有复习证据”，不代表“这个词一定不会”。
 
 ### `get_word_history`
-读取单个词的有界证据链，包括错误次数、键位错误、v2 条件以及经本地验证的 `taskRunId / planId / taskId`。
+读取单词的有界真实证据链。缺失记录不等于已掌握，也不等于完全未学。
+
+## Learning Intent / AI Coach
+
+### `get_learning_intents`
+读取当前有效的 `ongoing / day / session` future-learning intent。只返回 active、已生效、未过期的 scope。
+
+Smart Session 合并顺序：
+
+`session > day > ongoing > local defaults`
+
+### `revise_learning_intent`
+创建或修改一个 scope。必须先读当前 intent：
+
+- 不存在的 scope 使用 `expectedRevision=0`；
+- 已存在 scope 必须传当前 revision；
+- 每次意图修改使用新的稳定 `requestId`，只有网络重试才复用完全相同的 requestId/payload；
+- `session` 必须在 effective time 后 12 小时内过期；
+- `day` 必须在 effective time 后 48 小时内过期；
+- `ongoing` 可以没有 expiry。
+
+v1 constraints：
+
+- `focusDictionary`
+- `targetMinutes`
+- `hardStopMinutes`
+- `newWordCeiling`
+- `reviewPreference = balanced | review_first`
+- `intensity = gentle | normal`
+- `preferredActivities`
+
+Rationale 中的 summary/basis/confidence/uncertainties 是解释信息，不是 immutable learning fact。
+
+### `clear_learning_intent`
+归档指定 scope，使其停止影响未来 Smart Session。需要最新 revision。不会删除 intent revision history，更不会删除学习事实。
+
+核心 invariant：
+
+> AI may control future learning intent, but must never rewrite past learning truth.
+
+## Cloud Plan v2
 
 ### `get_plan_status`
-读取当前活动 Cloud Plan v2 或指定计划。计划行本身不能宣称完成；只有匹配不可变学习事实产生的 `completionEventId / completedAt` 才是完成证据。
-
-## 计划写工具
+读取当前活动计划或指定计划。只有匹配 immutable learning event 的 `completionEventId / completedAt` 才是完成证据。
 
 ### `create_study_plan`
-创建新的 Cloud Plan v2 未来计划。
-
-第一批执行器只开放 `chapter` 任务：
-- `kind = chapter`
-- `config.dictId`：Wenyan 英语词书 ID
-- `config.chapterIndex`：从 0 开始的章节号
-- `dueDate`：YYYY-MM-DD
-- `estimatedMinutes`：1–240
-
-要求稳定 `requestId`。相同 requestId 只用于对同一次不确定网络请求做重试；数据库 receipt 保证幂等。
+创建新的未来 chapter 计划。第一批执行器只开放真实 `dictId + zero-based chapterIndex`。
 
 ### `revise_study_plan`
-完整改写活动计划的未来章节任务列表。
-
-必须先读 `get_plan_status`，并把最新 `revision` 作为 `expectedRevision`。数据库使用乐观锁拒绝过期修改。已有真实完成证据的任务必须保持 ID、位置及计划字段不变，不能通过改计划篡改历史。
+完整修改活动计划未来任务。必须使用最新 `expectedRevision`；已有 completion evidence 的任务必须原样保留。
 
 ### `archive_study_plan`
-归档活动计划，不删除计划、revision、task 或学习事实。必须携带最新 `expectedRevision`。
+归档计划，不删除 plan、revision、task 或 learning facts。
 
-## 网站设备与控制工具
+## 网站设备与语义控制
 
 ### `get_active_devices`
-读取最近出现过的 Wenyan Web 设备及 `online`、当前页面、词书、章节、模式、taskRun 等状态。只有近期 authenticated heartbeat 才能使设备成为即时控制目标。
+读取近期 Wenyan Web 设备及 online/current page/dictionary/chapter/mode/taskRun。
 
 ### `open_today`
-在一个在线 Wenyan Web 设备排队打开 `/today`。工具成功只表示 durable command 已入队，不表示浏览器已经执行。
+排队打开 Today。
 
 ### `open_dictionary`
-在在线设备选择一个真实 Wenyan 英语 `dictId`，清除 review mode、章节归零并打开 Today。网页执行器会再次验证词书，不信任模型输入。
+选择真实英文词书并打开 Today。
 
 ### `open_chapter`
-在在线设备选择真实英文词书与 zero-based `chapterIndex`，验证真实 `chapterCount` 后打开学习页。不产生 completion。
+选择真实英文词书与 zero-based 章节并进入学习页。
 
 ### `start_task`
-启动指定 Cloud Plan v2 的 chapter task：浏览器先按 `planId` 重新同步云计划，再复用现有 `startStudyTask(planId, taskId)` 创建 taskRun，最后切换到真实词书/章节。启动永远不等于完成。
+启动指定 Cloud Plan chapter task。启动不是完成。
 
 ### `get_action_status`
-读取 durable command 回执。只有 `effectiveStatus=completed` 才代表浏览器报告网页动作执行成功；这仍然不是学习完成证据。
+读取 durable command 回执。只有 `effectiveStatus=completed` 才表示浏览器报告网页动作已执行；仍然不是学习完成。
 
-控制工具都要求稳定 `requestId`，同一个 requestId 只能重试同一意图。没有在线设备时返回 `no_active_device`，模型不得伪称已执行。
+控制工具都要求稳定 `requestId`。没有在线设备时不得伪称已执行。
 
-## 写权限实现
+## 权限模型
 
-计划写工具不是“OAuth token = 随便写表”。必须同时满足：
+Learning Intent OAuth 写入要求：
 
-1. 当前 OAuth session 有真实 `client_id`；
-2. `oauth_client_capabilities` 对当前 user/client 明确授予对应 capability；
-3. 只能通过窄 RPC 调用；
-4. RPC 在事务中设置临时 marker；
-5. RLS 同时检查 user ownership、capability 和 RPC marker；
-6. RPC 全部为 `SECURITY INVOKER`；
-7. 计划 mutation receipt / revision snapshot 保存幂等与变更轨迹。
+1. 当前真实 OAuth `client_id`；
+2. 当前 user/client 显式拥有 `coach:auto_adjust`；
+3. 只能通过 `revise_learning_intent / clear_learning_intent` 窄 RPC；
+4. SECURITY INVOKER；
+5. RLS ownership + RPC transaction marker；
+6. optimistic revision + mutation receipt + revision snapshot。
 
-Command Bus 进一步分开两个身份：OAuth ChatGPT 只能 enqueue / read status；普通 Wenyan Web 登录会话才能 claim / finish。网页命令的 durable row、Realtime private notification、浏览器回执三层组合避免“发出了就当成功”。
-
-## 网站闭环
-
-Cloud Plan v2 是计划真相。Wenyan Today 登录后调用 `get_plan_status`，把可执行 `chapter` 任务同步成 Dexie 云端执行缓存。控制平面的 `start_task` 同样复用这条链：
-
-`Cloud Plan → Dexie cache → taskRun → actual dict/chapter → word facts → chapter_completed`
-
-只有词书、章节和 taskRun 全部匹配，实际完成全章后才附加 `planId / taskId / taskRunId`。Command `completed` 不能替代这条证据链。
-
-云端/Reatime 暂时不可用不会篡改或补造本地学习事实；durable pending command 允许网页重连后补取。
+Cloud Plan 和 Command Bus 继续使用各自 capability。ChatGPT 不能 claim/finish 浏览器命令，普通 Wenyan Web 会话不能冒充 OAuth Coach。
 
 ## 下一阶段
 
-按这个顺序推进：
-
-1. 完成 Command Bus + private Realtime Presence 的真实浏览器/ChatGPT 端到端验收；
-2. `set_practice_mode`；
-3. `pause_session / resume_session / stop_session`；
-4. Smart Review 执行器，然后再开放 `smart_review / weak_words / dictation / mixed_session` 任务类型；
-5. 学习偏好与 `coach:auto_adjust`；
-6. session facts / first-key latency 等 Facts v3。
+1. 真实 OAuth session 验收 Learning Intent：read → create → idempotent retry → revise → invalid reject → clear；
+2. Smart Session 消费云端 intent，按 `session > day > ongoing > local defaults` 合并；
+3. cloud intent 获取失败时回退本地默认值，不能阻止学习；
+4. 把 Smart Session 变成 Today 主入口；
+5. 再接阅读/真题 recommendation 与答题 evidence；
+6. Facts v3 / item-level scheduler 后置。
 
 不要添加 `run_sql(anything)`、`execute_js(anything)`、`control_wenyan(anything)` 这类万能工具。
 
-See also: `docs/CLOUD_PLAN_V2.md`、`docs/COMMAND_BUS.md`、`docs/INTELLIGENCE_FOUNDATION.md`。
+See also: `docs/LEARNING_INTENT_V1.md`、`docs/SMART_SESSION_V1.md`、`docs/AI_COACH_CONTRACT.md`、`docs/CLOUD_PLAN_V2.md`、`docs/COMMAND_BUS.md`。
