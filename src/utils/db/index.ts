@@ -1,5 +1,5 @@
 import type { StoredStudyPlan, StudyPlanRun } from '@/plans/types'
-import type { ChapterCompletedPayload, LearningEventRecord, WordAttemptedPayload } from '@/learning/types'
+import type { ChapterCompletedPayload, LearningEventRecord, LearningSyncCursor, WordAttemptedPayload } from '@/learning/types'
 import { createLearningEvent } from '@/learning/types'
 import { TypingContext, TypingStateActionType } from '@/pages/Typing/store'
 import type { TypingState } from '@/pages/Typing/store/type'
@@ -20,6 +20,7 @@ class RecordDB extends Dexie {
   revisionWordRecords!: Table<IWordRecord, number>
 
   learningEvents!: Table<LearningEventRecord, string>
+  learningSyncCursors!: Table<LearningSyncCursor, string>
 
   studyPlans!: Table<StoredStudyPlan, string>
   studyPlanRuns!: Table<StudyPlanRun, string>
@@ -45,6 +46,9 @@ class RecordDB extends Dexie {
     this.version(5).stores({
       studyPlans: '&id,importedAt',
       studyPlanRuns: '&id,planId,taskId,startedAt',
+    })
+    this.version(6).stores({
+      learningSyncCursors: '&userId',
     })
   }
 }
