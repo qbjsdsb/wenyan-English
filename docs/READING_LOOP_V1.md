@@ -1,5 +1,7 @@
 # Reading Loop v1
 
+> 2026-10-08 续接：当前实现状态见 [STATUS](STATUS.md)；AI 策略、证据摘要、阶段确认及阅读候选边界以 [AI_COACHING_LOOP_V1](AI_COACHING_LOOP_V1.md) 为准。本文的旧阶段状态不代表当前部署。
+
 更新：2026-10-07。
 
 Reading 是 Astra `Smart Session → Block → Activity` 架构中的第二种真实 Activity。它扩展现有学习大脑，不重写 Smart Session、AI Coach、Cloud Plan 或 Qwerty。
@@ -110,11 +112,11 @@ v1 先完成最小可信执行链：
 
 - stable `contentId`
 - estimated seconds
-- deterministic recommendation rank
+- deterministic eligible set + 稳定展示次序（不是适配分数）
 - reason code
 - evidence refs
 
-Smart Session 只消费可信 adapter 产生的 candidate，不让 LLM 直接逐篇排执行顺序。
+ChatGPT 可在可信 eligible set 中选择具体文章与目的；Smart Session 只消费可信 adapter 重新校验后的 candidate，逐项执行约束仍由代码决定。
 
 ## 7. Smart Session 接入原则
 

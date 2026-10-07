@@ -32,6 +32,8 @@ jobs:
         run: yarn tsc --noEmit
       - name: Smart Session deterministic scenarios
         run: node --experimental-strip-types scripts/check-smart-session.mjs
+      - name: AI Coaching deterministic scenarios
+        run: node --experimental-strip-types scripts/check-coaching.mjs
       - name: Build
         run: yarn build
       - name: Install Chromium

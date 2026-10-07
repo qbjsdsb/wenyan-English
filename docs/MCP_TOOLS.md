@@ -127,3 +127,7 @@ Cloud Plan 和 Command Bus 继续使用各自 capability。ChatGPT 不能 claim/
 不要添加 `run_sql(anything)`、`execute_js(anything)`、`control_wenyan(anything)` 这类万能工具。
 
 See also: `docs/LEARNING_INTENT_V1.md`、`docs/SMART_SESSION_V1.md`、`docs/AI_COACH_CONTRACT.md`、`docs/CLOUD_PLAN_V2.md`、`docs/COMMAND_BUS.md`。
+
+## AI Coaching Loop v1（合同已定，工具尚未上线）
+
+`get_coaching_context` 的窄输入 schema、输出、覆盖口径、token 预算与 drill-down 见 [AI_COACHING_LOOP_V1](AI_COACHING_LOOP_V1.md)。纯核心在 `src/coaching/`；本批未修改/部署 MCP 或 Supabase。`get_reading_candidates` 与 `confirm_learning_stage` 仍为后续接入；generic `revise_learning_intent` 不获得 stage 写权限。

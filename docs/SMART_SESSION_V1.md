@@ -1,5 +1,7 @@
 # Smart Session v1：文研英语的学习编排
 
+> 2026-10-08 续接：当前实现状态见 [STATUS](STATUS.md)；AI 策略、证据摘要、阶段确认及阅读候选边界以 [AI_COACHING_LOOP_V1](AI_COACHING_LOOP_V1.md) 为准。本文的旧阶段状态不代表当前部署。
+
 状态：正式设计与独立纯 TypeScript core，尚未接入 Today / 打字执行器。2026-10-07。
 恢复基线：远端 main b982d2d，PR #10–15 已合并。Facts v2、Cloud Plan 章节写入/缓存、设备命令已存在；旧 STATUS 的“只读阶段”不是当前事实。
 
