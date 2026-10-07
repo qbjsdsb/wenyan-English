@@ -36,9 +36,15 @@ function normalizeSupabaseRequest(request: Request) {
 }
 
 async function verifyAccessToken(token: string) {
+  // Supabase OAuth access tokens keep the standard authenticated audience unless
+  // a Custom Access Token Hook explicitly rewrites `aud`. The MCP resource URL
+  // is advertised for OAuth discovery/challenges, but it is not the default JWT
+  // audience. Client-specific authorization is therefore enforced with the
+  // required OAuth `client_id`, user/session claims and RLS rather than by
+  // pretending Supabase minted a resource-specific audience.
   const result = await jwtVerify(token, jwks, {
     issuer,
-    audience: resource,
+    audience: 'authenticated',
     algorithms: ['ES256', 'RS256'],
     requiredClaims: ['exp', 'sub', 'aud', 'iss', 'session_id', 'client_id'],
   })

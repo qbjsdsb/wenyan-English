@@ -35,7 +35,7 @@ jobs:
       - name: Install Chromium
         run: yarn playwright install --with-deps chromium
       - name: Verify Wenyan browser flows
-        run: yarn playwright test tests/e2e/study-plan.spec.ts tests/e2e/sync-queue.spec.ts tests/e2e/event-restore.spec.ts
+        run: yarn playwright test tests/e2e/study-plan.spec.ts tests/e2e/sync-queue.spec.ts tests/e2e/event-restore.spec.ts tests/e2e/oauth-consent.spec.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:
