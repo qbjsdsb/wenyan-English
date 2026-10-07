@@ -5,6 +5,8 @@ import type {
   LearningEventType,
   LearningSyncCursor,
   PlanTaskFactContext,
+  QuestionAttemptedPayload,
+  ReadingCompletedPayload,
   WordAttemptedPayload,
 } from '@/learning/types'
 import type { WordDictationType } from '@/typings'
@@ -38,6 +40,11 @@ function asString(value: unknown, label: string) {
   return value
 }
 
+function asNullableString(value: unknown, label: string) {
+  if (value === null) return null
+  return asString(value, label)
+}
+
 function asOptionalString(value: unknown, label: string) {
   if (value === undefined) return undefined
   return asString(value, label)
@@ -46,6 +53,12 @@ function asOptionalString(value: unknown, label: string) {
 function asNumber(value: unknown, label: string) {
   if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error(`${label}格式无效。`)
   return value
+}
+
+function asNonNegativeInteger(value: unknown, label: string) {
+  const number = asNumber(value, label)
+  if (!Number.isInteger(number) || number < 0) throw new Error(`${label}格式无效。`)
+  return number
 }
 
 function asIntegerOrNull(value: unknown, label: string): number | null {
@@ -58,6 +71,11 @@ function asIntegerOrNull(value: unknown, label: string): number | null {
 function asBoolean(value: unknown, label: string) {
   if (typeof value !== 'boolean') throw new Error(`${label}格式无效。`)
   return value
+}
+
+function asStringArray(value: unknown, label: string) {
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) throw new Error(`${label}格式无效。`)
+  return value as string[]
 }
 
 function parseMistakes(value: unknown) {
@@ -129,14 +147,60 @@ function parseChapterPayload(value: unknown, sourceVersion: LearningEventSourceV
   return sourceVersion === 1 ? base : { ...base, ...parseTaskContext(payload) }
 }
 
+function parseQuestionPayload(value: unknown, sourceVersion: LearningEventSourceVersion): QuestionAttemptedPayload {
+  if (sourceVersion < 3) throw new Error('答题记录版本无效。')
+  const payload = asObject(value, '答题记录')
+  if (payload.questionType !== 'single_choice') throw new Error('题型记录格式无效。')
+  const isCorrect = payload.isCorrect === null ? null : asBoolean(payload.isCorrect, '答题结果')
+  return {
+    attemptId: asString(payload.attemptId, '阅读尝试 ID'),
+    passageId: asString(payload.passageId, '文章 ID'),
+    passageVersion: asString(payload.passageVersion, '文章版本'),
+    questionId: asString(payload.questionId, '题目 ID'),
+    questionType: 'single_choice',
+    selectedOptionId: asNullableString(payload.selectedOptionId, '用户选项'),
+    correctOptionId: asString(payload.correctOptionId, '正确选项'),
+    answered: asBoolean(payload.answered, '是否作答'),
+    isCorrect,
+    answerChangeCount: asNonNegativeInteger(payload.answerChangeCount, '改答案次数'),
+    questionTags: asStringArray(payload.questionTags, '题目标签'),
+  }
+}
+
+function parseReadingCompletedPayload(value: unknown, sourceVersion: LearningEventSourceVersion): ReadingCompletedPayload {
+  if (sourceVersion < 3) throw new Error('阅读完成记录版本无效。')
+  const payload = asObject(value, '阅读完成记录')
+  const sourceKind = payload.sourceKind
+  if (sourceKind !== 'wenyan-original' && sourceKind !== 'private-import' && sourceKind !== 'public-domain') {
+    throw new Error('阅读来源格式无效。')
+  }
+  return {
+    attemptId: asString(payload.attemptId, '阅读尝试 ID'),
+    passageId: asString(payload.passageId, '文章 ID'),
+    passageVersion: asString(payload.passageVersion, '文章版本'),
+    sourceKind,
+    durationMs: asNonNegativeInteger(payload.durationMs, '阅读耗时'),
+    questionCount: asNonNegativeInteger(payload.questionCount, '题目数'),
+    answeredCount: asNonNegativeInteger(payload.answeredCount, '作答数'),
+    correctCount: asNonNegativeInteger(payload.correctCount, '答对数'),
+  }
+}
+
 function parseEventType(value: string): LearningEventType {
-  if (value === 'word_attempted' || value === 'chapter_completed') return value
+  if (value === 'word_attempted' || value === 'chapter_completed' || value === 'question_attempted' || value === 'reading_completed') return value
   throw new Error(`云端包含当前版本不支持的学习事件：${value}。请更新 Wenyan 后再同步。`)
 }
 
 function parseSourceVersion(value: number): LearningEventSourceVersion {
-  if (value === 1 || value === 2) return value
+  if (value === 1 || value === 2 || value === 3) return value
   throw new Error('云端包含当前版本不支持的 Wenyan 学习记录。请更新应用后再同步。')
+}
+
+function parsePayload(eventType: LearningEventType, payload: unknown, sourceVersion: LearningEventSourceVersion) {
+  if (eventType === 'word_attempted') return parseWordPayload(payload, sourceVersion)
+  if (eventType === 'chapter_completed') return parseChapterPayload(payload, sourceVersion)
+  if (eventType === 'question_attempted') return parseQuestionPayload(payload, sourceVersion)
+  return parseReadingCompletedPayload(payload, sourceVersion)
 }
 
 function toLocalEvent(row: RemoteLearningEvent, userId: string): LearningEventRecord {
@@ -158,7 +222,7 @@ function toLocalEvent(row: RemoteLearningEvent, userId: string): LearningEventRe
     syncState: 'synced',
     syncAttempts: 0,
     ownerUserId: userId,
-    payload: eventType === 'word_attempted' ? parseWordPayload(row.payload, sourceVersion) : parseChapterPayload(row.payload, sourceVersion),
+    payload: parsePayload(eventType, row.payload, sourceVersion),
   }
 }
 
