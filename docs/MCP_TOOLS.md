@@ -6,7 +6,7 @@ Wenyan English 的 ChatGPT 集成采用独立的远程 MCP。第一阶段严格�
 
 英语插件源码以本仓库 `supabase/functions/wenyan-english-mcp/` 为唯一源码真相。Supabase 项目中更早存在的 `wenyan-mcp` / `wenyan_private` 实现属于此前 Wenyan 路线，不再作为英语插件的隐形生产源码。
 
-## 当前已部署的只读端点
+## 当前只读端点
 
 Supabase Edge Function：`wenyan-english-mcp`。
 
@@ -58,23 +58,47 @@ Interpretation rules:
 - a missing word is not proof of mastery.
 - current facts cannot yet separate all spelling, semantic-recall and listening causes.
 
+### `get_word_history`
+
+Backed by `public.get_word_history` (`SECURITY INVOKER`).
+
+Inputs:
+- `word` (1–100 chars)
+- `limit` (1–100, default 30)
+
+Returns newest-first committed observations for exactly one word. Each row is bounded to useful evidence instead of returning the whole raw payload:
+
+- stable `evidence_id`
+- occurred / received timestamps
+- source version
+- dict / chapter / review mode
+- wrong count and inter-key duration aggregate
+- recorded mistake positions/keys
+- v2 raw dictation UI fields when available
+- validated `taskRunId / planId / taskId` when the attempt came from a matching active plan task
+
+Interpretation rules:
+
+- `wrong_count` and `mistakes` are observed spelling/key evidence, not a semantic-memory diagnosis.
+- `duration_ms` is still not first-key recall latency.
+- v1 history legitimately lacks v2 dictation/task fields; missing fields are not backfilled by inference.
+- zero returned rows means no committed evidence was found, not “mastered”.
+
+The supporting expression index is scoped to this user+word history access path; the function still checks `auth.uid()` and table RLS as defense in depth.
+
 ## Next read tools
 
 Implement in this order:
 
-1. `get_word_history`
-   - one stable word ID
-   - bounded event history
-   - evidence IDs and missing-field notes
-2. `get_recent_sessions`
+1. `get_recent_sessions`
    - requires session facts v2
    - start/finish/interruption/mode/task association
-3. `get_review_pressure`
+2. `get_review_pressure`
    - deterministic due / backlog summary
    - no invented causal explanation
-4. `get_plan_status`
+3. `get_plan_status`
    - cloud plan + task + real completion evidence
-5. `get_learning_profile`
+4. `get_learning_profile`
    - explicit exam target, exam date, available time and preferences
 
 Do not add a generic `get_all_my_data`. ChatGPT should query summary first and drill into evidence only when useful.

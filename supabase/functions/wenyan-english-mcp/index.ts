@@ -88,8 +88,23 @@ function toolResult(data: unknown) {
   }
 }
 
+function readError(error: unknown, fallback: string) {
+  return {
+    isError: true,
+    content: [
+      {
+        type: 'text' as const,
+        text:
+          error instanceof Error && error.message === 'NOT_AUTHORIZED'
+            ? 'The current OAuth session is not authorized to read Wenyan English learning data.'
+            : fallback,
+      },
+    ],
+  }
+}
+
 function createServer(token: string) {
-  const server = new McpServer({ name: 'Wenyan English', version: '0.1.0' })
+  const server = new McpServer({ name: 'Wenyan English', version: '0.2.0' })
 
   server.registerTool(
     'get_learning_overview',
@@ -124,18 +139,7 @@ function createServer(token: string) {
           },
         })
       } catch (error) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: 'text' as const,
-              text:
-                error instanceof Error && error.message === 'NOT_AUTHORIZED'
-                  ? 'The current OAuth session is not authorized to read Wenyan English learning data.'
-                  : 'Committed Wenyan English learning data is temporarily unavailable. Do not infer missing history.',
-            },
-          ],
-        }
+        return readError(error, 'Committed Wenyan English learning data is temporarily unavailable. Do not infer missing history.')
       }
     }
   )
@@ -174,18 +178,57 @@ function createServer(token: string) {
             'Rank by observed mistakes and typing duration. A missing word is not evidence of mastery, and a ranked word may be a spelling issue rather than a semantic-memory issue.',
         })
       } catch (error) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: 'text' as const,
-              text:
-                error instanceof Error && error.message === 'NOT_AUTHORIZED'
-                  ? 'The current OAuth session is not authorized to read Wenyan English learning data.'
-                  : 'Weak-word evidence is temporarily unavailable. Do not invent a weak-word list.',
-            },
-          ],
-        }
+        return readError(error, 'Weak-word evidence is temporarily unavailable. Do not invent a weak-word list.')
+      }
+    }
+  )
+
+  server.registerTool(
+    'get_word_history',
+    {
+      description:
+        'Read a bounded evidence trail for one English word from committed Wenyan learning facts. Use this after an overview or weak-word result to explain what was actually observed. Missing observations are unknown, not evidence of mastery.',
+      inputSchema: z
+        .object({
+          word: z.string().trim().min(1).max(100),
+          limit: z.number().int().min(1).max(100).default(30),
+        })
+        .strict(),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      _meta: { securitySchemes: [{ type: 'oauth2', scopes: ['openid'] }] },
+    },
+    async ({ word, limit }) => {
+      try {
+        const history = await callRpc('get_word_history', { p_word: word, p_limit: limit }, token)
+        const observations = Array.isArray(history) ? history : []
+        return toolResult({
+          word: word.trim(),
+          observations,
+          evidenceCount: observations.length,
+          coverage: {
+            source: 'synced Wenyan English word_attempted facts only',
+            offline_or_unsynced_devices: 'unknown',
+            newestFirst: true,
+            limit,
+          },
+          interpretation: {
+            wrongCount: 'Observed incorrect key attempts in this Qwerty word attempt.',
+            durationMs: 'Recorded inter-key timing aggregate; not first-key recall latency.',
+            dictationFields: 'Raw Qwerty UI conditions available only on v2 facts; they do not by themselves prove semantic recall or listening ability.',
+            taskFields: 'Present only when Wenyan locally validated the active plan run against the actual dictionary and chapter.',
+          },
+          missing:
+            observations.length === 0
+              ? 'No committed observations were found for this word. Do not infer that the word is mastered or unstudied on unsynced devices.'
+              : undefined,
+        })
+      } catch (error) {
+        return readError(error, 'Word-history evidence is temporarily unavailable. Do not invent observations for this word.')
       }
     }
   )
