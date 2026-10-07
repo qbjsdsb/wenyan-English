@@ -53,6 +53,8 @@ function readStored(): SmartSessionRuntime | undefined {
     const value = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? 'null') as SmartSessionRuntime | null
     if (!value || value.schemaVersion !== 1 || typeof value.id !== 'string' || typeof value.focusDictionary !== 'string') return undefined
     if (!Number.isFinite(value.startedAt) || !Number.isFinite(value.updatedAt)) return undefined
+    if (!Number.isFinite(value.completedBlocks) || !Number.isFinite(value.newItemsIntroduced)) return undefined
+    if (!Number.isFinite(value.estimatedActiveSeconds) || !Number.isFinite(value.estimatedActiveSecondsSinceBreak)) return undefined
     if (!Array.isArray(value.attemptedKeys)) return undefined
     return value
   } catch {
@@ -83,13 +85,9 @@ export async function loadSmartSessionRuntime(focusDictionary: string, now = Dat
       state = { ...state, currentBlock: undefined, updatedAt: now }
       persist(state)
     } else if (record.isFinished) {
-      const attempted = new Set([...state.attemptedKeys, ...state.currentBlock.keys])
       state = {
         ...state,
         completedBlocks: state.completedBlocks + 1,
-        attemptedKeys: Array.from(attempted),
-        newItemsIntroduced:
-          state.newItemsIntroduced + (state.currentBlock.purpose === 'new' ? state.currentBlock.keys.length : 0),
         estimatedActiveSeconds: state.estimatedActiveSeconds + state.currentBlock.estimatedSeconds,
         estimatedActiveSecondsSinceBreak: state.estimatedActiveSecondsSinceBreak + state.currentBlock.estimatedSeconds,
         currentBlock: undefined,
@@ -100,6 +98,23 @@ export async function loadSmartSessionRuntime(focusDictionary: string, now = Dat
   }
 
   return state
+}
+
+export function reconcileSmartRuntimeEvidence(
+  state: SmartSessionRuntime,
+  attemptedKeys: readonly string[],
+  newItemsIntroduced: number,
+  now = Date.now(),
+) {
+  const merged = new Set([...state.attemptedKeys, ...attemptedKeys])
+  const next: SmartSessionRuntime = {
+    ...state,
+    attemptedKeys: Array.from(merged),
+    newItemsIntroduced: Math.max(state.newItemsIntroduced, newItemsIntroduced),
+    updatedAt: now,
+  }
+  persist(next)
+  return next
 }
 
 export function beginSmartBlock(
