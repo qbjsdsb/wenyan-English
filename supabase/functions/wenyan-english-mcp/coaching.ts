@@ -223,8 +223,8 @@ async function readIntents(options: CoachingAdapterOptions) {
   } catch (error) {
     const message = error instanceof Error ? error.message : ''
     if (message === 'NOT_AUTHORIZED') return { status: 'not_authorized' as IntentReadStatus, intents: [] as IntentReference[], invalidRows: 0 }
-    if (message === 'CLOUD_UNAVAILABLE') return { status: 'unavailable' as IntentReadStatus, intents: [] as IntentReference[], invalidRows: 0 }
-    throw error
+    // Intent is optional enrichment. HTTP failures, rejected fetches and decode errors must not hide valid learning facts.
+    return { status: 'unavailable' as IntentReadStatus, intents: [] as IntentReference[], invalidRows: 0 }
   }
 }
 
