@@ -45,7 +45,7 @@ Wenyan English 已从“Qwerty + 云同步”进入 **Local-first deterministic 
 
 ### live MCP Coaching Context
 
-PR #24 已把 `get_coaching_context` 接入 MCP 0.7.0。PR #25 进一步完成 Coaching Context v1.1 hardening：
+PR #24 已把 `get_coaching_context` 接入 MCP 0.7.0。PR #25 进一步完成 Coaching Context v1.1 hardening，并已合并到 `main`（merge `1d48df3a64551da79bd60a6c2b362665fdcbce76`）：
 
 - `word_attempted` 云事实是必需来源；active Learning Intent 是可选增强。
 - 没有 Intent read capability、Intent HTTP 故障、fetch reject 或 JSON decode 失败时，不再拖垮整个 Coaching Context；返回词汇证据并把 Intent 明确标记为 unknown/unavailable。
@@ -59,23 +59,24 @@ PR #24 已把 `get_coaching_context` 接入 MCP 0.7.0。PR #25 进一步完成 C
 
 没有为此扩大 OAuth capability、没有 service-role、没有数据库 migration、没有学习事实写权限。
 
-## 本批验证
+## 本批最终验证与生产状态
 
-PR #25 首个 hardening head 的 GitHub Actions `Wenyan CI` run #91 已完整成功：
+PR #25 最终 head `5f06ea7e20bc8d18a11f9dfd92b3e48efdbc32fb` 的 GitHub Actions `Wenyan CI` run #94 已完整成功，最终验证覆盖：
 
-- Yarn install
-- lint
-- TypeScript typecheck
-- Smart Session deterministic scenarios
-- AI Coaching deterministic scenarios
-- Cloud coaching adapter scenarios
-- production build
-- Chromium install
-- Wenyan browser regression flows
+- Yarn install、lint、TypeScript typecheck；
+- Smart Session 16 组 deterministic scenarios；
+- AI Coaching 16 组 deterministic scenarios；
+- Cloud Coaching adapter 4 条场景：正常 Intent、无 Intent 权限、网络 reject、JSON decode failure；
+- production build；
+- Chromium 安装与 Wenyan browser regression flows。
 
-自动 Code Review 随后指出两处收尾：STATUS 过期，以及 optional Intent transport/decode failure 仍需降级。本分支已继续修复，并把 adapter 场景扩展为：正常 Intent、无 Intent 权限、网络 reject、JSON decode failure。**最终合并只能以最新 head 的新一轮 CI 成功为准，不能拿 run #91 替代最终 head 验证。**
+PR #25 自动 Code Review 的 STATUS 与 optional Intent transport/decode 两项反馈均已修复、回复并 resolve；不能再引用更早的 run #91 替代最终 head 验证。
 
-Supabase 生产环境已核实存在真实 ChatGPT/OpenAI MCP OAuth 流量；历史日志中可见已认证的 `openai-mcp` 调用和成功响应。生产 Edge Function 的最终版本与源码必须在本 PR 合并后重新部署并再次核实，不能因仓库代码已合并就声称生产已更新。
+生产 Supabase 项目 `cmjhxvpkdeheujuteqoi` 的 `wenyan-english-mcp` 已从 v9 部署为 **v10 ACTIVE**。部署后重新读取生产 Edge Function 源码，已确认包含 `coaching-context-v1.1` 的降级读取、分页接收水位、SHA-256 fingerprint、非回放 evidence refs 与 snapshot descriptor。
+
+生产公开 OAuth protected-resource discovery 已在部署后做 live fetch，返回 HTTP 200，`resource`、Supabase `authorization_servers`、`openid` scope 与 bearer header metadata 正常。当前这个 ChatGPT 会话没有暴露私人 Wenyan custom-plugin 工具，因此**没有伪称完成一次新的 post-deploy 已认证 `get_coaching_context` 调用**；此前生产日志已证明真实 OpenAI MCP OAuth 集成存在并有成功调用。下一次有私人插件工具可用时，可把一次真实 authenticated `get_coaching_context` 作为补充验收，而不是把它误写成当前已执行。
+
+部署后重新运行 Supabase Security / Performance Advisor，没有出现本批新增的英语 MCP DDL/RLS 安全问题；现存提示来自旧 `wenyan_private` 路线、账户 leaked-password protection，以及低使用量/旧索引提示。本批没有数据库变更，不为清零 Advisor 而擅自修改旧系统。
 
 ## 当前仍未完成 / 不得误称实现
 
@@ -88,7 +89,7 @@ Supabase 生产环境已核实存在真实 ChatGPT/OpenAI MCP OAuth 流量；历
 
 ## 下一步优先级
 
-收完 PR #25 的最终 CI、merge、生产 Edge Function 部署与生产 smoke 后，下一批按以下顺序：
+Coaching Context v1.1 的代码、CI、合并、生产部署与公开 OAuth discovery 已收口。下一批直接按以下顺序推进，不再重复本批工作：
 
 1. stage preference + verified user confirmation provenance + reminder suppression；
 2. owner-scoped last-valid Intent cache、日界/session binding、hard-stop；
@@ -116,7 +117,7 @@ yarn build
 - Supabase 当前项目与 `wenyan-english-mcp` 实际版本；
 - Edge Function 源码是否与 `main` 一致；
 - `verify_jwt=false` 只因函数自身执行 OAuth resource-server JWT 校验，不代表匿名开放；
-- OAuth protected-resource discovery、未认证拒绝、已认证 MCP tool call；
+- OAuth protected-resource discovery、未认证拒绝；有私人插件工具时补真实 authenticated MCP tool smoke；
 - Supabase security/performance advisors；
 - 不提交 token、secret、真实学习历史。
 
