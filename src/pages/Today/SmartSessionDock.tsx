@@ -1,4 +1,4 @@
-import { prepareSmartVocabularySession, startPreparedVocabularyBlock, type PreparedSmartSession } from '@/smart-session/adapter'
+import { type PreparedSmartSession, prepareSmartVocabularySession, startPreparedVocabularyBlock } from '@/smart-session/adapter'
 import { acknowledgeSmartBreak } from '@/smart-session/runtime'
 import { currentChapterAtom, currentDictIdAtom, currentDictInfoAtom, reviewModeInfoAtom } from '@/store'
 import { useAtomValue, useSetAtom } from 'jotai'
