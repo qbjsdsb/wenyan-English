@@ -21,9 +21,11 @@ test.beforeEach(async ({ page }) => {
 test('Smart Session uses real word facts, has no chapter taskRun, and resumes an unfinished block', async ({ page }) => {
   await page.goto('/today')
 
-  const start = page.getByRole('button', { name: '开始学习', exact: true })
+  const smartRegion = page.getByRole('region', { name: '智能学习' })
+  await expect(smartRegion).toBeVisible()
+  const start = smartRegion.getByRole('button', { name: '开始学习', exact: true })
   await expect(start).toBeEnabled()
-  await expect(page.getByText(/继续推进 3 个新词/)).toBeVisible()
+  await expect(smartRegion.getByText(/继续推进 3 个新词/)).toBeVisible()
   await start.click()
 
   await expect(page).toHaveURL(/smartSession=/)
@@ -120,8 +122,8 @@ test('active Learning Intent is merged by scope and safely shapes the next block
 
   await page.goto('/today')
 
-  const dock = page.getByRole('complementary', { name: '智能学习' })
+  const dock = page.getByRole('region', { name: '智能学习' })
   await expect(dock).toHaveAttribute('data-intent-source', 'cloud')
-  await expect(page.getByText('继续推进 1 个新词', { exact: true })).toBeVisible()
-  await expect(page.getByText(/已按你最近的学习安排自动调整/)).toBeVisible()
+  await expect(dock.getByText('继续推进 1 个新词', { exact: true })).toBeVisible()
+  await expect(dock.getByText(/已按你最近的学习安排自动调整/)).toBeVisible()
 })

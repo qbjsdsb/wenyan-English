@@ -14,6 +14,7 @@ import { saveAs } from 'file-saver'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import SmartSessionDock from './SmartSessionDock'
 
 const panel = 'rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
 const secondary =
@@ -158,37 +159,39 @@ export default function TodayPage() {
         <div className="mb-8 flex items-end justify-between gap-6">
           <div>
             <p className="mb-3 text-xs tracking-[0.18em] text-gray-500">{today.replace(/-/g, ' / ')} · 今日学习</p>
-            <h1 className="text-3xl font-semibold tracking-tight">留一点时间，给英语。</h1>
-            <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">从上次停下的地方，继续往前。</p>
+            <h1 className="text-3xl font-semibold tracking-tight">今天继续就好。</h1>
+            <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">先做现在最值得做的一小段；想停就停，下次会重新计算。</p>
           </div>
           <Link to="/sync" className="mb-1 text-xs text-gray-500 underline-offset-4 hover:underline">
             {data ? `本机待同步 ${data.pending} 条` : '读取本机记录…'}
           </Link>
         </div>
 
-        <section aria-label="继续学习" className={`${panel} mb-7 overflow-hidden`}>
-          <div className="flex flex-wrap items-center justify-between gap-8 p-8 lg:p-10">
+        <SmartSessionDock />
+
+        <section aria-label="手动学习" className={`${panel} mb-7 overflow-hidden`}>
+          <div className="flex flex-wrap items-center justify-between gap-6 p-6 lg:px-8">
             <div>
-              <p className="text-xs font-medium tracking-widest text-indigo-600 dark:text-indigo-300">当前词书</p>
-              <h2 className="mb-2 mt-4 text-2xl font-semibold">
+              <p className="text-xs font-medium tracking-widest text-gray-500">手动继续</p>
+              <h2 className="mb-1 mt-3 text-lg font-semibold">
                 {dict.name}
-                <span className="ml-4 text-base font-normal text-gray-400">第 {chapter + 1} 章</span>
+                <span className="ml-3 text-sm font-normal text-gray-400">第 {chapter + 1} 章</span>
               </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{dict.description}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">想自己指定词书或章节时，再从这里进入。</p>
             </div>
-            <div className="flex items-center gap-5">
+            <div className="flex items-center gap-4">
               <Link to="/gallery" className="text-sm text-gray-500 hover:text-indigo-500">换一本词书</Link>
-              <Link to="/" className="rounded-xl bg-indigo-600 px-7 py-3.5 text-sm font-medium text-white transition-colors hover:bg-indigo-700">继续学习 →</Link>
+              <Link to="/" className={secondary}>打开当前章节</Link>
             </div>
           </div>
-          <div className="grid grid-cols-3 border-t border-gray-100 bg-gray-50/70 px-8 py-5 dark:border-gray-700 dark:bg-gray-900/30 lg:px-10">
+          <div className="grid grid-cols-3 border-t border-gray-100 bg-gray-50/70 px-6 py-4 dark:border-gray-700 dark:bg-gray-900/30 lg:px-8">
             {[
               [data?.attempts ?? '—', '今日单词练习次数'],
               [data && data.attempts ? `${Math.round((data.correct / data.attempts) * 100)}%` : '—', '首次无错拼写率'],
               [data?.chapters ?? '—', '今日完成章节'],
             ].map(([value, label]) => (
               <div key={label} className="space-y-1">
-                <div className="text-xl font-semibold tabular-nums">{value}</div>
+                <div className="text-lg font-semibold tabular-nums">{value}</div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">{label}</div>
               </div>
             ))}
@@ -308,7 +311,7 @@ export default function TodayPage() {
             </section>
             <section className="px-2 py-1">
               <h2 className="mb-2 text-sm font-medium">ChatGPT 已连接</h2>
-              <p className="text-xs leading-6 text-gray-500 dark:text-gray-400">登录 Wenyan Cloud 后，ChatGPT 创建或调整的 Cloud Plan 会同步到这里。当前第一批支持直接执行章节任务；智能复习和网站控制正在接入。</p>
+              <p className="text-xs leading-6 text-gray-500 dark:text-gray-400">ChatGPT 可以调整未来学习意图和云计划；Smart Session 会在开始下一段时读取最新安排。真实学习事实仍由你的实际练习产生。</p>
               <Link to="/sync" className="mt-3 inline-block text-xs text-indigo-600 dark:text-indigo-300">管理云同步登录 →</Link>
             </section>
           </aside>

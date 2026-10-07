@@ -28,6 +28,16 @@ function intentNote(intent: ResolvedSmartSessionIntent | undefined, prepared: Pr
   return '随时可以停，下次会重新计算，不会累积成欠任务。'
 }
 
+function blockMeta(prepared: PreparedSmartSession | undefined, intent: ResolvedSmartSessionIntent | undefined) {
+  if (prepared?.kind === 'resume') return ['未完成的一段会原样继续']
+  const block = prepared?.kind === 'draft' ? prepared.draft.blocks[0] : undefined
+  const items = block?.activity.items.length ?? 0
+  const minutes = block ? Math.max(1, Math.ceil(block.estimatedSeconds / 60)) : 0
+  const meta = block ? [`约 ${minutes} 分钟`, `${items} 个词`] : []
+  if (intent?.source === 'cloud') meta.push('最近安排已应用')
+  return meta
+}
+
 export default function SmartSessionDock() {
   const dict = useAtomValue(currentDictInfoAtom)
   const setDict = useSetAtom(currentDictIdAtom)
@@ -70,6 +80,7 @@ export default function SmartSessionDock() {
 
   const label = useMemo(() => purposeLabel(prepared), [prepared])
   const note = useMemo(() => intentNote(intent, prepared), [intent, prepared])
+  const meta = useMemo(() => blockMeta(prepared, intent), [intent, prepared])
 
   const start = async () => {
     if (!prepared || !supported) return
@@ -105,25 +116,37 @@ export default function SmartSessionDock() {
   const isBreak = prepared?.kind === 'draft' && prepared.draft.disposition === 'break'
 
   return (
-    <aside
+    <section
       aria-label="智能学习"
       data-intent-source={intent?.source ?? 'loading'}
-      className="fixed bottom-6 left-1/2 z-20 flex w-[min(680px,calc(100vw-3rem))] -translate-x-1/2 items-center justify-between gap-5 rounded-2xl border border-gray-200 bg-white/95 px-5 py-4 shadow-lg backdrop-blur dark:border-gray-700 dark:bg-gray-800/95"
+      className="relative mb-7 overflow-hidden rounded-3xl border border-indigo-100 bg-white px-7 py-8 shadow-sm dark:border-gray-700 dark:bg-gray-800 lg:px-10 lg:py-10"
     >
-      <div className="min-w-0">
-        <p className="text-xs font-medium tracking-[0.16em] text-indigo-600 dark:text-indigo-300">SMART SESSION</p>
-        <p className="mt-1 truncate text-sm font-medium text-gray-900 dark:text-gray-100">{label}</p>
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{note}</p>
-        {error && <p role="alert" className="mt-1 text-xs text-red-600 dark:text-red-300">{error}</p>}
+      <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-indigo-50 blur-3xl dark:bg-indigo-950/30" />
+      <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-2xl">
+          <p className="text-xs font-medium tracking-[0.18em] text-indigo-600 dark:text-indigo-300">今天 · 下一段</p>
+          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-gray-950 dark:text-white lg:text-3xl">{label}</h2>
+          <p className="mt-3 max-w-xl text-sm leading-7 text-gray-500 dark:text-gray-400">{note}</p>
+          {meta.length > 0 && (
+            <div className="mt-5 flex flex-wrap gap-2" aria-label="这一段概况">
+              {meta.map((item) => (
+                <span key={item} className="rounded-full bg-gray-50 px-3 py-1.5 text-xs text-gray-500 dark:bg-gray-900/50 dark:text-gray-400">
+                  {item}
+                </span>
+              ))}
+            </div>
+          )}
+          {error && <p role="alert" className="mt-4 text-xs text-red-600 dark:text-red-300">{error}</p>}
+        </div>
+        <button
+          type="button"
+          disabled={busy || (!hasBlock && !isBreak)}
+          onClick={() => void start()}
+          className="w-full shrink-0 rounded-2xl bg-indigo-600 px-7 py-4 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
+        >
+          {busy ? '正在准备…' : isBreak ? '休息好了，继续' : prepared?.kind === 'resume' ? '继续这一段' : '开始学习'}
+        </button>
       </div>
-      <button
-        type="button"
-        disabled={busy || (!hasBlock && !isBreak)}
-        onClick={() => void start()}
-        className="shrink-0 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {busy ? '正在准备…' : isBreak ? '休息好了，继续' : prepared?.kind === 'resume' ? '继续这一段' : '开始学习'}
-      </button>
-    </aside>
+    </section>
   )
 }
