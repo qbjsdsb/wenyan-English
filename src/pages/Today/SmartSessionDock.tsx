@@ -144,7 +144,7 @@ export default function SmartSessionDock() {
           onClick={() => void start()}
           className="w-full shrink-0 rounded-2xl bg-indigo-600 px-7 py-4 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
         >
-          {busy ? '正在准备…' : isBreak ? '休息好了，继续' : prepared?.kind === 'resume' ? '继续这一段' : '开始学习 →'}
+          {busy ? '正在准备…' : isBreak ? '休息好了，继续' : prepared?.kind === 'resume' ? '继续这一段' : '开始学习'}
         </button>
       </div>
     </section>
