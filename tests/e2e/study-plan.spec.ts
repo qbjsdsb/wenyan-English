@@ -25,7 +25,7 @@ test('rejects invalid instructions and cannot import fake completion', async ({ 
   await expect(page.getByText(/真实的 YYYY-MM-DD/)).toBeVisible()
   await textarea.fill(JSON.stringify({ ...plan, tasks: [{ ...plan.tasks[0], chapterIndex: -1 }] }))
   await page.getByRole('button', { name: '保存计划' }).click()
-  await expect(page.getByText(/chapterIndex/)).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: 'chapterIndex' })).toBeVisible()
   await textarea.fill(JSON.stringify({ ...plan, tasks: [{ ...plan.tasks[0], status: 'completed', completionEventId: 'invented' }] }))
   await page.getByRole('button', { name: '保存计划' }).click()
   await expect(page.getByRole('button', { name: '开始任务' })).toBeVisible()
