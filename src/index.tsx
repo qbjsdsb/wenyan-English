@@ -17,6 +17,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 const AnalysisPage = lazy(() => import('./pages/Analysis'))
 const GalleryPage = lazy(() => import('./pages/Gallery-N'))
 const OAuthConsentPage = lazy(() => import('./pages/OAuthConsent'))
+const ReadingPage = lazy(() => import('./pages/Reading'))
 const TodayPage = lazy(() => import('./pages/Today'))
 const SyncPage = lazy(() => import('./pages/Sync'))
 
@@ -53,6 +54,7 @@ function Root() {
               <>
                 <Route index element={<TypingPage />} />
                 <Route path="/today" element={<TodayPage />} />
+                <Route path="/reading/:contentId" element={<ReadingPage />} />
                 <Route path="/gallery" element={<GalleryPage />} />
                 <Route path="/analysis" element={<AnalysisPage />} />
                 <Route path="/error-book" element={<ErrorBook />} />
