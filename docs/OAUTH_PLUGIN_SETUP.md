@@ -1,103 +1,98 @@
-# ChatGPT Plugin / OAuth acceptance checklist
+# ChatGPT Plugin / OAuth acceptance
 
 更新：2026-10-07。
 
-本文件只记录 Wenyan English 第一次真实 ChatGPT Plugin 连接所需的人工配置与验收。代码侧 OAuth consent 页面、MCP protected-resource metadata 和只读工具由仓库管理。
+Wenyan English 已完成第一次真实 ChatGPT Plugin / OAuth 2.1 / DCR 接入。本文件保留当前生产配置、已验收事实和后续复核要点，不再把已完成步骤写成待办。
 
-## 代码侧已准备
+## 生产端点
 
-- MCP URL：`https://cmjhxvpkdeheujuteqoi.supabase.co/functions/v1/wenyan-english-mcp`
-- MCP transport：Streamable HTTP
-- 认证：Supabase Auth OAuth 2.1
-- Protected Resource Metadata：MCP URL + `/.well-known/oauth-protected-resource`
-- Consent route：`/oauth/consent`
-- 当前工具全部只读：
-  - `get_learning_overview`
-  - `get_weak_words`
-  - `get_word_history`
-  - `get_plan_status`
-- Edge Function 自己验证 issuer / JWKS / Supabase `authenticated` audience / session / client claims；不读取 service-role key。
-- `get_plan_status` 只读取 Cloud Plan v2；计划状态不能伪造完成，完成仍由匹配的不可变 learning event 推导。
+- Wenyan Pages：`https://qbjsdsb.github.io/wenyan-English/`
+- OAuth consent：`/oauth/consent`
+- MCP：`https://cmjhxvpkdeheujuteqoi.supabase.co/functions/v1/wenyan-english-mcp`
+- Transport：MCP Streamable HTTP
+- Auth：Supabase OAuth 2.1 + PKCE + Dynamic Client Registration
 
-### Access-token audience 说明
+## 已完成验收
 
-Supabase OAuth access token 默认仍使用标准 `aud = authenticated`。MCP URL 是 OAuth protected resource 的发现/挑战标识，但 Supabase 不会因为客户端传入 resource 就自动把 JWT `aud` 改成 MCP URL。
+2026-10-07 已确认：
 
-因此第一版只读 MCP 校验：
+- GitHub Pages build/deploy success，OAuth 深链接可用于真实授权流程；
+- Supabase OAuth 2.1 Server / DCR / Authorization Path 已配置；
+- ChatGPT 通过 DCR 动态注册为 public OAuth client；
+- 用户完成 Wenyan consent；
+- Supabase 产生绑定该 ChatGPT client 的 OAuth session；
+- ChatGPT 中 `@wenyan` 已真实调用 `get_learning_overview` 并取得该账号的 Wenyan 数据；
+- 因此“插件已创建”“OAuth 已授权”“MCP 已真实可调用”均已成立，而不只是端点部署成功。
 
-- 签名来自 Supabase JWKS；
-- `iss` 必须是当前项目 Auth issuer；
-- `aud` 必须包含 `authenticated`；
+不要把数据库中的 user/client/session 标识写进仓库或文档。
+
+## Access-token 校验
+
+Supabase OAuth access token 默认使用标准 `aud = authenticated`。MCP URL 是 protected-resource discovery/challenge 标识，不假定为 JWT audience。
+
+Edge Function 校验：
+
+- Supabase JWKS 非对称签名；
+- 正确 issuer；
+- `aud` 包含 `authenticated`；
 - `role=authenticated`；
-- 必须带真实 `sub / session_id / client_id`；
-- 禁止匿名用户；
-- 数据层继续由 `auth.uid()` + RLS / 窄 RPC 限定。
+- 必须有真实 `sub / session_id / client_id`；
+- 禁止 anonymous user；
+- 数据层继续使用 `auth.uid()`、RLS、SECURITY INVOKER RPC 和 client capability。
 
-如果以后写计划阶段需要资源专用 audience，可再用 Supabase Custom Access Token Hook 对已批准的 ChatGPT client 定向改写 `aud`，而不是在只读阶段假定默认 token 已经具有该 audience。写能力开放前仍必须增加明确的 ChatGPT `client_id` allow policy。
+Edge Function `verify_jwt=false` 是因为函数自己执行上述 OAuth resource-server 校验，不代表匿名开放。函数不读取 `service_role`。
 
-## Supabase Dashboard 一次性配置
+## 当前 MCP 能力
 
-在项目 `cmjhxvpkdeheujuteqoi`：
+只读：
 
-1. **Authentication → URL Configuration**
-   - Site URL 设置为 Wenyan 的正式 HTTPS 站点 origin。
-   - Magic Link 允许的 Redirect URL 覆盖正式站点的 `/oauth/consent`，确保未登录授权时可以回到原授权页。
-2. **Authentication → OAuth Server**
-   - Enable OAuth 2.1 server。
-   - Authorization Path：`/oauth/consent`。
-   - Enable dynamic client registration（第一次接 ChatGPT 使用 DCR）。
-3. **JWT Signing Keys**
-   - 使用 ES256 或 RS256 非对称签名键；MCP/OIDC 不应依赖旧 HS256 secret。
-4. 保存后确认 OAuth discovery endpoint 可以公开读取：
-   - `https://cmjhxvpkdeheujuteqoi.supabase.co/.well-known/oauth-authorization-server/auth/v1`
-5. 第一次连接前确认 Wenyan 正式站点可直接打开 `/oauth/consent` 深链接，而不是只在站内导航后可达。
+- `get_learning_overview`
+- `get_weak_words`
+- `get_word_history`
+- `get_plan_status`
 
-## ChatGPT Web 第一次连接
-
-当前 OpenAI Plugin 流程需要用户本人完成连接动作：
-
-1. 在 ChatGPT Web 打开 Plugins。
-2. `+` → `Create custom MCP server`。
-3. 名称可填 `Wenyan English`。
-4. Server URL 填上面的 `wenyan-english-mcp` URL。
-5. Authentication 选择 OAuth；让 ChatGPT 使用 OAuth discovery / dynamic client registration。
-6. 阅读风险提示并创建为个人 Plugin。
-7. 安装该 Plugin。
-8. 浏览器应跳转至 Wenyan `/oauth/consent?authorization_id=...`。
-9. 页面必须显示请求客户端、OAuth scope 和“当前只读”的权限说明。
-10. 用户点击“允许只读访问”后应返回 ChatGPT。
-
-## 首次真实验收
-
-连接成功后在 ChatGPT Work 中验证：
-
-1. “看看我最近 7 天 Wenyan 英语学得怎么样。”
-   - 应调用 `get_learning_overview`。
-   - 数据不足时必须明确说数据不足。
-2. “哪些词最近比较容易出错？”
-   - 应调用 `get_weak_words`。
-3. “为什么你认为 `<word>` 值得复习？把证据给我。”
-   - 应继续调用 `get_word_history`，而不是凭印象解释。
-4. “我现在有什么云端学习计划？完成了哪些？”
-   - 应调用 `get_plan_status`。
-   - 当前没有 Cloud Plan v2 时应明确返回“没有可见云计划”，不能把本机 v1 计划当云计划。
-5. 确认 Plugin 工具列表里没有任何写工具、任意 SQL 或删除历史能力。
-6. Supabase `auth.oauth_clients / auth.oauth_consents / auth.oauth_authorizations` 应出现本次真实连接记录。
-7. 撤销授权后，旧 token 不应继续取得 Wenyan 学习数据。
-
-## 暂不开放写计划
-
-完成以上验收前，不实现或暴露：
+计划写入：
 
 - `create_study_plan`
 - `revise_study_plan`
 - `archive_study_plan`
 
-真正开放写计划前还需要：
+当前第一批计划写工具只接受网站已经能执行的 `chapter` 任务。Smart Review、弱词、听写和混合 session 类型保留在 Cloud Plan v2 数据模型中，等对应执行器接入后再通过 MCP schema 放开。
 
-- Cloud Plan v2 revision + idempotency 写 RPC；
-- plan/task 与真实 session/fact 关联；
-- 明确 ChatGPT OAuth client allow policy；
-- 对旧 `wenyan_private` SECURITY DEFINER RPC 完成独立审计；
-- 写工具准确标注 read/write/destructive/idempotent annotations；
-- 用户确认后才能写入未来计划，永远不能写历史“已完成”。
+## 个人客户端 capability
+
+真实 ChatGPT OAuth client 已显式授予个人使用所需能力：
+
+- `plans:read`
+- `plans:write`
+- `navigation:control`
+- `session:control`
+- `preferences:write`
+- `coach:auto_adjust`
+
+注意：capability 不是任意数据库权限。当前 `plans:write` 仍必须通过 Wenyan 的窄写 RPC；OAuth token 不能直接绕过 RLS 写计划表。
+
+`navigation:control / session:control / preferences:write / coach:auto_adjust` 是下一阶段授权基础，对应 MCP/Command Bus 工具尚未全部实现。
+
+## 不变的安全规则
+
+无论个人模式权限多高，都保持：
+
+- ChatGPT 不能插入、修改或删除历史 `learning_events`；
+- 不能凭计划状态伪造“已完成”；
+- 只有真实匹配的不可变学习事实产生 `completionEventId / completedAt`；
+- 不开放任意 SQL；
+- 不开放任意 JavaScript/DOM 控制；
+- 不把 service-role/secret 放进浏览器或插件；
+- revise 使用 revision 乐观锁，已完成任务不可被计划修改重写；
+- mutation 使用 requestId + receipt 保证重试幂等。
+
+## 重新验收时的测试提示
+
+1. `@wenyan 看看我最近 7 天英语学得怎么样。`
+2. `@wenyan 哪些词最近比较容易出错？`
+3. `@wenyan 我现在有什么云端计划？`
+4. 在新的 write-tool catalog 可见后，让 Wenyan 创建一个短 chapter 计划，再用 `get_plan_status` 回读确认。
+5. 计划同步到网站 Today 后，点击任务实际学习；只有练完整章才应出现 completion evidence。
+
+若插件工具 schema 更新后 ChatGPT 仍只显示旧工具，优先在插件详情页执行 Rescan / reconnect，而不是重新创建 Supabase OAuth client。

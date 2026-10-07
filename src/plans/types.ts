@@ -18,9 +18,18 @@ export interface StudyPlan {
   tasks: StudyTask[]
 }
 
+export interface CloudTaskCompletion {
+  completedAt: string
+  completionEventId: string
+}
+
 export interface StoredStudyPlan extends StudyPlan {
   importedAt: number
-  origin: 'local' | 'import'
+  origin: 'local' | 'import' | 'cloud'
+  /** Cloud metadata is a cache only. Supabase Cloud Plan v2 remains authoritative. */
+  cloudRevision?: number
+  cloudStatus?: 'active' | 'archived'
+  cloudCompletions?: Record<string, CloudTaskCompletion>
 }
 
 export interface StudyPlanRun {
