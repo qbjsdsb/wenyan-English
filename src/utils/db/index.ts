@@ -3,8 +3,7 @@ import { createLearningEvent } from '@/learning/types'
 import { TypingContext, TypingStateActionType } from '@/pages/Typing/store'
 import type { TypingState } from '@/pages/Typing/store/type'
 import type { StoredStudyPlan, StudyPlanRun } from '@/plans/types'
-import { currentChapterAtom, currentDictIdAtom, isReviewModeAtom } from '@/store'
-import type { WordDictationType } from '@/typings'
+import { currentChapterAtom, currentDictIdAtom, isReviewModeAtom, wordDictationConfigAtom } from '@/store'
 import type { Table } from 'dexie'
 import Dexie from 'dexie'
 import { useAtomValue } from 'jotai'
@@ -172,6 +171,7 @@ export function useSaveWordRecord() {
   const isRevision = useAtomValue(isReviewModeAtom)
   const currentChapter = useAtomValue(currentChapterAtom)
   const dictID = useAtomValue(currentDictIdAtom)
+  const wordDictationConfig = useAtomValue(wordDictationConfigAtom)
 
   const { dispatch } = useContext(TypingContext) ?? {}
 
@@ -181,17 +181,11 @@ export function useSaveWordRecord() {
       wrongCount,
       letterTimeArray,
       letterMistake,
-      taskRunId,
-      dictationEnabled,
-      dictationType,
     }: {
       word: string
       wrongCount: number
       letterTimeArray: number[]
       letterMistake: LetterMistakes
-      taskRunId?: string | null
-      dictationEnabled: boolean
-      dictationType: WordDictationType
     }) => {
       const timing = []
       for (let i = 1; i < letterTimeArray.length; i++) {
@@ -200,6 +194,7 @@ export function useSaveWordRecord() {
       }
 
       const chapter = isRevision ? -1 : currentChapter
+      const taskRunId = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('taskRun')
       const wordRecord = new WordRecord(word, dictID, chapter, timing, wrongCount, letterMistake)
       const event = createLearningEvent<WordAttemptedPayload>(
         'word_attempted',
@@ -212,8 +207,8 @@ export function useSaveWordRecord() {
           durationMs: timing.reduce((total, value) => total + value, 0),
           timing,
           mistakes: letterMistake,
-          dictationEnabled,
-          dictationType,
+          dictationEnabled: wordDictationConfig.isOpen,
+          dictationType: wordDictationConfig.type,
         },
         2,
       )
@@ -238,7 +233,7 @@ export function useSaveWordRecord() {
         dispatch({ type: TypingStateActionType.SET_IS_SAVING_RECORD, payload: false })
       }
     },
-    [currentChapter, dictID, dispatch, isRevision],
+    [currentChapter, dictID, dispatch, isRevision, wordDictationConfig.isOpen, wordDictationConfig.type],
   )
 
   return saveWordRecord
