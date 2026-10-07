@@ -1,6 +1,7 @@
 import { supabase } from '@/supabase/client'
 import { getReadyLearningEvents, markLearningEventsFailed, markLearningEventsSynced, toRemoteLearningEvent } from './learningQueue'
 import { setLocalLearningOwnerId } from './localLearningOwner'
+import { type LearningPullResult, pullLearningEvents } from './pullLearningEvents'
 
 export type LearningSyncResult =
   | { status: 'signed-out'; synced: 0 }
@@ -8,7 +9,13 @@ export type LearningSyncResult =
   | { status: 'synced'; synced: number }
   | { status: 'failed'; synced: 0; message: string }
 
+export interface LearningDataSyncResult {
+  upload: LearningSyncResult
+  download: LearningPullResult
+}
+
 let activeSync: Promise<LearningSyncResult> | null = null
+let activeDataSync: Promise<LearningDataSyncResult> | null = null
 
 async function performSync(): Promise<LearningSyncResult> {
   const {
@@ -61,11 +68,25 @@ export function syncLearningEvents() {
   return activeSync
 }
 
+export function syncLearningData() {
+  if (!activeDataSync) {
+    activeDataSync = (async () => {
+      const upload = await syncLearningEvents()
+      const download = upload.status === 'signed-out' ? { status: 'signed-out', received: 0, inserted: 0 } as const : await pullLearningEvents()
+      return { upload, download }
+    })().finally(() => {
+      activeDataSync = null
+    })
+  }
+
+  return activeDataSync
+}
+
 export function startLearningSync() {
   let disposed = false
 
   const run = () => {
-    if (!disposed) void syncLearningEvents()
+    if (!disposed) void syncLearningData()
   }
 
   const onOnline = () => run()
