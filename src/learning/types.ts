@@ -27,7 +27,13 @@ export interface LearningSyncCursor {
   updatedAt: number
 }
 
-export interface WordAttemptedPayload {
+export interface PlanTaskFactContext {
+  taskRunId?: string
+  planId?: string
+  taskId?: string
+}
+
+export interface WordAttemptedPayload extends PlanTaskFactContext {
   word: string
   dict: string
   chapter: number | null
@@ -39,13 +45,9 @@ export interface WordAttemptedPayload {
   /** v2 raw UI conditions. Do not infer semantic recall from these alone. */
   dictationEnabled?: boolean
   dictationType?: WordDictationType
-  /** Present only after the run, plan and actual dict/chapter have been validated locally. */
-  taskRunId?: string
-  planId?: string
-  taskId?: string
 }
 
-export interface ChapterCompletedPayload {
+export interface ChapterCompletedPayload extends PlanTaskFactContext {
   dict: string
   chapter: number | null
   reviewMode: boolean
