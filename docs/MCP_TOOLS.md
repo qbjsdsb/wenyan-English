@@ -2,146 +2,93 @@
 
 更新：2026-10-07。
 
-Wenyan English 的 ChatGPT 集成采用独立的远程 MCP。第一阶段严格只读：ChatGPT 获得明确的学习查询工具，而不是任意 SQL、数据库管理权限或原始历史修改能力。
+Wenyan English 使用独立远程 MCP：`supabase/functions/wenyan-english-mcp/` 是英语插件的源码真相。Supabase 中更早的 `wenyan-mcp / wenyan_private` 属于旧 Wenyan 路线，不作为英语插件生产实现复用。
 
-英语插件源码以本仓库 `supabase/functions/wenyan-english-mcp/` 为唯一源码真相。Supabase 项目中更早存在的 `wenyan-mcp` / `wenyan_private` 实现属于此前 Wenyan 路线，不再作为英语插件的隐形生产源码。
+## 认证与边界
 
-## 当前只读端点
+- Transport：MCP Streamable HTTP。
+- Authentication：Supabase OAuth 2.1 + DCR。
+- Access token 由 Edge Function 使用 Supabase JWKS、issuer、标准 `aud=authenticated`、session/client claims 校验。
+- Edge Function `verify_jwt=false` 是因为函数自己执行 OAuth resource-server 校验，不代表匿名开放。
+- 后端只使用 publishable key + 当前 OAuth Bearer token；绝不读取 `service_role`。
+- 数据层继续由 SECURITY INVOKER RPC + RLS + OAuth client capability 约束。
+- 真实 ChatGPT OAuth/DCR 接入已经完成；个人 ChatGPT client 已显式授予计划读写及后续控制能力。
+- 学习历史 `learning_events` 仍保持不可由 AI 修改或删除。
 
-Supabase Edge Function：`wenyan-english-mcp`。
+当前线上 MCP 版本：`0.4.1`。
 
-- 使用 MCP Streamable HTTP。
-- 使用 Supabase OAuth access token，由函数内通过 Supabase JWKS、issuer、标准 `authenticated` audience、session/client claims 校验。
-- MCP URL 作为 OAuth protected resource 用于 discovery / challenge；Supabase 默认 OAuth access token 不会自动把 `aud` 改成 MCP URL。
-- Edge Function 自身 `verify_jwt=false` 是因为这里执行的是资源服务器级自定义 OAuth 校验；函数不会绕过鉴权。
-- 后端调用只使用浏览器安全的 Supabase key + 当前 OAuth Bearer token，不读取 `service_role`。
-- 数据查询仍由 RPC + RLS 约束。
-- 当前没有任何写工具。
-
-尚未完成真实 ChatGPT Plugin 安装与 OAuth 握手，所以“端点已部署”不等于“ChatGPT 已连接”。
-
-## 当前工具
+## 只读工具
 
 ### `get_learning_overview`
-
-Backed by `public.get_learning_overview` (`SECURITY INVOKER`).
-
-Inputs:
-- `days` (1–365, default 7)
-
-Returns:
-- total committed learning events
-- study days
-- word attempts
-- first-try spelling-correct count and percentage
-- average duration derived from current Qwerty timing records
-- explicit coverage / interpretation notes
-
-Interpretation rules:
-
-- `firstTryAccuracy` is observed first-try spelling performance, not vocabulary/semantic mastery.
-- current `avgDurationMs` comes from Qwerty inter-key timing and does not include time before the first keypress; never call it recall latency.
-- unsynced/offline device history is unknown rather than zero.
+读取 1–365 天内的已同步学习事实概览。拼写首次无错率不是语义掌握率；当前 duration 是键间时间聚合，不是首键回忆延迟；未同步设备数据视为未知。
 
 ### `get_weak_words`
-
-Backed by `public.get_weak_words` (`SECURITY INVOKER`).
-
-Inputs:
-- `days` (1–365, default 30)
-- `limit` (1–200, default 50)
-
-Returns an explainable ranking containing attempts, mistake attempts, average recorded typing duration and last seen time. The RPC currently requires at least two observations for a word to enter the candidate set.
-
-Interpretation rules:
-
-- ranking means “review evidence exists”, not “the learner does not know this word”.
-- a missing word is not proof of mastery.
-- current facts cannot yet separate all spelling, semantic-recall and listening causes.
+读取可解释的近期易错词排序。排名代表“有复习证据”，不代表“这个词一定不会”。
 
 ### `get_word_history`
-
-Backed by `public.get_word_history` (`SECURITY INVOKER`).
-
-Inputs:
-- `word` (1–100 chars)
-- `limit` (1–100, default 30)
-
-Returns newest-first committed observations for exactly one word. Each row is bounded to useful evidence instead of returning the whole raw payload:
-
-- stable `evidence_id`
-- occurred / received timestamps
-- source version
-- dict / chapter / review mode
-- wrong count and inter-key duration aggregate
-- recorded mistake positions/keys
-- v2 raw dictation UI fields when available
-- validated `taskRunId / planId / taskId` when the attempt came from a matching active plan task
-
-Interpretation rules:
-
-- `wrong_count` and `mistakes` are observed spelling/key evidence, not a semantic-memory diagnosis.
-- `duration_ms` is still not first-key recall latency.
-- v1 history legitimately lacks v2 dictation/task fields; missing fields are not backfilled by inference.
-- zero returned rows means no committed evidence was found, not “mastered”.
-
-The supporting expression index is scoped to this user+word history access path; the function still checks `auth.uid()` and table RLS as defense in depth.
+读取单个词的有界证据链，包括错误次数、键位错误、v2 条件以及经本地验证的 `taskRunId / planId / taskId`。
 
 ### `get_plan_status`
+读取当前活动 Cloud Plan v2 或指定计划。计划行本身不能宣称完成；只有匹配不可变学习事实产生的 `completionEventId / completedAt` 才是完成证据。
 
-Backed by `public.get_plan_status` (`SECURITY INVOKER`).
+## 当前写工具
 
-Inputs:
-- optional `planId` UUID; omitted means newest active Cloud Plan v2 plan
+### `create_study_plan`
+创建新的 Cloud Plan v2 未来计划。
 
-Returns:
-- plan metadata and current revision
-- ordered task list
-- task kind/config/state
-- immutable completion evidence when a matching `chapter_completed` fact contains the same `planId / taskId`
-- explicit note that local-only Plan v1 data is not yet included
+第一批执行器只开放 `chapter` 任务：
+- `kind = chapter`
+- `config.dictId`：Wenyan 英语词书 ID
+- `config.chapterIndex`：从 0 开始的章节号
+- `dueDate`：YYYY-MM-DD
+- `estimatedMinutes`：1–240
 
-Interpretation rules:
+要求稳定 `requestId`。相同 requestId 只用于对同一次不确定网络请求做重试；数据库 receipt 保证幂等。
 
-- plan/task rows cannot assert completion.
-- `active` means scheduled, not completed.
-- `cancelled` is a planning decision, not a learning fact.
-- only `completionEventId / completedAt` derived from matching immutable learning events may be described as completed.
+### `revise_study_plan`
+完整改写活动计划的未来章节任务列表。
 
-See `docs/CLOUD_PLAN_V2.md` for the cloud plan/control boundary.
+必须先读 `get_plan_status`，并把最新 `revision` 作为 `expectedRevision`。数据库使用乐观锁拒绝过期修改。已有真实完成证据的任务必须保持 ID、位置及计划字段不变，不能通过改计划篡改历史。
 
-## Next read tools
+### `archive_study_plan`
+归档活动计划，不删除计划、revision、task 或学习事实。必须携带最新 `expectedRevision`。
 
-Implement in this order:
+## 写权限实现
 
-1. `get_recent_sessions`
-   - requires session facts v2
-   - start/finish/interruption/mode/task association
-2. `get_review_pressure`
-   - deterministic due / backlog summary
-   - no invented causal explanation
-3. `get_learning_profile`
-   - explicit exam target, exam date, available time and preferences
+写工具不是“OAuth token = 随便写表”。必须同时满足：
 
-Do not add a generic `get_all_my_data`. ChatGPT should query summary first and drill into evidence only when useful.
+1. 当前 OAuth session 有真实 `client_id`；
+2. `oauth_client_capabilities` 对当前 user/client 明确授予 `plans:write`；
+3. 只能通过窄 RPC 调用；
+4. RPC 在事务中设置临时 `wenyan.plan_write_rpc=1`；
+5. RLS 同时检查 user ownership、capability 和 RPC marker；
+6. RPC 全部为 `SECURITY INVOKER`；
+7. `plan_mutation_receipts` 保存幂等结果；
+8. revision snapshot 保存计划变更轨迹。
 
-## Write boundary
+浏览器普通 Wenyan session 仍可按既有产品路径维护自己的本机/云端状态；OAuth client 不能靠直接 REST 表写入绕过 RPC。
 
-No write tool is exposed until all of the following are true:
+## 网站闭环
 
-- cross-device learning fact restore is stable;
-- the English read-only MCP has completed a real ChatGPT OAuth/plugin acceptance test;
-- learning facts v2 can link real sessions to plan/task IDs;
-- Cloud Plan v2 revision/idempotency write RPCs are complete;
-- existing older `SECURITY DEFINER` Wenyan RPCs have been audited before reuse;
-- a stable ChatGPT OAuth `client_id` has been observed and explicitly granted `plans:write`.
+Cloud Plan v2 是计划真相。Wenyan Today 登录后调用 `get_plan_status`，把当前可执行 `chapter` 任务同步成 Dexie 云端执行缓存。这样继续复用既有证据链：
 
-The eventual write surface is narrow:
+`taskRun → cached plan/task → actual dict/chapter → word facts → chapter_completed`
 
-- `create_study_plan`
-- `revise_study_plan`
-- `archive_study_plan`
+只有词书、章节和 taskRun 全部匹配，实际完成全章后才附加 `planId / taskId / taskRunId`。云端 `completionEventId` 也会缓存回 Today，支持跨设备显示真实完成状态。
 
-These tools may create or change future instructions. They must never insert, edit or delete historical learning facts and must never claim a task is completed without a real Wenyan completion event.
+云端不可用不会阻塞本地学习。
 
-See `docs/INTELLIGENCE_FOUNDATION.md` for the complete closed-loop design.
+## 下一阶段
+
+按这个顺序推进：
+
+1. Command Bus + device Presence；
+2. `navigation:control`（打开 Today/词书/章节）；
+3. `session:control`（开始/暂停/继续/停止）；
+4. Smart Review 执行器，然后再开放 `smart_review / weak_words / dictation / mixed_session` 任务类型；
+5. 学习偏好与 `coach:auto_adjust`；
+6. session facts / first-key latency 等 Facts v3。
+
+不要添加 `run_sql(anything)`、`execute_js(anything)`、`control_wenyan(anything)` 这类万能工具。
+
+See also: `docs/CLOUD_PLAN_V2.md` and `docs/INTELLIGENCE_FOUNDATION.md`.
