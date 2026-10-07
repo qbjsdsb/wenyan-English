@@ -1,68 +1,123 @@
 # 当前状态 / 续接入口
 
-更新：2026-10-08（Asia/Shanghai）。开始续接仍须核对远端 main、开放 PR、CI，不能把本页 SHA 当永久最新状态。
+更新：2026-10-08。开始续接仍须先核对远端 `main`、开放 PR、CI 与 Supabase 当前部署版本；本页记录的是已核实基线，不把 SHA 或部署号当永久最新状态。
 
-## 已核实基线
+## 当前正式主线
 
-本次读取的 main：`7591bb33092d7c57008ceaa3735c4ff6af4f0f16`；最近合并 #22 Reading Loop、#21 Today 主入口、#20 Intent 消费、#19 MCP Intent tools、#18 Intent 存储。
-PR #23 `feature/learning-stage-policy` 为无冲突 Draft，原来只有 EXAM_PREP_STRATEGY。本次沿用该 PR，不改 main、不发布网站。
-#22 最后 head `8a747681` 的 Wenyan CI run 80 success；main 查询接口只列 PR 触发 runs，返回空不能证明 main 无 CI。
+Wenyan English 已从“Qwerty + 云同步”进入 **Local-first deterministic learning runtime + ChatGPT strategy brain** 阶段。
 
-已存在：本地不可变 word/chapter/source-v3 question/reading facts、同步/恢复与所有权隔离；Smart Session 纯 planner、Today 主入口与可恢复 vocabulary block；MCP 0.6.0 Learning Intent read/revise/clear；ongoing/day/session intent → vocabulary planner；Reading Runner、草稿及真实提交事实。
+核心闭环：
 
-## 本次实际成果：AI Coaching Loop v1
+`真实学习行为 → Immutable Learning Facts → Derived Evidence / Coaching Context → ChatGPT 判断 → bounded Learning Intent / Cloud Plan → 本地 Smart Session 执行 → 新事实回流`
 
-- 正式合同：[AI_COACHING_LOOP_V1.md](AI_COACHING_LOOP_V1.md)。12 项 decision records、Fact/Derived/Interpretation、summary-first/drill-down、MCP schema、stage 确认、拒绝提醒抑制、离线规则、未来 Reading/题型/FSRS 分层、迁移与 invariants。
-- `src/coaching/types.ts`、`context.ts`：纯 context builder、可信候选预筛、fresh selection guard、提醒 reconsideration 判断。无 React/网络/数据库/隐式时钟。
-- 真实口径：7/14 个用户时区日历日、首次可见暴露、原始 reviewMode 与重复暴露分开、近期拼写出错词数量；未测 due/interruptions 返回 null。
-- 重复 fact UUID 去重，冲突拒绝；未来时间隔离；稳定排序；小型 evidence sample + 聚合 query refs。现有事件/阅读/SessionConstraints 类型复用。
-- 阅读必须 metadata 与结构有效、答案核验、版本匹配、repeat policy 明确；assessment 可见不代表可执行；预算/阶段/执行器/历史未知仍锁住自动执行。
-- 合成场景脚本 `scripts/check-coaching.mjs` 接入已有 CI，不引入测试框架；公开仓库不含真实学习数据或受限材料。
-- 旧文档加正式合同入口，修正阅读推荐归属，替换已经严重落后的本进度文件。
+不可破坏的边界：
 
-**纯核心不是线上接线。** 未修改/部署 Supabase/MCP；没有新的正式工具、stage 持久化或用户确认 UI；没有把 reading 放入 Smart Session 自动执行集合。不得把类型接口当鉴权保证。
+> AI controls future intent, never past truth. Only the user confirms long-term stage. ChatGPT reasons; deterministic code guards. Wenyan works without AI.
 
-## 验证与限制
+## 已完成并进入主线的能力
 
-- 新 Coaching 合成场景 16 组通过；原 Smart Session 16 组通过。
-- 新 coaching core 独立 strict TypeScript 检查通过（仓库 lockfile 对应 TS 4.9.5）。
-- 全量 lint/typecheck/build 已尝试，但依赖安装在 fetching 阶段未完成：eslint/cross-env 与项目 type dependencies 不可用。不能声称本地全量检查通过。保留 yarn.lock，不升级依赖、不改框架规避。
-- GitHub CI 新增 coaching gate；本次提交最终 CI 状态以 PR checks 为准，不引用旧提交绿灯作为新提交证据。
-- 未做浏览器 E2E、真实 OAuth mutation smoke、私有 provider/内容验收。本次没有 UI/runtime 行为修改。
+### 学习事实与同步
 
-## 已识别的现有缺口（不要误称实现）
+- 本地不可变 `word_attempted / chapter_completed` 事实。
+- Reading source-v3 `question_attempted / reading_completed` 事实。
+- Dexie 本地优先写入、Supabase 上传/恢复、所有权隔离和显式认领。
+- 完成状态必须由真实 immutable evidence 证明；网页命令执行成功不等于学习完成。
 
-1. Intent 网络失败目前直接用 defaults，没有持久 owner-scoped last-valid envelope cache。
-2. session intent 当前主要靠时效，未正式绑定 runtime sessionId；day 的48小时是 RPC 上限，不等于“今天”。
-3. 当前合并是 scope 字段覆盖，旧文档“所有 ceiling 取更紧”尚非现有完整实现。
-4. Planner 的预算 admission 不等于 runner 已有精确 hard-stop enforcement；active timing 仍有估计语义。
-5. 原 adapter 尚需更严格的一致快照/未来时间/分页审计，不能直接作为全局 CoachingContext 的完整数据层。
-6. Core input 是可信 adapter contract；未实现云端 snapshot manifest/replay、输出字节预算服务校验或读取 RPC，不能用类型断言接受 AI 伪造 evidence。
-7. Context v1 activeDays 只观察 word_attempted，不涵盖 reading 活跃日；reviewPressure 未实现 scheduler 汇总；红宝书 observedProgress=null。
-8. Reading guard 是未接线纯函数；安全关键的 fresh catalog 重读、version pinning、owner/license、实际加载及当前预算必须由未来 runtime adapter 完成。
+### Smart Session / Learning Intent
 
-## 下一步（按小批次直接执行）
+- deterministic Smart Session planner 已实现并成为 Today 主入口。
+- 可恢复未完成 vocabulary block；断网仍可学习。
+- Learning Intent 已有 `ongoing / day / session`，优先级为 `session > day > ongoing > local defaults`。
+- MCP 已支持 intent read/revise/clear；generic intent 只影响未来学习，不获得长期 stage 写权限。
 
-1. 读本次正式合同与测试。先接 owner-safe context adapter：现有恢复 parser/事件为来源，完整分页、received watermark、manifest、缺失口径与 bounded response；不要造 readiness score。
-2. 再接 `get_coaching_context`。只有这步需要 Supabase 时才先读最新 skill/changelog，migration + RLS + SECURITY INVOKER；复用现有认证，不做 OAuth 重建。
-3. 独立 stage preference / confirmation provenance / reminder suppression。generic revise_learning_intent 继续禁止改 stage；没有可信用户确认 receipt 就只保存 pending proposal，经第一方用户确认。
-4. 补 intent cache、日界和 session binding、hard-stop 执行，保持断网 defaults 可学。
-5. 私人 provider + eligible reading candidates + versioned recommendedContent，再接 runtime fresh guard；确认 mixed 前自动执行仍只 vocabulary。
-6. 内容验收后才考虑新题型；FSRS 延后到有可靠 semantic/contextual evidence。
+### Reading Loop v1
 
-恢复命令：
+- versioned Reading domain、Runner、草稿恢复、答题和阅读完成事实已完成。
+- Reading 当前仍不是 Smart Session 自动执行活动：private provider、eligible candidate adapter 与 fresh runtime admission 尚未接通。
+
+### AI Coaching Loop v1
+
+- 正式合同：`docs/AI_COACHING_LOOP_V1.md`。
+- 纯核心：`src/coaching/types.ts`、`src/coaching/context.ts`。
+- 16 组 Coaching deterministic scenarios 已进入 CI；原 Smart Session 16 场景继续保留。
+- 不生成 readiness/mastery 分数；代码提供可信描述性证据和硬约束，ChatGPT 负责高层判断。
+- 长期 stage 默认 `vocabulary`；ChatGPT 可以建议 `mixed`，但不能替代用户确认。
+
+### live MCP Coaching Context
+
+PR #24 已把 `get_coaching_context` 接入 MCP 0.7.0。PR #25 进一步完成 Coaching Context v1.1 hardening：
+
+- `word_attempted` 云事实是必需来源；active Learning Intent 是可选增强。
+- 没有 Intent read capability、Intent HTTP 故障、fetch reject 或 JSON decode 失败时，不再拖垮整个 Coaching Context；返回词汇证据并把 Intent 明确标记为 unknown/unavailable。
+- word-event 分页冻结 `created_at <= receivedAtOrBefore` 接收水位，降低分页期间新到事件造成的页漂移。
+- snapshot ID 改为 SHA-256 内容指纹；不是持久化对象，也不是 replay handle。
+- `evidence.refs[*].replayable=false`，避免把描述性聚合引用冒充以后可重放的审计快照。
+- 明确 `multi_source_snapshot_not_atomic`：word facts 与 Learning Intent 不是数据库单事务快照。
+- 24 KiB 输出预算继续硬限制。
+- 插件 guidance 要求检查 `adapter.intentReadStatus`；当状态不是 `available` 时，`currentIntent=[]` 不能解释为“没有 Intent”。
+- plugin metadata 为 0.5.1；adapter toolVersion 为 `coaching-context-v1.1`。
+
+没有为此扩大 OAuth capability、没有 service-role、没有数据库 migration、没有学习事实写权限。
+
+## 本批验证
+
+PR #25 首个 hardening head 的 GitHub Actions `Wenyan CI` run #91 已完整成功：
+
+- Yarn install
+- lint
+- TypeScript typecheck
+- Smart Session deterministic scenarios
+- AI Coaching deterministic scenarios
+- Cloud coaching adapter scenarios
+- production build
+- Chromium install
+- Wenyan browser regression flows
+
+自动 Code Review 随后指出两处收尾：STATUS 过期，以及 optional Intent transport/decode failure 仍需降级。本分支已继续修复，并把 adapter 场景扩展为：正常 Intent、无 Intent 权限、网络 reject、JSON decode failure。**最终合并只能以最新 head 的新一轮 CI 成功为准，不能拿 run #91 替代最终 head 验证。**
+
+Supabase 生产环境已核实存在真实 ChatGPT/OpenAI MCP OAuth 流量；历史日志中可见已认证的 `openai-mcp` 调用和成功响应。生产 Edge Function 的最终版本与源码必须在本 PR 合并后重新部署并再次核实，不能因仓库代码已合并就声称生产已更新。
+
+## 当前仍未完成 / 不得误称实现
+
+1. **长期 stage 确认与偏好持久化**：用户确认 provenance、decline/revisit reminder suppression 还没有正式第一方存储/确认路径；generic `revise_learning_intent` 继续禁止改 stage。
+2. **Reading 自动编排**：Runner 和真实 facts 已有，但 private provider、eligible candidates、fresh catalog/version/owner/license guard 与 Smart Session executor 尚未接通。
+3. **snapshot replay**：当前只有内容 fingerprint + 非持久 descriptor；没有 server-side manifest，也没有按 snapshot ID 重放工具。
+4. **Intent 本地稳态**：owner-scoped last-valid intent cache、正式 sessionId binding、day 日界语义与精确 hard-stop enforcement 仍待补。
+5. **红宝书 provider**：尚未接入可信版本/分母/item mapping；`observedProgress` 必须保持 null，不能用其他词书冒充。
+6. **学习证据口径**：spelling evidence ≠ semantic mastery；duration ≠ recall latency；未同步/未观察 ≠ 0；scheduler due 与 interruptions 当前仍未可靠测量。
+
+## 下一步优先级
+
+收完 PR #25 的最终 CI、merge、生产 Edge Function 部署与生产 smoke 后，下一批按以下顺序：
+
+1. stage preference + verified user confirmation provenance + reminder suppression；
+2. owner-scoped last-valid Intent cache、日界/session binding、hard-stop；
+3. private Reading provider + eligible candidates + runtime fresh-selection guard；
+4. mixed 阶段经用户确认后，再让 Smart Session 自动执行 Reading；
+5. 内容验收后扩展真题/其他题型；FSRS 延后到存在可信 semantic/contextual evidence。
+
+## 续接检查
 
 ```bash
 git fetch origin
-git checkout feature/learning-stage-policy
+git checkout main
+git pull --ff-only
 yarn install --frozen-lockfile
-node --experimental-strip-types scripts/check-coaching.mjs
 node --experimental-strip-types scripts/check-smart-session.mjs
+node --experimental-strip-types scripts/check-coaching.mjs
+node --experimental-strip-types scripts/check-coaching-adapter.mjs
 yarn lint
 yarn tsc --noEmit
 yarn build
 ```
 
-GitHub 是成果持久化来源。此次正常 git push 缺 HTTPS 凭据，使用已授权 GitHub connector 创建 tree/commit 并推进同一分支；没有绕过权限，也没有 force push。以 PR #23 的实际 head 与 git log 核对提交。
+部署续接必须额外核对：
 
-> AI controls future intent, never past truth. Only the user confirms long-term stage. ChatGPT reasons; deterministic code guards. Wenyan works without AI.
+- Supabase 当前项目与 `wenyan-english-mcp` 实际版本；
+- Edge Function 源码是否与 `main` 一致；
+- `verify_jwt=false` 只因函数自身执行 OAuth resource-server JWT 校验，不代表匿名开放；
+- OAuth protected-resource discovery、未认证拒绝、已认证 MCP tool call；
+- Supabase security/performance advisors；
+- 不提交 token、secret、真实学习历史。
+
+GitHub 是代码与交接的持久化来源。不要让后续会话从旧 SHA、旧 STATUS 或聊天记忆猜进度。
