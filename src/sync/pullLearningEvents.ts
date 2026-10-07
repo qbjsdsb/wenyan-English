@@ -9,7 +9,7 @@ import { supabase } from '@/supabase/client'
 import { db } from '@/utils/db'
 import { setLocalLearningOwnerId } from './localLearningOwner'
 
-interface RemoteLearningEvent {
+export interface RemoteLearningEvent {
   id: string
   event_type: string
   occurred_at: string
@@ -124,7 +124,7 @@ function toLocalEvent(row: RemoteLearningEvent, userId: string): LearningEventRe
   }
 }
 
-async function savePulledPage(userId: string, rows: RemoteLearningEvent[]) {
+export async function storePulledLearningEventPage(userId: string, rows: RemoteLearningEvent[]) {
   if (rows.length === 0) return 0
 
   const localEvents = rows.map((row) => toLocalEvent(row, userId))
@@ -186,7 +186,7 @@ export async function pullLearningEvents(pageSize = 100, maxPages = 5): Promise<
       const rows = (data ?? []) as RemoteLearningEvent[]
       if (rows.length === 0) break
 
-      inserted += await savePulledPage(userId, rows)
+      inserted += await storePulledLearningEventPage(userId, rows)
       received += rows.length
       if (rows.length < safePageSize) break
     }
