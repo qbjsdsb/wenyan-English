@@ -1,10 +1,10 @@
 import { buildSmartSession } from './planner'
 import {
+  type SmartSessionRuntime,
   beginSmartBlock,
   loadSmartSessionRuntime,
   reconcileSmartRuntimeEvidence,
   runtimeProgress,
-  type SmartSessionRuntime,
 } from './runtime'
 import type { SessionBlock, SessionConstraints, SmartSessionDraft, VocabularyCandidate } from './types'
 import type { WordAttemptedPayload } from '@/learning/types'
