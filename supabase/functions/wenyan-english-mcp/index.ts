@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { z } from 'zod'
+import { buildCloudCoachingContext } from './coaching.ts'
 
 const functionName = 'wenyan-english-mcp'
 const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -153,6 +154,7 @@ function toolError(error: unknown, fallback: string) {
   const message = error instanceof Error ? error.message : ''
   const explanations: Record<string, string> = {
     NOT_AUTHORIZED: 'The current OAuth session is not authorized for this Wenyan operation.',
+    COACHING_BUDGET_EXCEEDED: 'The bounded Coaching Context exceeded its transport budget. Do not infer omitted learning state.',
     RPC_plans_write_not_granted: 'This OAuth client has not been granted Wenyan plans:write capability.',
     RPC_revision_conflict: 'The cloud state changed since it was last read. Re-read the current revision before retrying.',
     RPC_completed_task_is_immutable:
@@ -304,7 +306,43 @@ function queuedCommandResult(command: unknown) {
 }
 
 function createServer(token: string) {
-  const server = new McpServer({ name: 'Wenyan English', version: '0.6.0' })
+  const server = new McpServer({ name: 'Wenyan English', version: '0.7.0' })
+
+  server.registerTool(
+    'get_coaching_context',
+    {
+      description:
+        'Read a compact, owner-scoped coaching snapshot built from committed Wenyan facts and active Learning Intent. Use this as the primary high-level input for questions like how study is going, what to emphasize next, or whether to consider a stage change. The context explicitly reports coverage gaps and never equates spelling evidence with semantic mastery.',
+      inputSchema: z
+        .object({
+          includeReadingCandidates: z.boolean().default(false),
+          candidatePurpose: z.enum(['execution', 'stage_assessment']).default('stage_assessment'),
+          candidateLimit: z.number().int().min(1).max(5).default(3),
+        })
+        .strict(),
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: { securitySchemes: [{ type: 'oauth2', scopes: ['openid'] }] },
+    },
+    async ({ includeReadingCandidates, candidatePurpose, candidateLimit }) => {
+      try {
+        return toolResult(
+          await buildCloudCoachingContext({
+            supabaseUrl,
+            publishableKey,
+            token,
+            includeReadingCandidates,
+            candidatePurpose,
+            candidateLimit,
+          })
+        )
+      } catch (error) {
+        return toolError(
+          error,
+          'Wenyan Coaching Context is temporarily unavailable. Fall back to narrower evidence tools and do not invent missing learning state.'
+        )
+      }
+    }
+  )
 
   server.registerTool(
     'get_learning_overview',
