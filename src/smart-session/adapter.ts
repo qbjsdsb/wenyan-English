@@ -1,5 +1,11 @@
 import { buildSmartSession } from './planner'
-import { beginSmartBlock, loadSmartSessionRuntime, runtimeProgress, type SmartSessionRuntime } from './runtime'
+import {
+  beginSmartBlock,
+  loadSmartSessionRuntime,
+  reconcileSmartRuntimeEvidence,
+  runtimeProgress,
+  type SmartSessionRuntime,
+} from './runtime'
 import type { SessionBlock, SessionConstraints, SmartSessionDraft, VocabularyCandidate } from './types'
 import type { WordAttemptedPayload } from '@/learning/types'
 import { idDictionaryMap } from '@/resources/dictionary'
@@ -59,7 +65,7 @@ export async function prepareSmartVocabularySession(
   const dictionary = idDictionaryMap[dictId]
   if (!dictionary || dictionary.language !== 'en') throw new Error('smart_session_requires_english_dictionary')
 
-  const runtime = await loadSmartSessionRuntime(dictId, now)
+  let runtime = await loadSmartSessionRuntime(dictId, now)
   if (runtime.currentBlock) {
     const record = await db.reviewRecords.get(runtime.currentBlock.reviewRecordId)
     if (record && !record.isFinished) return { kind: 'resume', runtime, record: record as ReviewRecord }
@@ -83,6 +89,14 @@ export async function prepareSmartVocabularySession(
     attemptsByKey.set(key, attempts)
   }
   attemptsByKey.forEach((attempts) => attempts.sort((a, b) => a.occurredAt - b.occurredAt || a.id.localeCompare(b.id)))
+
+  const sessionAttemptedKeys = new Set<string>()
+  let sessionNewItems = 0
+  attemptsByKey.forEach((attempts, key) => {
+    if (attempts.some((attempt) => attempt.occurredAt >= runtime.startedAt)) sessionAttemptedKeys.add(key)
+    if (attempts[0]?.occurredAt >= runtime.startedAt) sessionNewItems += 1
+  })
+  runtime = reconcileSmartRuntimeEvidence(runtime, Array.from(sessionAttemptedKeys), sessionNewItems, now)
 
   const wordsByContentId = new Map<string, Word>()
   const candidates: VocabularyCandidate[] = words.map((word, ordinal) => {
