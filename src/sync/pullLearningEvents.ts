@@ -4,6 +4,7 @@ import type {
   LearningEventSourceVersion,
   LearningEventType,
   LearningSyncCursor,
+  PlanTaskFactContext,
   WordAttemptedPayload,
 } from '@/learning/types'
 import type { WordDictationType } from '@/typings'
@@ -77,6 +78,15 @@ function parseDictationType(value: unknown): WordDictationType {
   throw new Error('默写显示方式格式无效。')
 }
 
+function parseTaskContext(payload: Record<string, unknown>): PlanTaskFactContext {
+  const taskRunId = asOptionalString(payload.taskRunId, '任务运行 ID')
+  const planId = asOptionalString(payload.planId, '计划 ID')
+  const taskId = asOptionalString(payload.taskId, '任务 ID')
+  const taskContextCount = [taskRunId, planId, taskId].filter(Boolean).length
+  if (taskContextCount !== 0 && taskContextCount !== 3) throw new Error('任务关联记录格式无效。')
+  return taskRunId && planId && taskId ? { taskRunId, planId, taskId } : {}
+}
+
 function parseWordPayload(value: unknown, sourceVersion: LearningEventSourceVersion): WordAttemptedPayload {
   const payload = asObject(value, '单词学习记录')
   if (!Array.isArray(payload.timing) || payload.timing.some((item) => typeof item !== 'number' || !Number.isFinite(item))) {
@@ -95,24 +105,17 @@ function parseWordPayload(value: unknown, sourceVersion: LearningEventSourceVers
   }
 
   if (sourceVersion === 1) return base
-
-  const taskRunId = asOptionalString(payload.taskRunId, '任务运行 ID')
-  const planId = asOptionalString(payload.planId, '计划 ID')
-  const taskId = asOptionalString(payload.taskId, '任务 ID')
-  const taskContextCount = [taskRunId, planId, taskId].filter(Boolean).length
-  if (taskContextCount !== 0 && taskContextCount !== 3) throw new Error('任务关联记录格式无效。')
-
   return {
     ...base,
     dictationEnabled: asBoolean(payload.dictationEnabled, '默写开关'),
     dictationType: parseDictationType(payload.dictationType),
-    ...(taskRunId && planId && taskId ? { taskRunId, planId, taskId } : {}),
+    ...parseTaskContext(payload),
   }
 }
 
-function parseChapterPayload(value: unknown): ChapterCompletedPayload {
+function parseChapterPayload(value: unknown, sourceVersion: LearningEventSourceVersion): ChapterCompletedPayload {
   const payload = asObject(value, '章节学习记录')
-  return {
+  const base: ChapterCompletedPayload = {
     dict: asString(payload.dict, '词书'),
     chapter: asIntegerOrNull(payload.chapter, '章节'),
     reviewMode: asBoolean(payload.reviewMode, '复习模式'),
@@ -123,6 +126,7 @@ function parseChapterPayload(value: unknown): ChapterCompletedPayload {
     wordNumber: asNumber(payload.wordNumber, '章节词数'),
     firstTryCorrectCount: asNumber(payload.firstTryCorrectCount, '首次无错词数'),
   }
+  return sourceVersion === 1 ? base : { ...base, ...parseTaskContext(payload) }
 }
 
 function parseEventType(value: string): LearningEventType {
@@ -154,7 +158,7 @@ function toLocalEvent(row: RemoteLearningEvent, userId: string): LearningEventRe
     syncState: 'synced',
     syncAttempts: 0,
     ownerUserId: userId,
-    payload: eventType === 'word_attempted' ? parseWordPayload(row.payload, sourceVersion) : parseChapterPayload(row.payload),
+    payload: eventType === 'word_attempted' ? parseWordPayload(row.payload, sourceVersion) : parseChapterPayload(row.payload, sourceVersion),
   }
 }
 
