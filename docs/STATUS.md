@@ -72,11 +72,22 @@ PR #25 最终 head `5f06ea7e20bc8d18a11f9dfd92b3e48efdbc32fb` 的 GitHub Actions
 
 PR #25 自动 Code Review 的 STATUS 与 optional Intent transport/decode 两项反馈均已修复、回复并 resolve；不能再引用更早的 run #91 替代最终 head 验证。
 
-生产 Supabase 项目 `cmjhxvpkdeheujuteqoi` 的 `wenyan-english-mcp` 已从 v9 部署为 **v10 ACTIVE**。部署后重新读取生产 Edge Function 源码，已确认包含 `coaching-context-v1.1` 的降级读取、分页接收水位、SHA-256 fingerprint、非回放 evidence refs 与 snapshot descriptor。
+在 PR #25 Coaching Context v1.1 初始部署核验时，生产 `wenyan-english-mcp` 为 **v10 ACTIVE**，并已确认包含该 PR 的降级读取、分页接收水位、SHA-256 fingerprint、非回放 evidence refs 与 snapshot descriptor。v10 已由下文 OAuth capability fix 部署的 v11 取代。
 
-生产公开 OAuth protected-resource discovery 已在部署后做 live fetch，返回 HTTP 200，`resource`、Supabase `authorization_servers`、`openid` scope 与 bearer header metadata 正常。当前这个 ChatGPT 会话没有暴露私人 Wenyan custom-plugin 工具，因此**没有伪称完成一次新的 post-deploy 已认证 `get_coaching_context` 调用**；此前生产日志已证明真实 OpenAI MCP OAuth 集成存在并有成功调用。下一次有私人插件工具可用时，可把一次真实 authenticated `get_coaching_context` 作为补充验收，而不是把它误写成当前已执行。
+生产公开 OAuth protected-resource discovery 曾返回 HTTP 200，`resource`、Supabase `authorization_servers`、`openid` scope 与 bearer header metadata 正常。PR #25 当时的 checkpoint 尚未执行新的已认证工具调用；此限制已由下文 v11 阶段使用当前已认证 OAuth 会话完成的 live MCP 验证取代。下一次有私人插件工具可用时，可把一次真实 authenticated `get_coaching_context` 作为补充验收，而不是把它误写成当前已执行。
 
 部署后重新运行 Supabase Security / Performance Advisor，没有出现本批新增的英语 MCP DDL/RLS 安全问题；现存提示来自旧 `wenyan_private` 路线、账户 leaked-password protection，以及低使用量/旧索引提示。本批没有数据库变更，不为清零 Advisor 而擅自修改旧系统。
+
+## OAuth capability 闭环 v11（2026-10-08）
+
+- 根因已由生产 OAuth client 和 capability 表核实：新批准的 ChatGPT DCR client 没有授权记录；旧 client 的能力不会继承。RPC 原有权限拒绝保持有效。
+- `wenyan-english-mcp` v11 ACTIVE，`verify_jwt=false`。按已验证的用户 `sub` + OAuth `client_id` 加载能力，MCP preflight 和 RPC 双层校验保留。
+- 仅为本次单个已批准 ChatGPT client 授予 `plans:read`、`plans:write`、`coach:auto_adjust`、`navigation:control`、`session:control`。
+- 真实 OAuth smoke：Intent read 成功，Coaching Context 的 `adapter.intentReadStatus=available`。测试写入当日 30 分钟 Learning Intent（revision 1）和一个 active 30 分钟章节计划（1 task，due 2026-10-08）。设备 presence 当时 offline，章节目标沿用最后记录位置；计划未执行、没有形成完成事实。
+- 新 capability 映射 / identity lookup 测试与 Coaching adapter 三态测试已加入 CI；run #98（代码 head `75a71bad476cb47eb27d2ba392cf9e726051dd71`）和 run #99（Pages 路径过滤 `3a3e77982d259f68971aa81d3425eaa32c7f47c4`）均成功。
+- Pages run #20 曾因旧 workflow 对所有 main push 监听而成功执行；本批没有前端文件变化。已加 `paths-ignore`，避免文档、脚本、Supabase 和 workflow-only 更新再次触发网站发布。
+
+详情见 `docs/oauth-capability-fix-v11.md`。
 
 ## 当前仍未完成 / 不得误称实现
 
