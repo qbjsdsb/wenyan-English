@@ -12,7 +12,8 @@ function jsonResponse(value, status = 200) {
 let eventReads = 0
 let intentReads = 0
 globalThis.fetch = async (input, init = {}) => {
-  const url = new URL(typeof input === 'string' ? input : input.url)
+  const rawUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+  const url = new URL(rawUrl)
   if (url.pathname.endsWith('/rest/v1/learning_events')) {
     eventReads += 1
     assert.equal(init.headers.Authorization, 'Bearer test-token')
