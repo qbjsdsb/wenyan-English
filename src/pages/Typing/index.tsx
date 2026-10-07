@@ -10,7 +10,6 @@ import WordPanel from './components/WordPanel'
 import { useConfetti } from './hooks/useConfetti'
 import { useWordList } from './hooks/useWordList'
 import { TypingContext, TypingStateActionType, initialState, typingReducer } from './store'
-import { DonateCard } from '@/components/DonateCard'
 import Header from '@/components/Header'
 import Tooltip from '@/components/Tooltip'
 import { idDictionaryMap } from '@/resources/dictionary'
@@ -20,7 +19,8 @@ import { useSaveChapterRecord } from '@/utils/db'
 import { useMixPanelChapterLogUploader } from '@/utils/mixpanel'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import type React from 'react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useImmerReducer } from 'use-immer'
 
 const App: React.FC = () => {
@@ -33,6 +33,9 @@ const App: React.FC = () => {
   const randomConfig = useAtomValue(randomConfigAtom)
   const chapterLogUploader = useMixPanelChapterLogUploader(state)
   const saveChapterRecord = useSaveChapterRecord()
+  const [searchParams] = useSearchParams()
+  const savedChapter = useRef(false)
+  const [saveError, setSaveError] = useState('')
 
   const reviewModeInfo = useAtomValue(reviewModeInfoAtom)
   const isReviewMode = useAtomValue(isReviewModeAtom)
@@ -105,9 +108,13 @@ const App: React.FC = () => {
 
   useEffect(() => {
     // 当用户完成章节后且完成 word Record 数据保存，记录 chapter Record 数据,
-    if (state.isFinished && !state.isSavingRecord) {
+    if (!state.isFinished) savedChapter.current = false
+    if (state.isFinished && !state.isSavingRecord && !savedChapter.current) {
+      savedChapter.current = true
       chapterLogUploader()
-      saveChapterRecord(state)
+      void saveChapterRecord(state, searchParams.get('taskRun')).catch(() => {
+        setSaveError('本次章节记录保存失败，请保持此页面并重试。')
+      })
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -128,8 +135,14 @@ const App: React.FC = () => {
 
   return (
     <TypingContext.Provider value={{ state: state, dispatch }}>
-      {state.isFinished && <DonateCard />}
+
       {state.isFinished && <ResultScreen />}
+      {saveError && <div role="alert" className="fixed bottom-4 left-4 z-50 rounded-xl bg-red-100 p-4 text-red-900">
+        {saveError}
+        <button className="ml-3 underline" onClick={() => {
+          void saveChapterRecord(state, searchParams.get('taskRun')).then(() => setSaveError('')).catch(() => setSaveError('保存仍未成功，请检查浏览器存储空间后重试。'))
+        }}>重试保存</button>
+      </div>}
       <Layout>
         <Header>
           <DictChapterButton />

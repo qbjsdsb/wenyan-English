@@ -1,3 +1,4 @@
+import type { StoredStudyPlan, StudyPlanRun } from '@/plans/types'
 import type { ChapterCompletedPayload, LearningEventRecord, WordAttemptedPayload } from '@/learning/types'
 import { createLearningEvent } from '@/learning/types'
 import { TypingContext, TypingStateActionType } from '@/pages/Typing/store'
@@ -20,6 +21,9 @@ class RecordDB extends Dexie {
 
   learningEvents!: Table<LearningEventRecord, string>
 
+  studyPlans!: Table<StoredStudyPlan, string>
+  studyPlanRuns!: Table<StudyPlanRun, string>
+
   constructor() {
     super('RecordDB')
     this.version(1).stores({
@@ -38,6 +42,10 @@ class RecordDB extends Dexie {
     this.version(4).stores({
       learningEvents: '&id,eventType,occurredAt,syncState,[syncState+occurredAt]',
     })
+    this.version(5).stores({
+      studyPlans: '&id,importedAt',
+      studyPlanRuns: '&id,planId,taskId,startedAt',
+    })
   }
 }
 
@@ -53,7 +61,7 @@ export function useSaveChapterRecord() {
   const dictID = useAtomValue(currentDictIdAtom)
 
   const saveChapterRecord = useCallback(
-    (typingState: TypingState) => {
+    async (typingState: TypingState, taskRunId?: string | null) => {
       const {
         chapterData: { correctCount, wrongCount, userInputLogs, wordCount, words, wordRecordIds },
         timerData: { time },
@@ -72,7 +80,6 @@ export function useSaveChapterRecord() {
         words.length,
         wordRecordIds ?? [],
       )
-      db.chapterRecords.add(chapterRecord)
 
       const event = createLearningEvent<ChapterCompletedPayload>('chapter_completed', {
         dict: dictID,
@@ -85,7 +92,30 @@ export function useSaveChapterRecord() {
         wordNumber: words.length,
         firstTryCorrectCount: correctWordIndexes.length,
       })
-      void db.learningEvents.add(event).catch((error) => console.error('保存章节学习事件失败：', error))
+      await db.transaction('rw', db.chapterRecords, db.learningEvents, db.wordRecords, db.studyPlans, db.studyPlanRuns, async () => {
+        await db.chapterRecords.add(chapterRecord)
+        await db.learningEvents.add(event)
+        if (!taskRunId || isRevision) return
+        const run = await db.studyPlanRuns.get(taskRunId)
+        if (!run || run.completionEventId || event.occurredAt < run.startedAt) return
+        const plan = await db.studyPlans.get(run.planId)
+        const task = plan?.tasks.find((item) => item.id === run.taskId)
+        // Switching dictionaries, reviewing, or skipping words cannot complete this task.
+        const records = await db.wordRecords.bulkGet(wordRecordIds ?? [])
+        const completedWords = new Map<string, number>()
+        records.forEach((record) => {
+          if (record && record.dict === dictID && record.chapter === chapter) completedWords.set(record.word, (completedWords.get(record.word) ?? 0) + 1)
+        })
+        const allWordsPractised = words.length > 0 && words.every((word) => {
+          const count = completedWords.get(word.name) ?? 0
+          completedWords.set(word.name, count - 1)
+          return count > 0
+        })
+        if (task?.dictId !== dictID || task.chapterIndex !== chapter || !allWordsPractised) return
+        const previous = await db.studyPlanRuns.where('planId').equals(run.planId).toArray()
+        if (previous.some((item) => item.taskId === run.taskId && item.completionEventId)) return
+        await db.studyPlanRuns.update(run.id, { completedAt: event.occurredAt, completionEventId: event.id })
+      })
     },
     [currentChapter, dictID, isRevision],
   )

@@ -8,7 +8,7 @@ body {
     'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #faf9ff;
+  background-color: #f7f8fa;
   @apply transition-colors duration-300;
   user-select: none;
 }
@@ -204,4 +204,10 @@ body,
   100% {
     background-position: 0% 50%;
   }
+}
+
+/* Keep keyboard navigation visible throughout the personal workspace. */
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 4px;
 }
