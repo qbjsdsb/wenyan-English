@@ -62,6 +62,23 @@ test('a plan launches the right chapter and only real completed practice updates
   await expect(page.getByText('已完成 ✓', { exact: true })).toBeVisible()
 })
 
+test('a different chapter cannot complete the assigned task', async ({ page }) => {
+  await page.route('**/dicts/CET6_T.json', (route) => route.fulfill({ json: Array.from({ length: 21 }, () => ({ name: 'test', trans: ['测试'], usphone: '', ukphone: '' })) }))
+  await page.getByLabel('粘贴计划 JSON').fill(JSON.stringify({ ...plan, tasks: [{ ...plan.tasks[0], dictId: 'cet6' }] }))
+  await page.getByRole('button', { name: '保存计划' }).click()
+  await page.getByRole('button', { name: '开始任务' }).click()
+  await expect(page).toHaveURL(/taskRun=/)
+  await page.evaluate(() => localStorage.setItem('currentChapter', '1'))
+  await page.reload()
+  await expect(page.getByText('按任意键开始', { exact: true })).toBeVisible()
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('test', { delay: 50 })
+  await expect(page.getByText('表现不错！全对了！')).toBeVisible()
+  await page.getByRole('link', { name: '今日学习', exact: true }).click()
+  await expect(page.getByText('已完成 ✓', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '重新开始' })).toBeVisible()
+})
+
 test('navigation remains on the current page when the desktop window resizes', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 800 })
   await expect(page).toHaveURL(/\/today$/)

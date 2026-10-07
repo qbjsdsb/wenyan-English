@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   baseline:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       HUSKY: 0
     steps:
@@ -41,4 +41,3 @@ jobs:
         with:
           name: study-plan-test-results
           path: test-results/
-
