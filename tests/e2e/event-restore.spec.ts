@@ -31,6 +31,23 @@ const moduleScript = `
   const second = makeWord('22222222-2222-4222-8222-222222222222', 'second')
   const insertedFirst = await storePulledLearningEventPage('user-a', [first, second])
   const insertedAgain = await storePulledLearningEventPage('user-a', [first, second])
+
+  const v2 = {
+    ...makeWord('55555555-5555-4555-8555-555555555555', 'linked'),
+    source_version: 2,
+    created_at: '2026-10-07T00:00:01.123456+00:00',
+    payload: {
+      ...first.payload,
+      word: 'linked',
+      dictationEnabled: true,
+      dictationType: 'hideAll',
+      taskRunId: 'run-1',
+      planId: 'test-plan',
+      taskId: 'first',
+    },
+  }
+  const insertedV2 = await storePulledLearningEventPage('user-a', [v2])
+  const restoredV2 = await db.learningEvents.get(v2.id)
   const count = await db.learningEvents.count()
   const cursorBeforeConflict = await db.learningSyncCursors.get('user-a')
 
@@ -66,7 +83,14 @@ const moduleScript = `
   window.__eventRestoreResult = {
     insertedFirst,
     insertedAgain,
+    insertedV2,
     count,
+    v2SourceVersion: restoredV2?.sourceVersion,
+    v2TaskRunId: restoredV2?.payload?.taskRunId,
+    v2PlanId: restoredV2?.payload?.planId,
+    v2TaskId: restoredV2?.payload?.taskId,
+    v2DictationEnabled: restoredV2?.payload?.dictationEnabled,
+    v2DictationType: restoredV2?.payload?.dictationType,
     cursorEventId: cursorBeforeConflict?.eventId,
     cursorCreatedAt: cursorBeforeConflict?.createdAt,
     conflictMessage,
@@ -77,7 +101,7 @@ const moduleScript = `
   }
 `
 
-test('restored facts are idempotent and cursor updates atomically', async ({ page }) => {
+test('restored facts are idempotent, versioned, and cursor updates atomically', async ({ page }) => {
   await page.route('**/*.supabase.co/**', (route) => route.abort())
   await page.goto('/today')
   await page.addScriptTag({ type: 'module', content: moduleScript })
@@ -86,9 +110,16 @@ test('restored facts are idempotent and cursor updates atomically', async ({ pag
 
   expect(result.insertedFirst).toBe(2)
   expect(result.insertedAgain).toBe(0)
-  expect(result.count).toBe(2)
-  expect(result.cursorEventId).toBe('22222222-2222-4222-8222-222222222222')
-  expect(result.cursorCreatedAt).toBe('2026-10-07T00:00:00.123456+00:00')
+  expect(result.insertedV2).toBe(1)
+  expect(result.count).toBe(3)
+  expect(result.v2SourceVersion).toBe(2)
+  expect(result.v2TaskRunId).toBe('run-1')
+  expect(result.v2PlanId).toBe('test-plan')
+  expect(result.v2TaskId).toBe('first')
+  expect(result.v2DictationEnabled).toBe(true)
+  expect(result.v2DictationType).toBe('hideAll')
+  expect(result.cursorEventId).toBe('55555555-5555-4555-8555-555555555555')
+  expect(result.cursorCreatedAt).toBe('2026-10-07T00:00:01.123456+00:00')
   expect(result.conflictMessage).toContain('跨账号')
   expect(result.conflictOwner).toBe('user-b')
   expect(result.cursorStableAfterConflict).toBe(true)

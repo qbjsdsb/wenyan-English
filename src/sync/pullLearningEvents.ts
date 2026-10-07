@@ -1,10 +1,13 @@
 import type {
   ChapterCompletedPayload,
   LearningEventRecord,
+  LearningEventSourceVersion,
   LearningEventType,
   LearningSyncCursor,
+  PlanTaskFactContext,
   WordAttemptedPayload,
 } from '@/learning/types'
+import type { WordDictationType } from '@/typings'
 import { supabase } from '@/supabase/client'
 import { db } from '@/utils/db'
 import { setLocalLearningOwnerId } from './localLearningOwner'
@@ -33,6 +36,11 @@ function asObject(value: unknown, label: string): Record<string, unknown> {
 function asString(value: unknown, label: string) {
   if (typeof value !== 'string' || value.length === 0) throw new Error(`${label}格式无效。`)
   return value
+}
+
+function asOptionalString(value: unknown, label: string) {
+  if (value === undefined) return undefined
+  return asString(value, label)
 }
 
 function asNumber(value: unknown, label: string) {
@@ -65,13 +73,27 @@ function parseMistakes(value: unknown) {
   return mistakes
 }
 
-function parseWordPayload(value: unknown): WordAttemptedPayload {
+function parseDictationType(value: unknown): WordDictationType {
+  if (value === 'hideAll' || value === 'hideVowel' || value === 'hideConsonant' || value === 'randomHide') return value
+  throw new Error('默写显示方式格式无效。')
+}
+
+function parseTaskContext(payload: Record<string, unknown>): PlanTaskFactContext {
+  const taskRunId = asOptionalString(payload.taskRunId, '任务运行 ID')
+  const planId = asOptionalString(payload.planId, '计划 ID')
+  const taskId = asOptionalString(payload.taskId, '任务 ID')
+  const taskContextCount = [taskRunId, planId, taskId].filter(Boolean).length
+  if (taskContextCount !== 0 && taskContextCount !== 3) throw new Error('任务关联记录格式无效。')
+  return taskRunId && planId && taskId ? { taskRunId, planId, taskId } : {}
+}
+
+function parseWordPayload(value: unknown, sourceVersion: LearningEventSourceVersion): WordAttemptedPayload {
   const payload = asObject(value, '单词学习记录')
   if (!Array.isArray(payload.timing) || payload.timing.some((item) => typeof item !== 'number' || !Number.isFinite(item))) {
     throw new Error('单词计时记录格式无效。')
   }
 
-  return {
+  const base: WordAttemptedPayload = {
     word: asString(payload.word, '单词'),
     dict: asString(payload.dict, '词书'),
     chapter: asIntegerOrNull(payload.chapter, '章节'),
@@ -81,11 +103,19 @@ function parseWordPayload(value: unknown): WordAttemptedPayload {
     timing: payload.timing as number[],
     mistakes: parseMistakes(payload.mistakes),
   }
+
+  if (sourceVersion === 1) return base
+  return {
+    ...base,
+    dictationEnabled: asBoolean(payload.dictationEnabled, '默写开关'),
+    dictationType: parseDictationType(payload.dictationType),
+    ...parseTaskContext(payload),
+  }
 }
 
-function parseChapterPayload(value: unknown): ChapterCompletedPayload {
+function parseChapterPayload(value: unknown, sourceVersion: LearningEventSourceVersion): ChapterCompletedPayload {
   const payload = asObject(value, '章节学习记录')
-  return {
+  const base: ChapterCompletedPayload = {
     dict: asString(payload.dict, '词书'),
     chapter: asIntegerOrNull(payload.chapter, '章节'),
     reviewMode: asBoolean(payload.reviewMode, '复习模式'),
@@ -96,6 +126,7 @@ function parseChapterPayload(value: unknown): ChapterCompletedPayload {
     wordNumber: asNumber(payload.wordNumber, '章节词数'),
     firstTryCorrectCount: asNumber(payload.firstTryCorrectCount, '首次无错词数'),
   }
+  return sourceVersion === 1 ? base : { ...base, ...parseTaskContext(payload) }
 }
 
 function parseEventType(value: string): LearningEventType {
@@ -103,11 +134,17 @@ function parseEventType(value: string): LearningEventType {
   throw new Error(`云端包含当前版本不支持的学习事件：${value}。请更新 Wenyan 后再同步。`)
 }
 
+function parseSourceVersion(value: number): LearningEventSourceVersion {
+  if (value === 1 || value === 2) return value
+  throw new Error('云端包含当前版本不支持的 Wenyan 学习记录。请更新应用后再同步。')
+}
+
 function toLocalEvent(row: RemoteLearningEvent, userId: string): LearningEventRecord {
-  if (row.source !== 'wenyan-english' || row.source_version !== 1) {
+  if (row.source !== 'wenyan-english') {
     throw new Error('云端包含当前版本不支持的 Wenyan 学习记录。请更新应用后再同步。')
   }
 
+  const sourceVersion = parseSourceVersion(row.source_version)
   const eventType = parseEventType(row.event_type)
   const occurredAt = Date.parse(row.occurred_at)
   const createdAt = Date.parse(row.created_at)
@@ -117,10 +154,11 @@ function toLocalEvent(row: RemoteLearningEvent, userId: string): LearningEventRe
     id: asString(row.id, '事件 ID'),
     eventType,
     occurredAt,
+    sourceVersion,
     syncState: 'synced',
     syncAttempts: 0,
     ownerUserId: userId,
-    payload: eventType === 'word_attempted' ? parseWordPayload(row.payload) : parseChapterPayload(row.payload),
+    payload: eventType === 'word_attempted' ? parseWordPayload(row.payload, sourceVersion) : parseChapterPayload(row.payload, sourceVersion),
   }
 }
 
