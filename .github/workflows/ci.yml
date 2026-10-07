@@ -30,6 +30,8 @@ jobs:
         run: yarn lint
       - name: Type check
         run: yarn tsc --noEmit
+      - name: Smart Session deterministic scenarios
+        run: node --experimental-strip-types scripts/check-smart-session.mjs
       - name: Build
         run: yarn build
       - name: Install Chromium

@@ -1,52 +1,49 @@
 # 当前状态 / 续接入口
 
-更新：2026-10-07。
+更新：2026-10-07，Smart Session设计批次。以实际main/开放PR为准。
 
-## 已确认
+## 已核实主线
 
-- 当前正式主线已合并 P0 和 P1 第二批同步恢复：main merge `bcf20a7`。
-- 已有 Qwerty 学习引擎、Dexie 学习事件、Today 学习工作台与 Supabase 双端学习事实同步。
-- 本地学习计划支持受校验 JSON 导入、IndexedDB 持久化、指定词书/章节启动、真实章节完成证据与计划导出。
-- 上传端具备本机账号归属保护、未归属历史显式认领、跨账号待上传隔离和指数退避。
-- 云端恢复已进入 main：`pull_learning_events` 使用 `(created_at, id)` 游标；客户端按账号保存独立 pull cursor，并在同一 Dexie 事务写入恢复事实与推进游标。
-- 重复恢复 UUID 幂等；跨账号 UUID 冲突、未知来源/版本会中止页面且不推进游标。
-- P1 restore 的 lint / type / build / Playwright CI 已通过。
-- `public.get_learning_overview`、`public.get_weak_words`、`public.pull_learning_events` 均为 `SECURITY INVOKER`，且仅向 `authenticated` 授权执行。
-- `feature/intelligence-foundation` 已把英语专用只读 MCP 源码写入本仓库，并部署独立 Supabase Edge Function `wenyan-english-mcp` v1；旧 `wenyan-mcp` 未修改。
-- 详细产品与实施路线以 `docs/IMPLEMENTATION_PLAN.md` 与 `docs/INTELLIGENCE_FOUNDATION.md` 为准。
+本批恢复时远端main为b982d2d（Add device-aware Wenyan command bus），PR #10–15已合并：
+- Qwerty输入核心、Dexie记录、immutable learningEvents，本地优先上传/恢复与账号隔离。
+- Facts v2保留raw dictation条件和经校验的taskRun/plan/task关联；还没有正式session/pause/可靠active timing。
+- 英语MCP v0.5.0源码、OAuth入口、只读证据工具、个人Cloud Plan写入。
+- Cloud Plan v2 revision/幂等/完成证据规则；Today缓存并执行真实chapter任务。
+- Command Bus、device heartbeat/private realtime、open_today/open_dictionary/open_chapter/start_task和执行回执。
+- GitHub Pages工作流已改为本仓库main。最新PR记录了线上应用情况；本批未重新连接插件、部署或做生产验收。
 
-## 当前阶段：Wenyan Intelligence Foundation
+旧STATUS中的“仅只读、计划只在本机、无facts v2”等说法已经过时。ARCHITECTURE/IMPLEMENTATION_PLAN/INTELLIGENCE_FOUNDATION部分阶段描述同样是历史路线，不能拿来否定当前源码。
 
-当前批次目标：
+## 本批：astra/smart-session-v1（独立分支，未合入main）
 
-1. 以 `wenyan-English` 为英语 Plugin/MCP 唯一源码真相，停止线上 Edge Function 与 GitHub 源码漂移。
-2. 先完成只读 ChatGPT 数据链路，不开放写学习历史或写计划。
-3. 首批只读工具：`get_learning_overview`、`get_weak_words`。
-4. 所有工具返回数据覆盖范围与解释口径，避免把拼写表现、键间耗时误称为词义掌握或回忆速度。
-5. 下一步完成真实 ChatGPT Plugin 安装/OAuth 握手验收，再增加词级历史和 session 查询。
+优先阅读：
+1. docs/SMART_SESSION_V1.md
+2. docs/AI_COACH_CONTRACT.md
+3. src/smart-session/types.ts、planner.ts
+4. scripts/check-smart-session.mjs
 
-随后继续：
+成果：
+- 明确定义Plan是中期intent，Session在最新证据下生成，默认open-ended。
+- 每次只承诺下一block；预算可选，hard stop与活动时间分开；无学习债、当日新词上限、去重/cooldown/稀疏回退。
+- AI负责方向，planner负责具体选择，网站执行产生不可伪造事实；阅读推荐/反向诊断/能力维度/FSRS/Facts v3升级路径有正式契约。
+- 纯TypeScript core无React/Dexie/Supabase/ChatGPT依赖；词汇选择已实现，reading只支持可信候选的能力/预算门控，不含阅读推荐算法或执行器。
+- 无新测试框架；16组deterministic fixtures，并接到现有CI。
 
-- 学习事实 v2：正式 session / task 关联、practiceMode、`firstKeyLatencyMs`、hint、`word_skipped`、暂停/中断等；
-- `get_word_history`、`get_recent_sessions`、`get_review_pressure`；
-- 可恢复的 mutable user state（当前词书/章节/必要设置）；
-- 云端 `study_plans / plan_tasks / revisions`；
-- 只读 Plugin 稳定后才开放 `create_study_plan / revise_study_plan / archive_study_plan`；
-- Today 页面直接消费云端计划并一键启动对应学习模式。
+## 验证与限制
 
-## 当前明确边界
+- 已通过：Node直接运行16组场景（纯度/重复输入、10/25分钟、hard stop、0预算、墙钟与活动时间、错误证据、跨来源去重、冲突事实拒绝、重复保护、日上限、重返、backlog、阅读整项门控、休息、旧错误、无效输入）。
+- 已通过：用Yarn下载缓存中的TypeScript 4.9.5对两个core文件独立strict typecheck。
+- 未完成：全项目lint/tsc/build。Yarn冻结安装停在依赖下载；offline重试明确缺npmmirror上的@svgr包，完整node_modules未建立，eslint/tsc/cross-env命令不可用。不是把命令失败当通过。
+- 未运行：Playwright。没有改UI/数据接入；完整浏览器回归交给现有PR CI，尚不宣称通过。
+- 本批没有新增数据库迁移、工具权限、部署或用户数据；Smart Session尚未在Today上线。
 
-- `wenyan-english-mcp` 已部署，但尚未完成真实 ChatGPT Plugin 安装和 OAuth 握手；不能描述为“ChatGPT 已连接”。
-- 当前首批 MCP 工具只读同步到云端的 `learning_events`；其他设备尚未上传的历史未知。
-- 本地学习计划目前仍只保存在本机，尚未进入 Supabase 云计划表。
-- 当前事件 v1 只有 `word_attempted / chapter_completed`，不能可靠区分拼写、词义回忆、听写等能力，也没有真正首键回忆延迟。
-- 当前云端恢复只覆盖 Wenyan 不可变学习事实，不会伪造或重建旧 Qwerty `wordRecords/chapterRecords/reviewRecords`。
-- 当前词书、章节和必要设置的跨设备恢复尚未实现，因此还不能宣称“新电脑完全接着旧电脑状态”。
-- Supabase 中更早的 `wenyan_private` / `wenyan-mcp` 仍存在；其中若干 `SECURITY DEFINER` RPC 已被 Advisor 标记需要审计。英语写插件不得直接复用，除非权限边界逐个验收。
-- GitHub Pages 旧部署 workflow 仍需在正式发布前单独清理与重新配置；不要把当前仓库状态描述为已公开部署。
+## 下一模型直接执行
 
-## 续接
+1. 先核实本分支PR/CI结果；依赖可用后跑yarn lint、yarn tsc --noEmit、yarn build和既有Playwright。
+2. 实现owner-safe evidence snapshot adapter，特别是events/legacy镜像去重、时间戳单位、Asia/Shanghai日计数、恢复事实与coverage。
+3. 新建轻量smart execution context + checkpoint，复用Qwerty renderer，不重写打字引擎。部分词block不得借用chapter taskRun误造整章完成。
+4. 在真实保存/恢复/停止语义通过后，接Today「开始今天的学习」；停止不欠债，下一block重算。
+5. 增加有版本的cloud learningIntent存储/校验，沿用revision/idempotency；不要把新contract硬塞当前仅chapter的MCP写接口。
+6. 接一篇来源/答案可信的阅读，先跑通词汇→推荐→真实作答→独立解释→诊断候选闭环，再扩题库/FSRS。
 
-1. 检查远端 `main`、开放 PR 与 active Supabase Edge Function，以最新真实状态为准。
-2. 阅读 `AGENTS.md`、`docs/IMPLEMENTATION_PLAN.md`、`docs/INTELLIGENCE_FOUNDATION.md`、本文件与 `docs/MCP_TOOLS.md`。
-3. 先完成 `feature/intelligence-foundation` 的 CI 与真实 Plugin/OAuth 验收，再进入 facts v2；不要重新设计 Qwerty 学习引擎。
+不要重做OAuth、Command Bus或Qwerty；不要将拼写表现叫语义掌握、将键间耗时叫回忆延迟。未同步数据仍然未知。
