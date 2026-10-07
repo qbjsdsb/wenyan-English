@@ -141,19 +141,24 @@ function toolError(error: unknown, fallback: string) {
 const taskSchema = z
   .object({
     id: z.string().uuid().optional(),
-    kind: z.enum(['chapter', 'smart_review', 'word_set', 'dictation', 'weak_words', 'mixed_session']),
+    kind: z.literal('chapter'),
     title: z.string().trim().min(1).max(160),
     dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     estimatedMinutes: z.number().int().min(1).max(240),
     reason: z.string().max(1000).default(''),
-    config: z.record(z.string(), z.unknown()).default({}),
+    config: z
+      .object({
+        dictId: z.string().trim().min(1).max(100),
+        chapterIndex: z.number().int().min(0),
+      })
+      .strict(),
   })
   .strict()
 
 const requestIdSchema = z.string().min(8).max(120).regex(/^[A-Za-z0-9._:-]+$/)
 
 function createServer(token: string) {
-  const server = new McpServer({ name: 'Wenyan English', version: '0.4.0' })
+  const server = new McpServer({ name: 'Wenyan English', version: '0.4.1' })
 
   server.registerTool(
     'get_learning_overview',
@@ -287,7 +292,7 @@ function createServer(token: string) {
     'create_study_plan',
     {
       description:
-        'Create a new Cloud Plan v2 future study plan for this learner. Use a stable unique requestId and reuse it only when retrying the exact same mutation. This tool creates future instructions only; it never creates completion history.',
+        'Create a new executable Cloud Plan v2 chapter plan for this learner. Each task must point to a Wenyan English dictionary ID and zero-based chapterIndex. Use a stable unique requestId and reuse it only when retrying the exact same mutation. This creates future instructions only and never completion history.',
       inputSchema: z
         .object({
           requestId: requestIdSchema,
@@ -304,19 +309,10 @@ function createServer(token: string) {
       try {
         const result = await callRpc(
           'create_study_plan',
-          {
-            p_request_id: requestId,
-            p_title: title,
-            p_timezone: timezone,
-            p_tasks: tasks,
-            p_change_reason: changeReason,
-          },
+          { p_request_id: requestId, p_title: title, p_timezone: timezone, p_tasks: tasks, p_change_reason: changeReason },
           token
         )
-        return toolResult({
-          result,
-          invariant: 'Only future plan/task rows were created. No learning fact or completion event was written.',
-        })
+        return toolResult({ result, invariant: 'Only future plan/task rows were created. No learning fact or completion event was written.' })
       } catch (error) {
         return toolError(error, 'Wenyan could not create the study plan. No successful plan creation should be assumed.')
       }
@@ -327,7 +323,7 @@ function createServer(token: string) {
     'revise_study_plan',
     {
       description:
-        'Revise the complete future task list of an active Cloud Plan v2 plan. Read get_plan_status first and pass its current revision as expectedRevision. Completed tasks must be copied back unchanged with the same IDs and positions; Wenyan rejects attempts to rewrite completion evidence.',
+        'Revise the complete executable chapter-task list of an active Cloud Plan v2 plan. Read get_plan_status first and pass its current revision as expectedRevision. Completed tasks must be copied back unchanged with the same IDs and positions; Wenyan rejects attempts to rewrite completion evidence.',
       inputSchema: z
         .object({
           requestId: requestIdSchema,
@@ -388,12 +384,7 @@ function createServer(token: string) {
       try {
         const result = await callRpc(
           'archive_study_plan',
-          {
-            p_request_id: requestId,
-            p_plan_id: planId,
-            p_expected_revision: expectedRevision,
-            p_change_reason: changeReason,
-          },
+          { p_request_id: requestId, p_plan_id: planId, p_expected_revision: expectedRevision, p_change_reason: changeReason },
           token
         )
         return toolResult({ result, invariant: 'Archiving never deletes the plan, revisions, tasks or learning facts.' })
