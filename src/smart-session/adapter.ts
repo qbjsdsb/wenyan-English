@@ -34,7 +34,7 @@ function wordAttemptPayload(value: unknown): WordAttemptedPayload | undefined {
   const payload = value as Partial<WordAttemptedPayload>
   if (typeof payload.word !== 'string' || !payload.word.trim()) return undefined
   if (typeof payload.dict !== 'string' || !payload.dict) return undefined
-  if (!Number.isInteger(payload.wrongCount) || (payload.wrongCount ?? -1) < 0) return undefined
+  if (typeof payload.wrongCount !== 'number' || !Number.isInteger(payload.wrongCount) || payload.wrongCount < 0) return undefined
   return payload as WordAttemptedPayload
 }
 
