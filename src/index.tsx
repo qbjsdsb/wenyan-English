@@ -4,6 +4,7 @@ import { ErrorBook } from './pages/ErrorBook'
 import { FriendLinks } from './pages/FriendLinks'
 import MobilePage from './pages/Mobile'
 import TypingPage from './pages/Typing'
+import WenyanControlRuntime from '@/control/WenyanControlRuntime'
 import { isOpenDarkModeAtom } from '@/store'
 import { startLearningSync } from '@/sync/syncLearningEvents'
 import 'animate.css'
@@ -42,6 +43,7 @@ function Root() {
   return (
     <React.StrictMode>
       <BrowserRouter basename={REACT_APP_DEPLOY_ENV === 'pages' ? '/wenyan-English' : ''}>
+        <WenyanControlRuntime />
         <Suspense fallback={<Loading />}>
           <Routes>
             <Route path="/oauth/consent" element={<OAuthConsentPage />} />
