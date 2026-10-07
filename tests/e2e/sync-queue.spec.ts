@@ -1,6 +1,6 @@
-import { expect, test } from '@playwright/test'
+import { type Page, expect, test } from '@playwright/test'
 
-async function waitForResult(page: Parameters<typeof test>[0] extends never ? never : any, key: string) {
+async function waitForResult(page: Page, key: string) {
   await page.waitForFunction((name: string) => Boolean((window as unknown as Record<string, unknown>)[name]), key)
   return page.evaluate((name: string) => (window as unknown as Record<string, unknown>)[name], key)
 }
