@@ -1,6 +1,8 @@
 import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
+import type { WordDictationType } from '@/typings'
 
 export type LearningEventType = 'word_attempted' | 'chapter_completed'
+export type LearningEventSourceVersion = 1 | 2
 
 export type LearningEventSyncState = 'pending' | 'synced' | 'failed'
 
@@ -8,6 +10,8 @@ export interface LearningEventRecord<TPayload = unknown> {
   id: string
   eventType: LearningEventType
   occurredAt: number
+  /** Rows created before local source versioning are treated as v1. */
+  sourceVersion?: LearningEventSourceVersion
   syncState: LearningEventSyncState
   syncAttempts: number
   ownerUserId?: string
@@ -32,6 +36,13 @@ export interface WordAttemptedPayload {
   durationMs: number
   timing: number[]
   mistakes: Record<number, string[]>
+  /** v2 raw UI conditions. Do not infer semantic recall from these alone. */
+  dictationEnabled?: boolean
+  dictationType?: WordDictationType
+  /** Present only after the run, plan and actual dict/chapter have been validated locally. */
+  taskRunId?: string
+  planId?: string
+  taskId?: string
 }
 
 export interface ChapterCompletedPayload {
@@ -65,11 +76,16 @@ function createUuidV4() {
     .join('')}`
 }
 
-export function createLearningEvent<TPayload>(eventType: LearningEventType, payload: TPayload): LearningEventRecord<TPayload> {
+export function createLearningEvent<TPayload>(
+  eventType: LearningEventType,
+  payload: TPayload,
+  sourceVersion: LearningEventSourceVersion = 1,
+): LearningEventRecord<TPayload> {
   return {
     id: createUuidV4(),
     eventType,
     occurredAt: Date.now(),
+    sourceVersion,
     syncState: 'pending',
     syncAttempts: 0,
     ownerUserId: getLocalLearningOwnerId(),
