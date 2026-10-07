@@ -3,6 +3,7 @@ import './index.css'
 import { ErrorBook } from './pages/ErrorBook'
 import { FriendLinks } from './pages/FriendLinks'
 import MobilePage from './pages/Mobile'
+import SmartSessionDock from './pages/Today/SmartSessionDock'
 import TypingPage from './pages/Typing'
 import WenyanControlRuntime from '@/control/WenyanControlRuntime'
 import { isOpenDarkModeAtom } from '@/store'
@@ -19,6 +20,15 @@ const GalleryPage = lazy(() => import('./pages/Gallery-N'))
 const OAuthConsentPage = lazy(() => import('./pages/OAuthConsent'))
 const TodayPage = lazy(() => import('./pages/Today'))
 const SyncPage = lazy(() => import('./pages/Sync'))
+
+function TodayExperience() {
+  return (
+    <>
+      <TodayPage />
+      <SmartSessionDock />
+    </>
+  )
+}
 
 function Root() {
   const darkMode = useAtomValue(isOpenDarkModeAtom)
@@ -52,7 +62,7 @@ function Root() {
             ) : (
               <>
                 <Route index element={<TypingPage />} />
-                <Route path="/today" element={<TodayPage />} />
+                <Route path="/today" element={<TodayExperience />} />
                 <Route path="/gallery" element={<GalleryPage />} />
                 <Route path="/analysis" element={<AnalysisPage />} />
                 <Route path="/error-book" element={<ErrorBook />} />
@@ -70,5 +80,4 @@ function Root() {
 }
 
 const container = document.getElementById('root')
-
 container && createRoot(container).render(<Root />)
