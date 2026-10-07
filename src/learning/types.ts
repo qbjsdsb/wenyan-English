@@ -1,8 +1,8 @@
 import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
 import type { WordDictationType } from '@/typings'
 
-export type LearningEventType = 'word_attempted' | 'chapter_completed'
-export type LearningEventSourceVersion = 1 | 2
+export type LearningEventType = 'word_attempted' | 'chapter_completed' | 'question_attempted' | 'reading_completed'
+export type LearningEventSourceVersion = 1 | 2 | 3
 
 export type LearningEventSyncState = 'pending' | 'synced' | 'failed'
 
@@ -57,6 +57,32 @@ export interface ChapterCompletedPayload extends PlanTaskFactContext {
   wordCount: number
   wordNumber: number
   firstTryCorrectCount: number
+}
+
+export interface QuestionAttemptedPayload {
+  attemptId: string
+  passageId: string
+  passageVersion: string
+  questionId: string
+  questionType: 'single_choice'
+  selectedOptionId: string | null
+  correctOptionId: string
+  answered: boolean
+  isCorrect: boolean | null
+  answerChangeCount: number
+  /** Content tags describe the question, not the learner's failure cause. */
+  questionTags: string[]
+}
+
+export interface ReadingCompletedPayload {
+  attemptId: string
+  passageId: string
+  passageVersion: string
+  sourceKind: 'wenyan-original' | 'private-import' | 'public-domain'
+  durationMs: number
+  questionCount: number
+  answeredCount: number
+  correctCount: number
 }
 
 function createUuidV4() {
