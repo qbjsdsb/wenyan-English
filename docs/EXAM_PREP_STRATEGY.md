@@ -1,5 +1,7 @@
 # Wenyan English：考研英语一备考策略
 
+> 2026-10-08 续接：当前实现状态见 [STATUS](STATUS.md)；AI 策略、证据摘要、阶段确认及阅读候选边界以 [AI_COACHING_LOOP_V1](AI_COACHING_LOOP_V1.md) 为准。本文的旧阶段状态不代表当前部署。
+
 更新：2026-10-07。
 
 本文件记录已经由用户明确确认、后续模型不应反复重开的产品决策。它建立在 `SMART_SESSION_V1.md`、`AI_COACH_CONTRACT.md` 与 `READING_LOOP_V1.md` 之上，不替代这些底层合同。
@@ -144,10 +146,10 @@ AI 先给简短诊断；需要时再展开逐题、逐句和词汇解释。
 ## 10. 当前实施顺序
 
 1. Reading Loop v1 runner + source-v3 facts 收口并合并。
-2. Learning Intent 增加明确的 `learningStage` / Activity Policy；当前默认 `vocabulary`。
+2. 独立用户确认的 `learningStage` preference / Activity Policy（不加入 generic auto-adjust whitelist）；当前默认 `vocabulary`。
 3. 建立 private vocabulary provider 与 private reading content provider contract。
 4. 接用户合法持有的红宝书主词汇内容；保持较大的词汇覆盖。
-5. 实现 deterministic Reading recommendation core。
+5. 实现 deterministic Reading candidate prefilter；ChatGPT 在候选中做高层选择。
 6. Smart Session 接 ReadingCandidate，但严格受 `learningStage` gate：`vocabulary` 阶段不自动推荐 Reading。
 7. AI 增加“是否适合进入 mixed 阶段”的解释型提醒；未经确认不切换。
 8. 用户确认后进入 mixed，跑第一篇真实英语一阅读端到端。

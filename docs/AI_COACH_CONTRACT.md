@@ -1,5 +1,7 @@
 # AI Coach contract v1
 
+> 2026-10-08 续接：当前实现状态见 [STATUS](STATUS.md)；AI 策略、证据摘要、阶段确认及阅读候选边界以 [AI_COACHING_LOOP_V1](AI_COACHING_LOOP_V1.md) 为准。本文的旧阶段状态不代表当前部署。
+
 2026-10-07。配套SMART_SESSION_V1.md及src/smart-session/types.ts。
 状态：正式设计；当前MCP仅支持chapter计划写入，本协议尚无新远端工具/数据库字段。
 

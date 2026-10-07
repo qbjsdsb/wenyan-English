@@ -1,5 +1,7 @@
 # Wenyan Intelligence Foundation
 
+> 2026-10-08 续接：当前实现状态见 [STATUS](STATUS.md)；AI 策略、证据摘要、阶段确认及阅读候选边界以 [AI_COACHING_LOOP_V1](AI_COACHING_LOOP_V1.md) 为准。本文的旧阶段状态不代表当前部署。
+
 更新：2026-10-07。
 
 本文件是 Wenyan English 接入 ChatGPT Plugin / MCP 的实施边界。目标不是在网页里塞聊天框，而是建立可长期演进的学习闭环：
