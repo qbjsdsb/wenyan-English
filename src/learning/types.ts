@@ -16,6 +16,13 @@ export interface LearningEventRecord<TPayload = unknown> {
   payload: TPayload
 }
 
+export interface LearningSyncCursor {
+  userId: string
+  createdAt: string
+  eventId: string
+  updatedAt: number
+}
+
 export interface WordAttemptedPayload {
   word: string
   dict: string
