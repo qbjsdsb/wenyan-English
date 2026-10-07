@@ -1,4 +1,4 @@
-import type { LearningEventRecord } from '@/learning/types'
+import type { LearningEventRecord, LearningEventSourceVersion } from '@/learning/types'
 import { db } from '@/utils/db'
 
 const RETRY_BASE_MS = 30_000
@@ -9,7 +9,7 @@ export interface RemoteLearningEvent {
   event_type: string
   occurred_at: string
   source: 'wenyan-english'
-  source_version: 1
+  source_version: LearningEventSourceVersion
   payload: unknown
 }
 
@@ -78,7 +78,7 @@ export function toRemoteLearningEvent(event: LearningEventRecord): RemoteLearnin
     event_type: event.eventType,
     occurred_at: new Date(event.occurredAt).toISOString(),
     source: 'wenyan-english',
-    source_version: 1,
+    source_version: event.sourceVersion ?? 1,
     payload: event.payload,
   }
 }
