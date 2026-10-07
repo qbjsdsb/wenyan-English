@@ -1,3 +1,5 @@
+import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
+
 export type LearningEventType = 'word_attempted' | 'chapter_completed'
 
 export type LearningEventSyncState = 'pending' | 'synced' | 'failed'
@@ -8,6 +10,8 @@ export interface LearningEventRecord<TPayload = unknown> {
   occurredAt: number
   syncState: LearningEventSyncState
   syncAttempts: number
+  ownerUserId?: string
+  nextSyncAttemptAt?: number
   lastSyncError?: string
   payload: TPayload
 }
@@ -61,6 +65,7 @@ export function createLearningEvent<TPayload>(eventType: LearningEventType, payl
     occurredAt: Date.now(),
     syncState: 'pending',
     syncAttempts: 0,
+    ownerUserId: getLocalLearningOwnerId(),
     payload,
   }
 }

@@ -1,11 +1,6 @@
 import { supabase } from '@/supabase/client'
-import {
-  getPendingLearningEvents,
-  markLearningEventsFailed,
-  markLearningEventsSynced,
-  retryFailedLearningEvents,
-  toRemoteLearningEvent,
-} from './learningQueue'
+import { getReadyLearningEvents, markLearningEventsFailed, markLearningEventsSynced, toRemoteLearningEvent } from './learningQueue'
+import { setLocalLearningOwnerId } from './localLearningOwner'
 
 export type LearningSyncResult =
   | { status: 'signed-out'; synced: 0 }
@@ -21,11 +16,18 @@ async function performSync(): Promise<LearningSyncResult> {
   } = await supabase.auth.getSession()
 
   if (!session) {
+    setLocalLearningOwnerId(null)
     return { status: 'signed-out', synced: 0 }
   }
 
-  await retryFailedLearningEvents()
-  const events = await getPendingLearningEvents(100)
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) {
+    return { status: 'failed', synced: 0, message: userError?.message ?? '无法确认当前登录账号。' }
+  }
+
+  setLocalLearningOwnerId(userData.user.id)
+
+  const events = await getReadyLearningEvents(userData.user.id, 100)
   if (events.length === 0) {
     return { status: 'idle', synced: 0 }
   }
@@ -45,9 +47,15 @@ async function performSync(): Promise<LearningSyncResult> {
 
 export function syncLearningEvents() {
   if (!activeSync) {
-    activeSync = performSync().finally(() => {
-      activeSync = null
-    })
+    activeSync = performSync()
+      .catch((error) => ({
+        status: 'failed',
+        synced: 0,
+        message: error instanceof Error ? error.message : String(error),
+      }) as LearningSyncResult)
+      .finally(() => {
+        activeSync = null
+      })
   }
 
   return activeSync
@@ -63,7 +71,12 @@ export function startLearningSync() {
   const onOnline = () => run()
   window.addEventListener('online', onOnline)
 
+  void supabase.auth.getSession().then(({ data }) => {
+    setLocalLearningOwnerId(data.session?.user.id)
+  })
+
   const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    setLocalLearningOwnerId(session?.user.id)
     if (session) window.setTimeout(run, 0)
   })
 

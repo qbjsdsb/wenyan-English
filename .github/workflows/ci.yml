@@ -34,10 +34,10 @@ jobs:
         run: yarn build
       - name: Install Chromium
         run: yarn playwright install --with-deps chromium
-      - name: Verify study plans on this app
-        run: yarn playwright test tests/e2e/study-plan.spec.ts
+      - name: Verify Wenyan browser flows
+        run: yarn playwright test tests/e2e/study-plan.spec.ts tests/e2e/sync-queue.spec.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: study-plan-test-results
+          name: wenyan-test-results
           path: test-results/
