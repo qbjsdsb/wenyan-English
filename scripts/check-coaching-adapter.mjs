@@ -61,6 +61,8 @@ globalThis.fetch = async (input, init = {}) => {
     intentReads += 1
     assert.equal(init.method, 'POST')
     if (intentMode === 'forbidden') return jsonResponse({ message: 'intent_read_not_granted' }, 403)
+    if (intentMode === 'transport') throw new TypeError('simulated network failure')
+    if (intentMode === 'decode') return new Response('{broken-json', { status: 200 })
     return jsonResponse([
       {
         id: '33333333-3333-4333-8333-333333333333',
@@ -127,7 +129,21 @@ try {
   assert.equal(readOnly.derived.recentLearning.wordAttempts7, 2)
   assert.ok(Buffer.byteLength(JSON.stringify(readOnly)) < 24 * 1024)
 
-  console.log('2 cloud coaching adapter scenarios passed')
+  intentMode = 'transport'
+  const transportFailure = await buildCloudCoachingContext(options)
+  assert.equal(transportFailure.adapter.intentReadStatus, 'unavailable')
+  assert.equal(transportFailure.preferences.currentIntent.length, 0)
+  assert.equal(transportFailure.derived.recentLearning.wordAttempts7, 2)
+  assert.ok(transportFailure.snapshot.warnings.includes('learning_intent_unavailable'))
+
+  intentMode = 'decode'
+  const decodeFailure = await buildCloudCoachingContext(options)
+  assert.equal(decodeFailure.adapter.intentReadStatus, 'unavailable')
+  assert.equal(decodeFailure.preferences.currentIntent.length, 0)
+  assert.equal(decodeFailure.derived.recentLearning.wordAttempts7, 2)
+  assert.ok(decodeFailure.snapshot.warnings.includes('learning_intent_unavailable'))
+
+  console.log('4 cloud coaching adapter scenarios passed')
 } finally {
   globalThis.fetch = originalFetch
 }
