@@ -5,6 +5,7 @@ Wenyan English 是一个只面向个人长期使用的考研英语学习工具�
 ## 开发计划与续接
 
 - [详细产品与实施计划](docs/IMPLEMENTATION_PLAN.md)
+- [ChatGPT / MCP 智能闭环](docs/INTELLIGENCE_FOUNDATION.md)
 - [当前进度与下一步](docs/STATUS.md)
 - [AI 工作约定](AGENTS.md)
 
