@@ -97,6 +97,13 @@ async function callRpc(name: string, args: Record<string, unknown>, token: strin
       'invalid_timezone',
       'invalid_tasks',
       'invalid_task_shape',
+      'device_read_not_granted',
+      'command_read_not_granted',
+      'command_control_not_granted',
+      'no_active_device',
+      'invalid_command',
+      'invalid_command_args',
+      'invalid_command_ttl',
     ].find((code) => rpcMessage.includes(code))
 
     if (known) throw new Error(`RPC_${known}`)
@@ -123,13 +130,20 @@ function toolError(error: unknown, fallback: string) {
       'The requested revision would change a task that already has immutable completion evidence. Keep completed tasks unchanged.',
     RPC_plan_not_found: 'The requested Cloud Plan v2 plan is not visible to this Wenyan account.',
     RPC_plan_not_active: 'The requested plan is no longer active and cannot be revised or archived again.',
-    RPC_request_id_conflict: 'That requestId was already used for a different plan mutation. Use a new stable requestId.',
+    RPC_request_id_conflict: 'That requestId was already used for a different mutation. Use a new stable requestId.',
     RPC_oauth_client_required: 'This operation requires an authenticated OAuth client session.',
     RPC_invalid_request_id: 'requestId must be 8–120 characters using letters, digits, dot, underscore, colon or hyphen.',
     RPC_invalid_title: 'The plan title is invalid.',
     RPC_invalid_timezone: 'The requested IANA timezone is invalid.',
     RPC_invalid_tasks: 'A plan must contain 1–60 tasks.',
     RPC_invalid_task_shape: 'One or more plan tasks failed Wenyan validation.',
+    RPC_device_read_not_granted: 'This OAuth client cannot inspect Wenyan device state.',
+    RPC_command_read_not_granted: 'This OAuth client cannot inspect Wenyan command state.',
+    RPC_command_control_not_granted: 'This OAuth client has not been granted the required Wenyan control capability.',
+    RPC_no_active_device: 'No recently active Wenyan web device is available. Open and sign in to Wenyan before sending a website command.',
+    RPC_invalid_command: 'The requested Wenyan website command is not supported.',
+    RPC_invalid_command_args: 'The Wenyan website command arguments are invalid.',
+    RPC_invalid_command_ttl: 'The Wenyan website command lifetime is invalid.',
   }
 
   return {
@@ -156,9 +170,39 @@ const taskSchema = z
   .strict()
 
 const requestIdSchema = z.string().min(8).max(120).regex(/^[A-Za-z0-9._:-]+$/)
+const optionalDeviceIdSchema = z.string().uuid().optional()
+
+async function enqueueCommand(
+  token: string,
+  requestId: string,
+  type: 'open_today' | 'open_dictionary' | 'open_chapter' | 'start_task',
+  args: Record<string, unknown>,
+  deviceId?: string
+) {
+  return callRpc(
+    'enqueue_website_command',
+    {
+      p_request_id: requestId,
+      p_command_type: type,
+      p_args: args,
+      p_target_device_id: deviceId ?? null,
+      p_ttl_seconds: 300,
+    },
+    token
+  )
+}
+
+function queuedCommandResult(command: unknown) {
+  return toolResult({
+    command,
+    interpretation:
+      'The command is durable and queued for one Wenyan web device. Queued is not the same as executed. Use get_action_status to confirm completed or failed after the browser reports the result.',
+    invariant: 'Website command completion never counts as learning completion and never creates a learning fact.',
+  })
+}
 
 function createServer(token: string) {
-  const server = new McpServer({ name: 'Wenyan English', version: '0.4.1' })
+  const server = new McpServer({ name: 'Wenyan English', version: '0.5.0' })
 
   server.registerTool(
     'get_learning_overview',
@@ -275,11 +319,11 @@ function createServer(token: string) {
           status,
           coverage: {
             source: 'Cloud Plan v2 rows plus immutable matching Wenyan completion events',
-            local_only_v1_plans: 'not included until Cloud Plan sync is implemented',
+            local_only_v1_plans: 'not included',
           },
           interpretation:
             status == null
-              ? 'No matching Cloud Plan v2 plan is visible to this authenticated user. This does not prove that no local-only v1 plan exists.'
+              ? 'No matching Cloud Plan v2 plan is visible to this authenticated user. This does not prove that no local-only plan exists.'
               : 'Use task completionEventId/completedAt as the completion evidence. Plan state itself cannot assert completion.',
         })
       } catch (error) {
@@ -390,6 +434,142 @@ function createServer(token: string) {
         return toolResult({ result, invariant: 'Archiving never deletes the plan, revisions, tasks or learning facts.' })
       } catch (error) {
         return toolError(error, 'Wenyan could not archive the study plan. Do not assume the plan changed state.')
+      }
+    }
+  )
+
+  server.registerTool(
+    'get_active_devices',
+    {
+      description:
+        'Read recent Wenyan web devices and their online flag/current page. Use this before website-control tools when device choice matters. A device is considered online only from its recent authenticated Wenyan heartbeat.',
+      inputSchema: z.object({}).strict(),
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: { securitySchemes: [{ type: 'oauth2', scopes: ['openid'] }] },
+    },
+    async () => {
+      try {
+        const devices = await callRpc('get_active_devices', {}, token)
+        return toolResult({
+          devices,
+          interpretation:
+            'Use only devices whose online field is true for immediate control. If none are online, ask the user to open and sign in to the Wenyan web app.',
+        })
+      } catch (error) {
+        return toolError(error, 'Wenyan device state is temporarily unavailable. Do not claim a device is online.')
+      }
+    }
+  )
+
+  server.registerTool(
+    'open_today',
+    {
+      description:
+        'Queue a command to open the Wenyan Today page on an active authenticated Wenyan web device. This does not change learning history. After queuing, use get_action_status before claiming it actually opened.',
+      inputSchema: z.object({ requestId: requestIdSchema, deviceId: optionalDeviceIdSchema }).strict(),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: { securitySchemes: [{ type: 'oauth2', scopes: ['openid'] }] },
+    },
+    async ({ requestId, deviceId }) => {
+      try {
+        return queuedCommandResult(await enqueueCommand(token, requestId, 'open_today', {}, deviceId))
+      } catch (error) {
+        return toolError(error, 'Wenyan could not queue the Today navigation command. Do not claim the page changed.')
+      }
+    }
+  )
+
+  server.registerTool(
+    'open_dictionary',
+    {
+      description:
+        'Select a known Wenyan English dictionary on an active device and open Today. This resets the local chapter selection to chapterIndex 0 but does not create learning completion. Confirm execution with get_action_status.',
+      inputSchema: z
+        .object({ requestId: requestIdSchema, dictId: z.string().trim().min(1).max(100), deviceId: optionalDeviceIdSchema })
+        .strict(),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: { securitySchemes: [{ type: 'oauth2', scopes: ['openid'] }] },
+    },
+    async ({ requestId, dictId, deviceId }) => {
+      try {
+        return queuedCommandResult(await enqueueCommand(token, requestId, 'open_dictionary', { dictId }, deviceId))
+      } catch (error) {
+        return toolError(error, 'Wenyan could not queue the dictionary navigation command. Do not claim the dictionary changed.')
+      }
+    }
+  )
+
+  server.registerTool(
+    'open_chapter',
+    {
+      description:
+        'Select a known Wenyan English dictionary and zero-based chapterIndex, then open that chapter on an active device. This only navigates/prepares study and never marks the chapter complete. Confirm execution with get_action_status.',
+      inputSchema: z
+        .object({
+          requestId: requestIdSchema,
+          dictId: z.string().trim().min(1).max(100),
+          chapterIndex: z.number().int().min(0),
+          deviceId: optionalDeviceIdSchema,
+        })
+        .strict(),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: { securitySchemes: [{ type: 'oauth2', scopes: ['openid'] }] },
+    },
+    async ({ requestId, dictId, chapterIndex, deviceId }) => {
+      try {
+        return queuedCommandResult(await enqueueCommand(token, requestId, 'open_chapter', { dictId, chapterIndex }, deviceId))
+      } catch (error) {
+        return toolError(error, 'Wenyan could not queue the chapter navigation command. Do not claim the chapter opened.')
+      }
+    }
+  )
+
+  server.registerTool(
+    'start_task',
+    {
+      description:
+        'Queue a command to start one specific executable Cloud Plan v2 chapter task on an active Wenyan device. The browser re-syncs the named plan, validates the real task, creates a local taskRun and opens the assigned dictionary/chapter. Starting is not completing; only later immutable learning facts can prove completion. Confirm execution with get_action_status.',
+      inputSchema: z
+        .object({
+          requestId: requestIdSchema,
+          planId: z.string().uuid(),
+          taskId: z.string().uuid(),
+          deviceId: optionalDeviceIdSchema,
+        })
+        .strict(),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: { securitySchemes: [{ type: 'oauth2', scopes: ['openid'] }] },
+    },
+    async ({ requestId, planId, taskId, deviceId }) => {
+      try {
+        return queuedCommandResult(await enqueueCommand(token, requestId, 'start_task', { planId, taskId }, deviceId))
+      } catch (error) {
+        return toolError(error, 'Wenyan could not queue the plan task. Do not claim the study session started.')
+      }
+    }
+  )
+
+  server.registerTool(
+    'get_action_status',
+    {
+      description:
+        'Read the durable execution status of one Wenyan website command. Only effectiveStatus=completed means the browser reported that the website action executed. This still never means a learning task was completed.',
+      inputSchema: z.object({ commandId: z.string().uuid() }).strict(),
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: { securitySchemes: [{ type: 'oauth2', scopes: ['openid'] }] },
+    },
+    async ({ commandId }) => {
+      try {
+        const status = await callRpc('get_action_status', { p_command_id: commandId }, token)
+        return toolResult({
+          status,
+          interpretation:
+            status == null
+              ? 'No matching command is visible. Do not infer execution.'
+              : 'Only effectiveStatus=completed proves the requested website action executed. Command completion is not learning completion.',
+        })
+      } catch (error) {
+        return toolError(error, 'Wenyan command status is temporarily unavailable. Do not assume the action executed.')
       }
     }
   )
