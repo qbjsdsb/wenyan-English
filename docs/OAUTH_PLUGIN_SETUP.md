@@ -15,7 +15,9 @@
   - `get_learning_overview`
   - `get_weak_words`
   - `get_word_history`
+  - `get_plan_status`
 - Edge Function 自己验证 issuer / JWKS / Supabase `authenticated` audience / session / client claims；不读取 service-role key。
+- `get_plan_status` 只读取 Cloud Plan v2；计划状态不能伪造完成，完成仍由匹配的不可变 learning event 推导。
 
 ### Access-token audience 说明
 
@@ -76,9 +78,12 @@ Supabase OAuth access token 默认仍使用标准 `aud = authenticated`。MCP UR
    - 应调用 `get_weak_words`。
 3. “为什么你认为 `<word>` 值得复习？把证据给我。”
    - 应继续调用 `get_word_history`，而不是凭印象解释。
-4. 确认 Plugin 工具列表里没有任何写工具、任意 SQL 或删除历史能力。
-5. Supabase `auth.oauth_clients / auth.oauth_consents / auth.oauth_authorizations` 应出现本次真实连接记录。
-6. 撤销授权后，旧 token 不应继续取得 Wenyan 学习数据。
+4. “我现在有什么云端学习计划？完成了哪些？”
+   - 应调用 `get_plan_status`。
+   - 当前没有 Cloud Plan v2 时应明确返回“没有可见云计划”，不能把本机 v1 计划当云计划。
+5. 确认 Plugin 工具列表里没有任何写工具、任意 SQL 或删除历史能力。
+6. Supabase `auth.oauth_clients / auth.oauth_consents / auth.oauth_authorizations` 应出现本次真实连接记录。
+7. 撤销授权后，旧 token 不应继续取得 Wenyan 学习数据。
 
 ## 暂不开放写计划
 
@@ -90,7 +95,7 @@ Supabase OAuth access token 默认仍使用标准 `aud = authenticated`。MCP UR
 
 真正开放写计划前还需要：
 
-- Cloud Plan v2 schema + revision + idempotency；
+- Cloud Plan v2 revision + idempotency 写 RPC；
 - plan/task 与真实 session/fact 关联；
 - 明确 ChatGPT OAuth client allow policy；
 - 对旧 `wenyan_private` SECURITY DEFINER RPC 完成独立审计；
