@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "wenyan-english",
+  "version": "0.1.0",
+  "description": "Personal Wenyan English learning companion backed by the user's Wenyan study data and authenticated MCP tools.",
+  "author": {
+    "name": "qbjsdsb",
+    "url": "https://github.com/qbjsdsb/wenyan-English"
+  },
+  "homepage": "https://qbjsdsb.github.io/wenyan-English/",
+  "repository": "https://github.com/qbjsdsb/wenyan-English",
+  "license": "GPL-3.0",
+  "keywords": ["english", "learning", "vocabulary", "study-plan", "wenyan"]
+}
