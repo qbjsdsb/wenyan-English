@@ -1,6 +1,6 @@
 import Header from '@/components/Header'
 import { getWenyanRedirectUrl, supabase } from '@/supabase/client'
-import { claimUnownedLearningEvents, getLearningQueueSummary, type LearningQueueSummary } from '@/sync/learningQueue'
+import { type LearningQueueSummary, claimUnownedLearningEvents, getLearningQueueSummary } from '@/sync/learningQueue'
 import { type LearningSyncResult, syncLearningEvents } from '@/sync/syncLearningEvents'
 import type { Session } from '@supabase/supabase-js'
 import { useCallback, useEffect, useState } from 'react'
