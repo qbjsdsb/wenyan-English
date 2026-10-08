@@ -13,263 +13,138 @@ import IconCheck from '~icons/tabler/check'
 import IconChevronDown from '~icons/tabler/chevron-down'
 import IconEar from '~icons/tabler/ear'
 
+function SettingSwitch({ checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: string }) {
+  return (
+    <div className={styles.switchBlock}>
+      <Switch checked={checked} onChange={onChange} className="switch-root" aria-label={label}>
+        <span aria-hidden="true" className="switch-thumb" />
+      </Switch>
+      <span className="wenyan-setting-state">{checked ? '开启' : '关闭'}</span>
+    </div>
+  )
+}
+
+function SliderRow({
+  label,
+  value,
+  display,
+  min = 0,
+  max,
+  step,
+  disabled,
+  onChange,
+}: {
+  label: string
+  value: number
+  display: string
+  min?: number
+  max: number
+  step: number
+  disabled?: boolean
+  onChange: (value: [number]) => void
+}) {
+  return (
+    <div className={styles.block}>
+      <div className="flex w-full items-center justify-between">
+        <span className={styles.blockLabel}>{label}</span>
+        <span className="wenyan-setting-state">{display}</span>
+      </div>
+      <Slider.Root value={[value]} min={min} max={max} step={step} className="slider" onValueChange={onChange} disabled={disabled}>
+        <Slider.Track><Slider.Range /></Slider.Track>
+        <Slider.Thumb aria-label={label} />
+      </Slider.Root>
+    </div>
+  )
+}
+
 export default function SoundSetting() {
   const [pronunciationConfig, setPronunciationConfig] = useAtom(pronunciationConfigAtom)
   const [keySoundsConfig, setKeySoundsConfig] = useAtom(keySoundsConfigAtom)
   const [hintSoundsConfig, setHintSoundsConfig] = useAtom(hintSoundsConfigAtom)
 
-  const onTogglePronunciation = useCallback(
-    (checked: boolean) => {
-      setPronunciationConfig((prev) => ({
-        ...prev,
-        isOpen: checked,
-      }))
-    },
-    [setPronunciationConfig],
-  )
-  const onTogglePronunciationIsTransRead = useCallback(
-    (checked: boolean) => {
-      setPronunciationConfig((prev) => ({
-        ...prev,
-        isTransRead: checked,
-      }))
-    },
-    [setPronunciationConfig],
-  )
-  const onChangePronunciationVolume = useCallback(
-    (value: [number]) => {
-      setPronunciationConfig((prev) => ({
-        ...prev,
-        volume: value[0] / 100,
-      }))
-    },
-    [setPronunciationConfig],
-  )
-  const onChangePronunciationIsTransVolume = useCallback(
-    (value: [number]) => {
-      setPronunciationConfig((prev) => ({
-        ...prev,
-        transVolume: value[0] / 100,
-      }))
-    },
-    [setPronunciationConfig],
-  )
-  const onChangePronunciationRate = useCallback(
-    (value: [number]) => {
-      setPronunciationConfig((prev) => ({
-        ...prev,
-        rate: value[0],
-      }))
-    },
-    [setPronunciationConfig],
-  )
-
-  const onToggleKeySounds = useCallback(
-    (checked: boolean) => {
-      setKeySoundsConfig((prev) => ({
-        ...prev,
-        isOpen: checked,
-      }))
-    },
-    [setKeySoundsConfig],
-  )
-  const onChangeKeySoundsVolume = useCallback(
-    (value: [number]) => {
-      setKeySoundsConfig((prev) => ({
-        ...prev,
-        volume: value[0] / 100,
-      }))
-    },
-    [setKeySoundsConfig],
-  )
+  const onTogglePronunciation = useCallback((checked: boolean) => setPronunciationConfig((prev) => ({ ...prev, isOpen: checked })), [setPronunciationConfig])
+  const onTogglePronunciationIsTransRead = useCallback((checked: boolean) => setPronunciationConfig((prev) => ({ ...prev, isTransRead: checked })), [setPronunciationConfig])
+  const onChangePronunciationVolume = useCallback((value: [number]) => setPronunciationConfig((prev) => ({ ...prev, volume: value[0] / 100 })), [setPronunciationConfig])
+  const onChangePronunciationIsTransVolume = useCallback((value: [number]) => setPronunciationConfig((prev) => ({ ...prev, transVolume: value[0] / 100 })), [setPronunciationConfig])
+  const onChangePronunciationRate = useCallback((value: [number]) => setPronunciationConfig((prev) => ({ ...prev, rate: value[0] })), [setPronunciationConfig])
+  const onToggleKeySounds = useCallback((checked: boolean) => setKeySoundsConfig((prev) => ({ ...prev, isOpen: checked })), [setKeySoundsConfig])
+  const onChangeKeySoundsVolume = useCallback((value: [number]) => setKeySoundsConfig((prev) => ({ ...prev, volume: value[0] / 100 })), [setKeySoundsConfig])
+  const onToggleHintSounds = useCallback((checked: boolean) => setHintSoundsConfig((prev) => ({ ...prev, isOpen: checked })), [setHintSoundsConfig])
+  const onChangeHintSoundsVolume = useCallback((value: [number]) => setHintSoundsConfig((prev) => ({ ...prev, volume: value[0] / 100 })), [setHintSoundsConfig])
 
   const onChangeKeySoundsResource = useCallback(
     (key: string) => {
       const soundResource = keySoundResources.find((item: SoundResource) => item.key === key) as SoundResource
-      if (!soundResource) return
-
-      setKeySoundsConfig((prev) => ({
-        ...prev,
-        resource: soundResource,
-      }))
+      if (soundResource) setKeySoundsConfig((prev) => ({ ...prev, resource: soundResource }))
     },
     [setKeySoundsConfig],
   )
 
-  const onPlayKeySound = useCallback((soundResource: SoundResource) => {
-    playKeySoundResource(soundResource)
-  }, [])
-
-  const onToggleHintSounds = useCallback(
-    (checked: boolean) => {
-      setHintSoundsConfig((prev) => ({
-        ...prev,
-        isOpen: checked,
-      }))
-    },
-    [setHintSoundsConfig],
-  )
-  const onChangeHintSoundsVolume = useCallback(
-    (value: [number]) => {
-      setHintSoundsConfig((prev) => ({
-        ...prev,
-        volume: value[0] / 100,
-      }))
-    },
-    [setHintSoundsConfig],
-  )
+  const onPlayKeySound = useCallback((soundResource: SoundResource) => playKeySoundResource(soundResource), [])
 
   return (
-    <ScrollArea.Root className="flex-1 select-none overflow-y-auto ">
-      <ScrollArea.Viewport className="h-full w-full px-3">
+    <ScrollArea.Root className="flex-1 select-none overflow-y-auto">
+      <ScrollArea.Viewport className="h-full w-full">
         <div className={styles.tabContent}>
-          <div className={styles.section}>
-            <span className={styles.sectionLabel}>单词发音</span>
-            <div className={styles.switchBlock}>
-              <Switch checked={pronunciationConfig.isOpen} onChange={onTogglePronunciation} className="switch-root">
-                <span aria-hidden="true" className="switch-thumb" />
-              </Switch>
-              <span className="text-right text-xs font-normal leading-tight text-gray-600">{`发音已${
-                pronunciationConfig.isOpen ? '开启' : '关闭'
-              }`}</span>
+          <section className={styles.section}>
+            <div>
+              <span className={styles.sectionLabel}>单词发音</span>
+              <p className={`${styles.sectionDescription} mt-1`}>进入新单词时自动播放发音。</p>
             </div>
-            <div className={styles.block}>
-              <span className={styles.blockLabel}>音量</span>
-              <div className="flex h-5 w-full items-center justify-between">
-                <Slider.Root
-                  defaultValue={[pronunciationConfig.volume * 100]}
-                  max={100}
-                  step={10}
-                  className="slider"
-                  onValueChange={onChangePronunciationVolume}
-                  disabled={!pronunciationConfig.isOpen}
-                >
-                  <Slider.Track>
-                    <Slider.Range />
-                  </Slider.Track>
-                  <Slider.Thumb />
-                </Slider.Root>
-                <span className="ml-4 w-10 text-xs font-normal text-gray-600">{`${Math.floor(pronunciationConfig.volume * 100)}%`}</span>
-              </div>
-            </div>
+            <SettingSwitch checked={pronunciationConfig.isOpen} onChange={onTogglePronunciation} label="单词发音" />
+            <SliderRow label="音量" value={pronunciationConfig.volume * 100} display={`${Math.floor(pronunciationConfig.volume * 100)}%`} max={100} step={10} onChange={onChangePronunciationVolume} disabled={!pronunciationConfig.isOpen} />
+            <SliderRow label="速度" value={pronunciationConfig.rate ?? 1} display={`${toFixedNumber(pronunciationConfig.rate, 2)}×`} min={0.5} max={4} step={0.1} onChange={onChangePronunciationRate} disabled={!pronunciationConfig.isOpen} />
+          </section>
 
-            <div className={styles.block}>
-              <span className={styles.blockLabel}>倍速</span>
-              <div className="flex h-5 w-full items-center justify-between">
-                <Slider.Root
-                  defaultValue={[pronunciationConfig.rate ?? 1]}
-                  max={4}
-                  min={0.5}
-                  step={0.1}
-                  className="slider"
-                  onValueChange={onChangePronunciationRate}
-                  disabled={!pronunciationConfig.isOpen}
-                >
-                  <Slider.Track>
-                    <Slider.Range />
-                  </Slider.Track>
-                  <Slider.Thumb />
-                </Slider.Root>
-                <span className="ml-4 w-10 text-xs font-normal text-gray-600">{`${toFixedNumber(pronunciationConfig.rate, 2)}`}</span>
-              </div>
-            </div>
-          </div>
           {window.speechSynthesis && (
-            <div className={styles.section}>
-              <span className={styles.sectionLabel}>释义发音</span>
-              <div className={styles.switchBlock}>
-                <Switch checked={pronunciationConfig.isTransRead} onChange={onTogglePronunciationIsTransRead} className="switch-root">
-                  <span aria-hidden="true" className="switch-thumb" />
-                </Switch>
-                <span className="text-right text-xs font-normal leading-tight text-gray-600">{`发音已${
-                  pronunciationConfig.isTransRead ? '开启' : '关闭'
-                }`}</span>
+            <section className={styles.section}>
+              <div>
+                <span className={styles.sectionLabel}>释义发音</span>
+                <p className={`${styles.sectionDescription} mt-1`}>使用系统语音朗读当前中文释义。</p>
               </div>
-              <div className={styles.block}>
-                <span className={styles.blockLabel}>音量</span>
-                <div className="flex h-5 w-full items-center justify-between">
-                  <Slider.Root
-                    defaultValue={[pronunciationConfig.transVolume * 100]}
-                    max={100}
-                    step={10}
-                    className="slider"
-                    onValueChange={onChangePronunciationIsTransVolume}
-                  >
-                    <Slider.Track>
-                      <Slider.Range />
-                    </Slider.Track>
-                    <Slider.Thumb />
-                  </Slider.Root>
-                  <span className="ml-4 w-10 text-xs font-normal text-gray-600">{`${Math.floor(
-                    pronunciationConfig.transVolume * 100,
-                  )}%`}</span>
-                </div>
-              </div>
-            </div>
+              <SettingSwitch checked={pronunciationConfig.isTransRead} onChange={onTogglePronunciationIsTransRead} label="释义发音" />
+              <SliderRow label="音量" value={pronunciationConfig.transVolume * 100} display={`${Math.floor(pronunciationConfig.transVolume * 100)}%`} max={100} step={10} onChange={onChangePronunciationIsTransVolume} disabled={!pronunciationConfig.isTransRead} />
+            </section>
           )}
 
-          <div className={styles.section}>
-            <span className={styles.sectionLabel}>按键音</span>
-            <div className={styles.switchBlock}>
-              <Switch checked={keySoundsConfig.isOpen} onChange={onToggleKeySounds} className="switch-root">
-                <span aria-hidden="true" className="switch-thumb" />
-              </Switch>
-              <span className="text-right text-xs font-normal leading-tight text-gray-600">{`发音已${
-                keySoundsConfig.isOpen ? '开启' : '关闭'
-              }`}</span>
+          <section className={styles.section}>
+            <div>
+              <span className={styles.sectionLabel}>按键音</span>
+              <p className={`${styles.sectionDescription} mt-1`}>给输入一个很轻的触感反馈；关闭不会影响正确/错误视觉反馈。</p>
             </div>
+            <SettingSwitch checked={keySoundsConfig.isOpen} onChange={onToggleKeySounds} label="按键音" />
+            <SliderRow label="音量" value={keySoundsConfig.volume * 100} display={`${Math.floor(keySoundsConfig.volume * 100)}%`} min={1} max={100} step={10} onChange={onChangeKeySoundsVolume} disabled={!keySoundsConfig.isOpen} />
             <div className={styles.block}>
-              <span className={styles.blockLabel}>音量</span>
-              <div className="flex h-5 w-full items-center justify-between">
-                <Slider.Root
-                  defaultValue={[keySoundsConfig.volume * 100]}
-                  max={100}
-                  min={1}
-                  step={10}
-                  className="slider"
-                  onValueChange={onChangeKeySoundsVolume}
-                  disabled={!keySoundsConfig.isOpen}
-                >
-                  <Slider.Track>
-                    <Slider.Range />
-                  </Slider.Track>
-                  <Slider.Thumb />
-                </Slider.Root>
-                <span className="ml-4 w-10 text-xs font-normal text-gray-600">{`${Math.floor(keySoundsConfig.volume * 100)}%`}</span>
-              </div>
-            </div>
-            <div className={`${styles.block}`}>
-              <span className={styles.blockLabel}>按键音效</span>
-              <Listbox value={keySoundsConfig.resource.key} onChange={onChangeKeySoundsResource}>
-                <div className="relative">
-                  <Listbox.Button className="listbox-button w-60">
-                    <span>{keySoundsConfig.resource.name}</span>
-                    <span>
-                      <IconChevronDown className="focus:outline-none" />
-                    </span>
+              <span className={styles.blockLabel}>声音</span>
+              <Listbox value={keySoundsConfig.resource.key} onChange={onChangeKeySoundsResource} disabled={!keySoundsConfig.isOpen}>
+                <div className="relative w-full max-w-[280px]">
+                  <Listbox.Button className="listbox-button w-full">
+                    <span className="truncate">{keySoundsConfig.resource.name}</span>
+                    <IconChevronDown className="h-4 w-4" />
                   </Listbox.Button>
-                  <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
+                  <Transition as={Fragment} enter="transition ease-out duration-120" enterFrom="opacity-0 translate-y-1" enterTo="opacity-100 translate-y-0" leave="transition ease-in duration-90" leaveFrom="opacity-100" leaveTo="opacity-0">
                     <Listbox.Options className="listbox-options z-10">
-                      {keySoundResources.map((keySoundResource) => (
-                        <Listbox.Option key={keySoundResource.key} value={keySoundResource.key}>
+                      {keySoundResources.map((sound) => (
+                        <Listbox.Option key={sound.key} value={sound.key}>
                           {({ selected }) => (
-                            <>
-                              <div className="group flex cursor-pointer items-center justify-between">
-                                <span>{keySoundResource.name}</span>
-                                {selected ? (
-                                  <span className="listbox-options-icon">
-                                    <IconCheck className="focus:outline-none" />
-                                  </span>
-                                ) : null}
-                                <IconEar
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    onPlayKeySound(keySoundResource)
+                            <div className="group flex cursor-pointer items-center justify-between gap-3">
+                              <span className="truncate">{sound.name}</span>
+                              <span className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  aria-label={`试听 ${sound.name}`}
+                                  onClick={(event) => {
+                                    event.preventDefault()
+                                    event.stopPropagation()
+                                    onPlayKeySound(sound)
                                   }}
-                                  className="mr-2  hidden cursor-pointer text-neutral-500 hover:text-indigo-400 group-hover:block dark:text-neutral-300"
-                                />
-                              </div>
-                            </>
+                                  className="grid h-7 w-7 place-items-center rounded-[var(--wenyan-radius-sm)] text-[var(--wenyan-ink-muted)] opacity-0 transition-opacity hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-accent)] group-hover:opacity-100 focus:opacity-100"
+                                >
+                                  <IconEar className="h-3.5 w-3.5" />
+                                </button>
+                                {selected && <IconCheck className="h-4 w-4 text-[var(--wenyan-accent)]" />}
+                              </span>
+                            </div>
                           )}
                         </Listbox.Option>
                       ))}
@@ -278,42 +153,18 @@ export default function SoundSetting() {
                 </div>
               </Listbox>
             </div>
-          </div>
+          </section>
 
-          <div className={styles.section}>
-            <span className={styles.sectionLabel}>效果音</span>
-            <div className={styles.switchBlock}>
-              <Switch checked={hintSoundsConfig.isOpen} onChange={onToggleHintSounds} className="switch-root">
-                <span aria-hidden="true" className="switch-thumb" />
-              </Switch>
-              <span className="text-right text-xs font-normal leading-tight text-gray-600">{`发音已${
-                hintSoundsConfig.isOpen ? '开启' : '关闭'
-              }`}</span>
+          <section className={styles.section}>
+            <div>
+              <span className={styles.sectionLabel}>效果音</span>
+              <p className={`${styles.sectionDescription} mt-1`}>用于完成、提示等少量状态反馈。</p>
             </div>
-            <div className={styles.block}>
-              <span className={styles.blockLabel}>音量</span>
-              <div className="flex h-5 w-full items-center justify-between">
-                <Slider.Root
-                  defaultValue={[hintSoundsConfig.volume * 100]}
-                  max={100}
-                  min={1}
-                  step={10}
-                  className="slider"
-                  onValueChange={onChangeHintSoundsVolume}
-                  disabled={!hintSoundsConfig.isOpen}
-                >
-                  <Slider.Track>
-                    <Slider.Range />
-                  </Slider.Track>
-                  <Slider.Thumb />
-                </Slider.Root>
-                <span className="ml-4 w-10 text-xs font-normal text-gray-600">{`${Math.floor(hintSoundsConfig.volume * 100)}%`}</span>
-              </div>
-            </div>
-          </div>
+            <SettingSwitch checked={hintSoundsConfig.isOpen} onChange={onToggleHintSounds} label="效果音" />
+            <SliderRow label="音量" value={hintSoundsConfig.volume * 100} display={`${Math.floor(hintSoundsConfig.volume * 100)}%`} min={1} max={100} step={10} onChange={onChangeHintSoundsVolume} disabled={!hintSoundsConfig.isOpen} />
+          </section>
         </div>
       </ScrollArea.Viewport>
-      <ScrollArea.Scrollbar className="flex touch-none select-none bg-transparent " orientation="vertical"></ScrollArea.Scrollbar>
     </ScrollArea.Root>
   )
 }
