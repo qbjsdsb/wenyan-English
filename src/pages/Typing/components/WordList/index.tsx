@@ -5,8 +5,8 @@ import Tooltip from '@/components/Tooltip'
 import { currentChapterAtom, currentDictInfoAtom, isReviewModeAtom } from '@/store'
 import { Dialog } from '@headlessui/react'
 import * as ScrollArea from '@radix-ui/react-scroll-area'
-import { atom, useAtomValue } from 'jotai'
-import { useContext, useState } from 'react'
+import { atom, useAtom, useAtomValue } from 'jotai'
+import { useContext } from 'react'
 import ListIcon from '~icons/tabler/list'
 import IconX from '~icons/tabler/x'
 
@@ -16,9 +16,11 @@ const currentDictTitle = atom((get) => {
   return `${get(currentDictInfoAtom).name} 第 ${get(currentChapterAtom) + 1} 章`
 })
 
+const wordListOpenAtom = atom(false)
+
 export default function WordList({ inline = false }: { inline?: boolean }) {
   const { state, dispatch } = useContext(TypingContext)!
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useAtom(wordListOpenAtom)
   const currentDictTitleValue = useAtomValue(currentDictTitle)
 
   function closeModal() {
