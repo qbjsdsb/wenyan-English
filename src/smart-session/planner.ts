@@ -1,6 +1,7 @@
 import type { Candidate, Purpose, SmartSessionDraft, SmartSessionInput, VocabularyCandidate } from './types'
 
 const DAY = 86_400_000
+const RECENT_PRACTICE_COOLDOWN = 20 * 60_000
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 const finite = (n: number) => Number.isFinite(n) && n >= 0
 
@@ -11,7 +12,7 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
   const optional = [c.targetMinutes, c.hardStopMinutes, c.newWordCeiling, input.lastActivityAt]
   if (!numbers.every(finite) || !optional.every((n) => n === undefined || finite(n))) throw new Error('Invalid planner numbers')
   if ((c.targetMinutes ?? 0) > 240 || (c.hardStopMinutes ?? 0) > 240 || (c.newWordCeiling ?? 0) > 50) {
-    throw new Error('Constraint exceeds v1 bounds')
+    throw new Error('Constraint exceeds planner bounds')
   }
   if (![input.newItemsToday, p.completedBlocks, p.newItemsIntroduced, c.newWordCeiling ?? 0].every(Number.isInteger)) {
     throw new Error('Counts must be integers')
@@ -20,7 +21,7 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
   const warnings = input.coverage === 'complete' ? [] : ['History coverage is incomplete; unseen means unobserved, not unknown to the learner.']
   if (p.timingQuality === 'estimated') warnings.push('Session time is an estimate, not measured active learning time.')
   const result: SmartSessionDraft = {
-    algorithmVersion: 'elastic-v1',
+    algorithmVersion: 'elastic-v2',
     snapshotId: input.snapshotId,
     blocks: [],
     estimatedSeconds: 0,
@@ -95,6 +96,7 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
   type Ranked = { item: Candidate; purpose: Purpose; score: number; refs: string[]; reason: string }
   const eligible: Ranked[] = []
   const deferred = new Map<string, string>()
+  let nextCorrectionRetryAt: number | undefined
   items.forEach((item) => {
     if (!input.availableActivities.includes(item.kind)) return void deferred.set(item.key, 'unsupported_activity')
     if (seen.has(item.key)) return void deferred.set(item.key, 'already_attempted_in_session')
@@ -103,22 +105,47 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
       return
     }
     const last = item.attempts[item.attempts.length - 1]
-    if (last && input.now - last.occurredAt < 20 * 60_000) return void deferred.set(item.key, 'recent_practice_cooldown')
     if (!last) {
       if (c.focusDictionary && item.dictionaryId !== c.focusDictionary) return void deferred.set(item.key, 'outside_new_word_focus')
       eligible.push({ item, purpose: 'new', score: -item.ordinal, refs: [], reason: 'no_observed_exposure_in_current_history' })
       return
     }
+
     const recent = item.attempts.filter((a) => input.now - a.occurredAt <= 14 * DAY).slice(-3)
     const errors = recent.filter((a) => a.wrongCount > 0).length
+    const latestErrorNeedsCorrection = last.wrongCount > 0 && input.now - last.occurredAt < DAY
+    const needsCorrectionAfterCooldown = latestErrorNeedsCorrection || errors >= 2
+    if (input.now - last.occurredAt < RECENT_PRACTICE_COOLDOWN) {
+      deferred.set(item.key, 'recent_practice_cooldown')
+      if (needsCorrectionAfterCooldown) {
+        const retryAt = last.occurredAt + RECENT_PRACTICE_COOLDOWN
+        nextCorrectionRetryAt = nextCorrectionRetryAt === undefined ? retryAt : Math.min(nextCorrectionRetryAt, retryAt)
+      }
+      return
+    }
+
     const due = item.schedule?.dueAt ?? last.occurredAt + (last.wrongCount > 0 ? DAY : 3 * DAY)
-    const purpose = errors >= 2 ? 'weak' : due <= input.now ? 'review' : undefined
-    if (!purpose) return void deferred.set(item.key, 'not_due_and_no_repeated_recent_errors')
-    const score = Math.min(7, Math.max(0, (input.now - due) / DAY)) + errors * 2 + (item.dictionaryId === c.focusDictionary ? 1 : 0)
+    const purpose: Purpose | undefined = errors >= 2
+      ? 'weak'
+      : latestErrorNeedsCorrection
+        ? 'correction'
+        : due <= input.now
+          ? 'review'
+          : undefined
+    if (!purpose) return void deferred.set(item.key, 'not_due_and_no_recent_spelling_error')
+    const score = Math.min(7, Math.max(0, (input.now - due) / DAY)) + errors * 2 + last.wrongCount + (item.dictionaryId === c.focusDictionary ? 1 : 0)
     const refs = Array.from(new Set([...recent.map((a) => a.id), last.id, ...(item.schedule?.evidenceRefs ?? [])])).sort(compare)
-    eligible.push({ item, purpose, score, refs, reason: purpose === 'weak' ? 'repeated_recent_spelling_errors' : item.schedule ? 'scheduler_due' : 'heuristic_revisit_window' })
+    const reason = purpose === 'weak'
+      ? 'repeated_recent_spelling_errors'
+      : purpose === 'correction'
+        ? 'recent_spelling_error_needs_correction'
+        : item.schedule
+          ? 'scheduler_due'
+          : 'heuristic_revisit_window'
+    eligible.push({ item, purpose, score, refs, reason })
   })
-  const reviewSeconds = eligible.filter((x) => x.purpose === 'review' || x.purpose === 'weak').reduce((n, x) => n + x.item.estimatedSeconds, 0)
+  const reviewSeconds = eligible.filter((x) => x.purpose === 'review' || x.purpose === 'correction' || x.purpose === 'weak')
+    .reduce((n, x) => n + x.item.estimatedSeconds, 0)
   const pressure = reviewSeconds > 2 * blockSeconds
   const returning = input.lastActivityAt !== undefined && input.now - input.lastActivityAt >= 3 * DAY
   const dailyCeiling = Math.min(c.newWordCeiling ?? (c.intensity === 'gentle' ? 8 : 20), pressure || returning ? 5 : Infinity)
@@ -127,7 +154,7 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
   if (c.reviewPreference === 'review_first') pattern.splice(1, 0, 'weak')
   let preferred = pattern[p.completedBlocks % pattern.length]
   if (p.completedBlocks > 0 && c.preferredActivities?.includes('reading')) preferred = 'reading'
-  const order = Array.from(new Set([preferred, 'review', 'weak', 'new', 'reading'] as Purpose[]))
+  const order = Array.from(new Set([preferred, 'weak', 'correction', 'review', 'new', 'reading'] as Purpose[]))
   const ranked = [...eligible].sort((a, b) => order.indexOf(a.purpose) - order.indexOf(b.purpose) || b.score - a.score || compare(a.item.key, b.item.key))
   let purpose: Purpose | undefined
   const selected: Ranked[] = []
@@ -157,6 +184,17 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
     result.disposition = 'continue'
     result.reason = pressure ? 'bounded_review_pressure' : returning ? 'gentle_return' : 'next_useful_block'
     result.estimatedSeconds = total
+  } else {
+    const reasons = new Set(deferred.values())
+    const newWordsBlocked = reasons.has('new_word_ceiling')
+    if (nextCorrectionRetryAt !== undefined) {
+      result.retryAt = nextCorrectionRetryAt
+      result.reason = newWordsBlocked ? 'review_only_waiting_for_correction_cooldown' : 'waiting_for_correction_cooldown'
+    } else if (newWordsBlocked) {
+      result.reason = 'new_word_ceiling_no_review'
+    } else if (reasons.has('not_due_and_no_recent_spelling_error')) {
+      result.reason = 'nothing_due_yet'
+    }
   }
   result.deferred = Array.from(deferred, ([key, reason]) => ({ key, reason })).sort((a, b) => compare(a.key, b.key))
   return result
