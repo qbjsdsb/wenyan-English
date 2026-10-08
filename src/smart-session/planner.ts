@@ -29,6 +29,16 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
     reason: 'no_eligible_content',
     deferred: [],
     warnings,
+    availability: {
+      status: 'not_evaluated',
+      reviewEligibleCount: 0,
+      weakEligibleCount: 0,
+      correctionEligibleCount: 0,
+      correctionCooldownCount: 0,
+      newEligibleCount: 0,
+      newWordCapacity: 0,
+      readingEligibleCount: 0,
+    },
   }
 
   // Merge duplicate canonical words, union evidence UUIDs, and choose a stable focus-book content locator.
@@ -97,6 +107,7 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
   const eligible: Ranked[] = []
   const deferred = new Map<string, string>()
   let nextCorrectionRetryAt: number | undefined
+  let correctionCooldownCount = 0
   items.forEach((item) => {
     if (!input.availableActivities.includes(item.kind)) return void deferred.set(item.key, 'unsupported_activity')
     if (seen.has(item.key)) return void deferred.set(item.key, 'already_attempted_in_session')
@@ -118,6 +129,7 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
     if (input.now - last.occurredAt < RECENT_PRACTICE_COOLDOWN) {
       deferred.set(item.key, 'recent_practice_cooldown')
       if (needsCorrectionAfterCooldown) {
+        correctionCooldownCount += 1
         const retryAt = last.occurredAt + RECENT_PRACTICE_COOLDOWN
         nextCorrectionRetryAt = nextCorrectionRetryAt === undefined ? retryAt : Math.min(nextCorrectionRetryAt, retryAt)
       }
@@ -150,6 +162,16 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
   const returning = input.lastActivityAt !== undefined && input.now - input.lastActivityAt >= 3 * DAY
   const dailyCeiling = Math.min(c.newWordCeiling ?? (c.intensity === 'gentle' ? 8 : 20), pressure || returning ? 5 : Infinity)
   let newSlots = Math.max(0, Math.min(dailyCeiling - input.newItemsToday, sessionCeiling - p.newItemsIntroduced))
+  result.availability = {
+    status: 'evaluated',
+    reviewEligibleCount: eligible.filter((x) => x.purpose === 'review').length,
+    weakEligibleCount: eligible.filter((x) => x.purpose === 'weak').length,
+    correctionEligibleCount: eligible.filter((x) => x.purpose === 'correction').length,
+    correctionCooldownCount,
+    newEligibleCount: eligible.filter((x) => x.purpose === 'new').length,
+    newWordCapacity: newSlots,
+    readingEligibleCount: eligible.filter((x) => x.purpose === 'reading').length,
+  }
   const pattern: Purpose[] = horizon <= 12 ? ['review', 'weak', 'new'] : horizon <= 30 ? ['review', 'new', 'weak', 'review'] : horizon <= 60 ? ['review', 'new', 'reading', 'weak', 'review'] : ['review', 'new', 'weak', 'reading', 'review']
   if (c.reviewPreference === 'review_first') pattern.splice(1, 0, 'weak')
   let preferred = pattern[p.completedBlocks % pattern.length]

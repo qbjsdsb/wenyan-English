@@ -15,6 +15,7 @@ const COACHING_ALGORITHM_VERSION = 'coaching-v1'
 
 type IntentReadStatus = 'available' | 'not_authorized' | 'unavailable' | 'invalid_response'
 type PreferenceReadStatus = 'available' | 'not_authorized' | 'unavailable' | 'invalid_response'
+type ExecutionAvailabilityReadStatus = 'fresh' | 'stale' | 'unavailable' | 'not_authorized' | 'invalid_response'
 
 const DEFAULT_STAGE: StagePreference = {
   current: 'vocabulary',
@@ -39,6 +40,29 @@ interface CloudIntentRow {
   effectiveFrom?: unknown
   expiresAt?: unknown
   constraints?: unknown
+}
+
+interface ExecutionAvailabilitySnapshot {
+  algorithmVersion: 'elastic-v2'
+  focusDictionary: string
+  plannerSnapshotId: string
+  availabilityStatus: 'evaluated' | 'not_evaluated'
+  sessionKind: 'draft' | 'resume'
+  disposition: 'continue' | 'break' | 'finish'
+  reason: string
+  retryAt: number | null
+  reviewEligibleCount: number
+  weakEligibleCount: number
+  correctionEligibleCount: number
+  correctionCooldownCount: number
+  newEligibleCount: number
+  newWordCapacity: number
+  readingEligibleCount: number
+  selectedPurpose: 'review' | 'correction' | 'weak' | 'new' | 'reading' | null
+  selectedItemCount: number
+  coverage: 'complete' | 'partial' | 'unknown'
+  reportedAt: number
+  ageSeconds: number
 }
 
 interface CoachingAdapterOptions {
@@ -295,6 +319,71 @@ function mapPreferences(value: unknown): { stage: StagePreference; reminder: Sta
   }
 }
 
+function mapExecutionAvailability(value: unknown): { status: ExecutionAvailabilityReadStatus; snapshot: ExecutionAvailabilitySnapshot | null } {
+  const root = object(value)
+  if (!root) return { status: 'invalid_response', snapshot: null }
+  if (root.status === 'unavailable') return { status: 'unavailable', snapshot: null }
+  if (root.status !== 'fresh' && root.status !== 'stale') return { status: 'invalid_response', snapshot: null }
+
+  const reportedAt = parseTimestamp(root.reportedAt)
+  const ageSeconds = parseNonNegativeInteger(root.ageSeconds)
+  const row = object(root.snapshot)
+  if (!row || reportedAt === null || ageSeconds === null) return { status: 'invalid_response', snapshot: null }
+
+  const retryAt = row.retryAt === null ? null : parseTimestamp(row.retryAt)
+  const selectedPurpose = row.selectedPurpose
+  const counts = [
+    row.reviewEligibleCount,
+    row.weakEligibleCount,
+    row.correctionEligibleCount,
+    row.correctionCooldownCount,
+    row.newEligibleCount,
+    row.newWordCapacity,
+    row.readingEligibleCount,
+    row.selectedItemCount,
+  ].map(parseNonNegativeInteger)
+
+  if (
+    row.algorithmVersion !== 'elastic-v2' ||
+    typeof row.focusDictionary !== 'string' || !row.focusDictionary ||
+    typeof row.plannerSnapshotId !== 'string' || !row.plannerSnapshotId ||
+    !['evaluated', 'not_evaluated'].includes(String(row.availabilityStatus)) ||
+    !['draft', 'resume'].includes(String(row.sessionKind)) ||
+    !['continue', 'break', 'finish'].includes(String(row.disposition)) ||
+    typeof row.reason !== 'string' || !row.reason ||
+    (row.retryAt !== null && retryAt === null) ||
+    counts.some((count) => count === null) ||
+    (selectedPurpose !== null && !['review', 'correction', 'weak', 'new', 'reading'].includes(String(selectedPurpose))) ||
+    !['complete', 'partial', 'unknown'].includes(String(row.coverage))
+  ) return { status: 'invalid_response', snapshot: null }
+
+  return {
+    status: root.status,
+    snapshot: {
+      algorithmVersion: 'elastic-v2',
+      focusDictionary: row.focusDictionary,
+      plannerSnapshotId: row.plannerSnapshotId,
+      availabilityStatus: row.availabilityStatus as ExecutionAvailabilitySnapshot['availabilityStatus'],
+      sessionKind: row.sessionKind as ExecutionAvailabilitySnapshot['sessionKind'],
+      disposition: row.disposition as ExecutionAvailabilitySnapshot['disposition'],
+      reason: row.reason,
+      retryAt,
+      reviewEligibleCount: counts[0] as number,
+      weakEligibleCount: counts[1] as number,
+      correctionEligibleCount: counts[2] as number,
+      correctionCooldownCount: counts[3] as number,
+      newEligibleCount: counts[4] as number,
+      newWordCapacity: counts[5] as number,
+      readingEligibleCount: counts[6] as number,
+      selectedPurpose: selectedPurpose as ExecutionAvailabilitySnapshot['selectedPurpose'],
+      selectedItemCount: counts[7] as number,
+      coverage: row.coverage as ExecutionAvailabilitySnapshot['coverage'],
+      reportedAt,
+      ageSeconds,
+    },
+  }
+}
+
 async function readIntents(options: CoachingAdapterOptions) {
   if (options.intentReadCapabilityStatus === 'denied') {
     return { status: 'not_authorized' as IntentReadStatus, intents: [] as IntentReference[], invalidRows: 0 }
@@ -338,16 +427,30 @@ async function readPreferences(options: CoachingAdapterOptions) {
   }
 }
 
+async function readExecutionAvailability(options: CoachingAdapterOptions) {
+  try {
+    const raw = await postRpc(options.supabaseUrl, 'get_execution_availability', options.token, options.publishableKey)
+    return mapExecutionAvailability(raw)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    return {
+      status: (message === 'NOT_AUTHORIZED' ? 'not_authorized' : 'unavailable') as ExecutionAvailabilityReadStatus,
+      snapshot: null as ExecutionAvailabilitySnapshot | null,
+    }
+  }
+}
+
 export async function buildCloudCoachingContext(options: CoachingAdapterOptions) {
   const now = options.now ?? Date.now()
   if (!Number.isFinite(now) || now < 0) throw new Error('INVALID_SNAPSHOT_TIME')
   const receivedAtOrBefore = new Date(now).toISOString()
 
-  // Learning facts are required. Intent and durable preferences are optional enrichments and must fail soft.
-  const [wordData, intentData, preferenceData] = await Promise.all([
+  // Learning facts are required. Intent, durable preferences and executor availability are optional enrichments and fail soft.
+  const [wordData, intentData, preferenceData, executionData] = await Promise.all([
     readWordFacts(options, receivedAtOrBefore),
     readIntents(options),
     readPreferences(options),
+    readExecutionAvailability(options),
   ])
 
   const canonicalIntents = [...intentData.intents]
@@ -374,6 +477,8 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
     learningStage: preferenceData.stage,
     stageReminder: preferenceData.reminder,
     preferenceReadStatus: preferenceData.status,
+    executionAvailabilityStatus: executionData.status,
+    executionAvailability: executionData.snapshot,
   })
   const snapshotId = `sha256:${fingerprint}`
 
@@ -402,6 +507,9 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
     ...(intentData.status === 'available' ? [] : ['learning_intent_unavailable']),
     ...(intentData.invalidRows > 0 ? ['invalid_learning_intent_rows_excluded'] : []),
     ...(preferenceData.status === 'available' ? [] : ['learning_preferences_unavailable']),
+    ...(executionData.status === 'fresh'
+      ? []
+      : [executionData.status === 'stale' ? 'execution_availability_stale' : 'execution_availability_unavailable']),
   ]
   const evidenceRefs = context.evidence.refs.map((ref) => ({
     ...ref,
@@ -419,22 +527,60 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
       ...context.evidence,
       refs: evidenceRefs,
     },
+    runtime: {
+      executionAvailability: {
+        status: executionData.status,
+        reportedAt: executionData.snapshot?.reportedAt ?? null,
+        ageSeconds: executionData.snapshot?.ageSeconds ?? null,
+        snapshot: executionData.snapshot
+          ? {
+              algorithmVersion: executionData.snapshot.algorithmVersion,
+              focusDictionary: executionData.snapshot.focusDictionary,
+              plannerSnapshotId: executionData.snapshot.plannerSnapshotId,
+              availabilityStatus: executionData.snapshot.availabilityStatus,
+              sessionKind: executionData.snapshot.sessionKind,
+              disposition: executionData.snapshot.disposition,
+              reason: executionData.snapshot.reason,
+              retryAt: executionData.snapshot.retryAt,
+              reviewEligibleCount: executionData.snapshot.reviewEligibleCount,
+              weakEligibleCount: executionData.snapshot.weakEligibleCount,
+              correctionEligibleCount: executionData.snapshot.correctionEligibleCount,
+              correctionCooldownCount: executionData.snapshot.correctionCooldownCount,
+              newEligibleCount: executionData.snapshot.newEligibleCount,
+              newWordCapacity: executionData.snapshot.newWordCapacity,
+              readingEligibleCount: executionData.snapshot.readingEligibleCount,
+              selectedPurpose: executionData.snapshot.selectedPurpose,
+              selectedItemCount: executionData.snapshot.selectedItemCount,
+              coverage: executionData.snapshot.coverage,
+            }
+          : null,
+        interpretation:
+          'Ephemeral deterministic executor state, not learning evidence or mastery. Use capacity counts only when status is fresh.',
+      },
+    },
     uncertainty: uniqueSorted([
       ...context.uncertainty,
       'snapshot_query_refs_are_descriptive_not_replay_handles',
       ...(intentData.status === 'available' ? [] : ['active_learning_intent_not_visible_in_this_snapshot']),
       ...(preferenceData.status === 'available' ? [] : ['learning_stage_preference_not_visible_in_this_snapshot']),
+      ...(executionData.status === 'fresh'
+        ? []
+        : [executionData.status === 'stale'
+            ? 'execution_availability_is_stale_do_not_use_for_current_executor_capacity'
+            : 'current_executor_capacity_not_visible_in_this_snapshot']),
     ]),
-    toolVersion: 'coaching-context-v1.2',
+    toolVersion: 'coaching-context-v1.3',
     requestId: crypto.randomUUID(),
     adapter: {
-      source: 'owner-scoped synced cloud learning_events; durable Learning Preferences and active Learning Intent when authorized and available',
+      source:
+        'owner-scoped synced cloud learning_events; durable Learning Preferences and active Learning Intent when authorized and available; optional short-lived deterministic executor availability',
       wordRowsRead: wordData.rowCount,
       invalidRowsExcluded: wordData.invalidRows,
       maxWordFacts: MAX_WORD_FACTS,
       intentReadStatus: intentData.status,
       invalidIntentRowsExcluded: intentData.invalidRows,
       preferenceReadStatus: preferenceData.status,
+      executionAvailabilityReadStatus: executionData.status,
       readingCandidatesRequested: options.includeReadingCandidates,
       readingCandidatesAvailable: false,
       candidatePurpose: options.candidatePurpose,
@@ -456,6 +602,11 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
         preferences: {
           status: preferenceData.status,
           atomicWithWordFacts: false,
+        },
+        executionAvailability: {
+          status: executionData.status,
+          atomicWithWordFacts: false,
+          ttlSeconds: 120,
         },
       },
     },

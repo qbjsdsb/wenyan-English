@@ -1,4 +1,5 @@
 import { type PreparedSmartSession, assertPreparedVocabularyBlockStartable, prepareSmartVocabularySession, startPreparedVocabularyBlock } from '@/smart-session/adapter'
+import { reportSmartSessionExecutionAvailability } from '@/smart-session/executionAvailability'
 import { type ResolvedSmartSessionIntent, bindResolvedSessionIntent, resolveSmartSessionLearningIntent } from '@/smart-session/learningIntent'
 import {
   acknowledgeSmartBreak,
@@ -132,6 +133,7 @@ export default function SmartSessionDock() {
       )
       setIntent(effectiveIntent)
       setPrepared(nextPrepared)
+      void reportSmartSessionExecutionAvailability(nextPrepared)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '暂时无法生成下一段学习。')
     } finally {
