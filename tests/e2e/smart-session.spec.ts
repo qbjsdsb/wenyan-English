@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 const smartWords = ['alpha', 'beta', 'gamma'].map((name) => ({
   name,
@@ -7,7 +7,7 @@ const smartWords = ['alpha', 'beta', 'gamma'].map((name) => ({
   ukphone: '',
 }))
 
-const installAuthenticatedSession = async (page: Parameters<typeof test>[0] extends never ? never : any) => {
+const installAuthenticatedSession = async (page: Page) => {
   await page.addInitScript(() => {
     const now = Math.floor(Date.now() / 1000)
     localStorage.setItem(
