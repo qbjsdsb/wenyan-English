@@ -20,48 +20,48 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ openState, title, onClose, icon: 
       <Dialog as="div" className="relative z-50" onClose={() => onClose()}>
         <Transition.Child
           as={Fragment}
-          enter="ease-out duration-300"
+          enter="ease-out duration-150"
           enterFrom="opacity-0"
           enterTo="opacity-100"
-          leave="ease-in duration-200"
+          leave="ease-in duration-100"
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-[1px] transition-opacity" />
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 overflow-y-auto">
-          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+          <div className="flex min-h-full items-center justify-center p-6 text-center">
             <Transition.Child
               as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-              enterTo="opacity-100 translate-y-0 sm:scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              enter="ease-out duration-150"
+              enterFrom="opacity-0 translate-y-1 scale-[0.99]"
+              enterTo="opacity-100 translate-y-0 scale-100"
+              leave="ease-in duration-100"
+              leaveFrom="opacity-100 translate-y-0 scale-100"
+              leaveTo="opacity-0 translate-y-1 scale-[0.99]"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg ">
-                <div className="bg-white px-4 pb-4 pt-5 dark:bg-gray-800 sm:p-6 sm:pb-4">
-                  <div className="sm:flex sm:items-start">
+              <Dialog.Panel className="wenyan-surface w-full max-w-lg overflow-hidden text-left">
+                <div className="p-6">
+                  <div className="flex items-start gap-4">
                     <div
                       className={classNames(
                         iconClassName,
-                        `mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full dark:bg-opacity-30 sm:mx-0 sm:h-10 sm:w-10`,
+                        'grid h-9 w-9 shrink-0 place-items-center rounded-[var(--wenyan-radius-sm)] bg-[var(--wenyan-accent-soft)] text-[var(--wenyan-accent)]',
                       )}
                     >
-                      <Icon className="h-6 w-6 stroke-current dark:bg-opacity-100" />
+                      <Icon className="h-4 w-4 stroke-current" />
                     </div>
-                    <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-                      <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900 dark:text-white">
+                    <div className="min-w-0 flex-1">
+                      <Dialog.Title as="h3" className="text-[15px] font-semibold leading-6 text-[var(--wenyan-ink)]">
                         {title}
                       </Dialog.Title>
-                      <div className="mt-2">{children}</div>
+                      <div className="wenyan-body mt-2 text-sm leading-6">{children}</div>
                     </div>
                   </div>
                 </div>
-                <div className="bg-gray-50 px-4 py-3 dark:bg-gray-700  sm:flex sm:flex-row-reverse sm:px-6">
-                  <button type="button" className={classNames(buttonClassName, 'my-btn-info-panel ')} onClick={() => onClose()}>
+                <div className="flex justify-end border-t border-[var(--wenyan-line-soft)] px-6 py-3">
+                  <button type="button" className={classNames(buttonClassName, 'wenyan-button-secondary')} onClick={() => onClose()}>
                     关闭
                   </button>
                 </div>
