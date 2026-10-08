@@ -42,9 +42,10 @@ export default function ReadingPage() {
       <div className="flex min-h-screen flex-col text-gray-900 dark:text-gray-100">
         <Header />
         <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-16">
-          <h1 className="text-2xl font-semibold">这篇阅读暂时不可用。</h1>
+          <p className="text-[11px] font-semibold tracking-[0.18em] text-gray-400">READING</p>
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight">这篇阅读暂时不可用。</h1>
           <p className="mt-3 text-sm text-gray-500">内容可能尚未导入，或者版本已经更新。</p>
-          <Link to="/today" className="mt-8 inline-block text-sm text-indigo-600 dark:text-indigo-300">返回今日学习 →</Link>
+          <Link to="/today" className="mt-8 inline-block text-sm text-gray-600 underline decoration-gray-300 underline-offset-4 dark:text-gray-300">返回今日学习</Link>
         </main>
         <Footer />
       </div>
@@ -89,20 +90,20 @@ export default function ReadingPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50/60 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
+    <div className="flex min-h-screen flex-col text-gray-900 dark:text-gray-100">
       <Header />
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 pb-16 pt-8 lg:px-10">
-        <div className="mb-7 flex items-end justify-between gap-6">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-6 pb-16 pt-10 lg:px-10">
+        <div className="mb-9 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs tracking-[0.18em] text-gray-500">READING · {passage.source.label}</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight">{passage.title}</h1>
+            <p className="text-[11px] font-semibold tracking-[0.2em] text-gray-400">READING · {passage.source.label}</p>
+            <h1 className="mt-3 text-[34px] font-semibold tracking-[-0.04em] text-gray-950 dark:text-white">{passage.title}</h1>
             <p className="mt-3 text-sm text-gray-500">约 {passage.estimatedMinutes} 分钟 · {passage.questions.length} 题 · 作答事实与 AI 分析分开保存</p>
           </div>
-          <Link to="/today" className="text-sm text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-300">结束阅读</Link>
+          <Link to="/today" className="text-sm text-gray-500 transition-colors hover:text-gray-950 dark:hover:text-white">结束阅读</Link>
         </div>
 
-        <div className="grid gap-7 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
-          <article className="rounded-3xl border border-gray-200 bg-white px-7 py-8 shadow-sm dark:border-gray-800 dark:bg-gray-900 lg:px-10 lg:py-10">
+        <div className="grid gap-7 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+          <article className="rounded-[28px] border border-gray-200/70 bg-white/90 px-7 py-8 shadow-[0_18px_50px_-38px_rgba(15,23,42,0.45)] dark:border-white/10 dark:bg-white/[0.05] lg:px-10 lg:py-10">
             <div className="space-y-6 text-[17px] leading-9 text-gray-800 dark:text-gray-200">
               {passage.paragraphs.map((paragraph, index) => (
                 <p key={`${passage.id}-${index}`}>{paragraph}</p>
@@ -115,9 +116,9 @@ export default function ReadingPage() {
               const answer = answers.find((item) => item.questionId === question.id)
               const correct = summary ? answer?.selectedOptionId === question.correctOptionId : undefined
               return (
-                <article key={question.id} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                  <p className="text-xs font-medium tracking-wider text-gray-400">QUESTION {index + 1}</p>
-                  <h2 className="mt-3 text-sm font-medium leading-7">{question.stem}</h2>
+                <article key={question.id} className="rounded-[22px] border border-gray-200/70 bg-white/85 p-6 shadow-[0_14px_40px_-34px_rgba(15,23,42,0.45)] dark:border-white/10 dark:bg-white/[0.045]">
+                  <p className="text-[11px] font-semibold tracking-[0.16em] text-gray-400">QUESTION {index + 1}</p>
+                  <h2 className="mt-3 text-sm font-medium leading-7 text-gray-900 dark:text-gray-100">{question.stem}</h2>
                   <div className="mt-4 space-y-2">
                     {question.options.map((option) => {
                       const selected = answer?.selectedOptionId === option.id
@@ -132,8 +133,8 @@ export default function ReadingPage() {
                               : showWrong
                                 ? 'border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/30'
                                 : selected
-                                  ? 'border-indigo-300 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-950/30'
-                                  : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'
+                                  ? 'border-indigo-300 bg-indigo-50/70 dark:border-indigo-800 dark:bg-indigo-950/30'
+                                  : 'border-gray-200 bg-white/50 hover:border-gray-300 dark:border-white/10 dark:bg-white/[0.025] dark:hover:border-white/20'
                           }`}
                         >
                           <input
@@ -151,7 +152,7 @@ export default function ReadingPage() {
                     })}
                   </div>
                   {summary && (
-                    <div className={`mt-4 rounded-xl px-4 py-3 text-xs leading-6 ${correct ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200' : 'bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}`}>
+                    <div className={`mt-4 rounded-xl px-4 py-3 text-xs leading-6 ${correct ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200' : 'bg-gray-50 text-gray-600 dark:bg-white/5 dark:text-gray-300'}`}>
                       <p className="font-medium">{correct ? '答对了' : `正确答案：${question.correctOptionId}`}</p>
                       {question.explanation && <p className="mt-1">{question.explanation}</p>}
                     </div>
@@ -160,15 +161,15 @@ export default function ReadingPage() {
               )
             })}
 
-            <div className="sticky bottom-5 rounded-2xl border border-gray-200 bg-white/95 p-5 shadow-lg backdrop-blur dark:border-gray-700 dark:bg-gray-900/95">
+            <div className="sticky bottom-5 rounded-[22px] border border-gray-200/80 bg-white/95 p-5 shadow-[0_22px_50px_-30px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/92">
               {summary ? (
                 <div className="flex items-center justify-between gap-5">
                   <div>
-                    <p className="text-xs tracking-wider text-gray-400">本次结果</p>
+                    <p className="text-[11px] font-semibold tracking-[0.16em] text-gray-400">本次结果</p>
                     <p className="mt-1 text-lg font-semibold">{summary.correctCount} / {summary.questionCount}</p>
-                    <p className="mt-1 text-xs text-gray-500">只保存真实作答；错误原因将由后续 AI interpretation 单独分析。</p>
+                    <p className="mt-1 text-xs leading-5 text-gray-500">只保存真实作答；错误原因由后续 AI interpretation 单独分析。</p>
                   </div>
-                  <Link to="/today" className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-medium text-white hover:bg-indigo-700">回到今天</Link>
+                  <Link to="/today" className="shrink-0 rounded-xl bg-gray-950 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white">回到今天</Link>
                 </div>
               ) : (
                 <div className="flex items-center justify-between gap-5">
@@ -181,7 +182,7 @@ export default function ReadingPage() {
                     type="button"
                     disabled={busy}
                     onClick={() => void submit()}
-                    className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                    className="shrink-0 rounded-xl bg-gray-950 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white"
                   >
                     {busy ? '正在保存…' : '提交这一篇'}
                   </button>
