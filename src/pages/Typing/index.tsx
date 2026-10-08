@@ -17,7 +17,6 @@ import StartButton from './components/StartButton'
 import Switcher from './components/Switcher'
 import WordList from './components/WordList'
 import WordPanel from './components/WordPanel'
-import { useConfetti } from './hooks/useConfetti'
 import { useWordList } from './hooks/useWordList'
 import { TypingContext, TypingStateActionType, initialState, typingReducer } from './store'
 
@@ -124,8 +123,6 @@ const App: React.FC = () => {
     }
     return () => clearInterval(intervalId)
   }, [state.isTyping, dispatch])
-
-  useConfetti(state.isFinished)
 
   const skipButton = (
     <Tooltip content="跳过该词">

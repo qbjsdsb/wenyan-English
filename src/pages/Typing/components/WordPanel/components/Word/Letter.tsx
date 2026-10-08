@@ -18,6 +18,12 @@ const stateClassNameMap: Record<string, Record<LetterState, string>> = {
   },
 }
 
+const delightClassNameMap: Record<LetterState, string> = {
+  normal: '',
+  correct: 'wenyan-letter-correct',
+  wrong: 'wenyan-letter-wrong',
+}
+
 export type LetterProps = {
   letter: string
   state?: LetterState
@@ -30,7 +36,7 @@ const Letter: React.FC<LetterProps> = ({ letter, state = 'normal', visible = tru
     <span
       className={`m-0 p-0 font-[var(--wenyan-font-mono)] font-semibold tracking-[0.015em] ${
         stateClassNameMap[(letter === EXPLICIT_SPACE) as unknown as string][state]
-      } pr-0.8 duration-0`}
+      } ${delightClassNameMap[state]} pr-0.8 duration-0`}
       style={{ fontSize: fontSizeConfig.foreignFont.toString() + 'px' }}
     >
       {visible ? letter : '_'}
