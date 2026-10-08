@@ -32,6 +32,8 @@ jobs:
         run: yarn tsc --noEmit
       - name: Smart Session deterministic scenarios
         run: node --experimental-strip-types scripts/check-smart-session.mjs
+      - name: Execution availability deterministic scenarios
+        run: node --experimental-strip-types scripts/check-execution-availability.mjs
       - name: AI Coaching deterministic scenarios
         run: node --experimental-strip-types scripts/check-coaching.mjs
       - name: AI Coach decision guardrail scenarios
