@@ -6,27 +6,29 @@
 /* Today: treat Smart Session + current-book context as one continuous stage. */
 section[aria-label='智能学习'] {
   margin-bottom: 0 !important;
+  padding: 1.5rem 1.75rem 1.3rem !important;
   border-bottom-color: transparent;
   border-radius: var(--wenyan-radius-lg) var(--wenyan-radius-lg) 0 0;
   box-shadow: none;
 }
 
 section[aria-label='智能学习']::before {
-  width: 68%;
-  height: 145%;
-  right: -30%;
-  top: -55%;
-  background: radial-gradient(ellipse at center, var(--wenyan-accent-glow) 0%, transparent 70%);
-  filter: blur(24px);
-  opacity: 0.78;
+  width: 72%;
+  height: 160%;
+  right: -34%;
+  top: -66%;
+  background: radial-gradient(ellipse at center, var(--wenyan-accent-glow) 0%, transparent 72%);
+  filter: blur(30px);
+  opacity: 0.62;
 }
 
 section[aria-label='智能学习'] + section[aria-label='今日概况'] {
-  margin-bottom: 2.75rem !important;
+  margin-bottom: 2.5rem !important;
+  padding-block: 1rem !important;
   border-top-color: color-mix(in srgb, var(--wenyan-accent) 12%, var(--wenyan-line-soft));
   border-radius: 0 0 var(--wenyan-radius-lg) var(--wenyan-radius-lg);
   background: color-mix(in srgb, var(--wenyan-paper-raised) 82%, var(--wenyan-paper-focus));
-  box-shadow: var(--wenyan-shadow-focus);
+  box-shadow: 0 18px 44px color-mix(in srgb, var(--wenyan-canvas) 15%, transparent);
 }
 
 /* Colour means focus/state, not KPI category. */
@@ -36,26 +38,26 @@ section[aria-label='今日概况'] > div:nth-child(4) > div:first-child {
 }
 
 section[aria-label='学习计划'] > div:first-child > div:first-child > span:first-child {
-  opacity: 0.58;
+  opacity: 0.5;
 }
 
 /* Typing: a broad focus field rather than a visible spotlight. */
 .wenyan-word-stage::before {
-  width: min(94vw, 1180px);
-  height: 560px;
+  width: min(96vw, 1240px);
+  height: 600px;
   background: radial-gradient(
     ellipse at center,
-    color-mix(in srgb, var(--wenyan-accent) 8%, var(--wenyan-paper)) 0%,
-    color-mix(in srgb, var(--wenyan-accent) 3%, transparent) 46%,
-    transparent 74%
+    color-mix(in srgb, var(--wenyan-accent) 7%, var(--wenyan-paper)) 0%,
+    color-mix(in srgb, var(--wenyan-accent) 2.5%, transparent) 48%,
+    transparent 76%
   );
-  filter: blur(34px);
-  opacity: 0.16;
+  filter: blur(42px);
+  opacity: 0.13;
 }
 
 .is-active .wenyan-word-stage::before {
-  opacity: 0.48;
-  transform: translate(-50%, -50%) scale(1.02);
+  opacity: 0.34;
+  transform: translate(-50%, -50%) scale(1.01);
 }
 
 /* Library: categories form a spatial relationship with the resource list. */
