@@ -15,7 +15,6 @@ import { useHotkeys } from 'react-hotkeys-hook'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 export default function WordPanel() {
-  // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
   const { state, dispatch } = useContext(TypingContext)!
   const phoneticConfig = useAtomValue(phoneticConfigAtom)
   const isShowPrevAndNextWord = useAtomValue(isShowPrevAndNextWordAtom)
@@ -180,7 +179,7 @@ export default function WordPanel() {
   }, [isShowTranslation, state.isTransVisible])
 
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center">
+    <div className="wenyan-word-stage flex h-full w-full flex-col items-center justify-center">
       <div className="flex h-16 w-full shrink-0 grow-0 justify-between px-8 pt-6">
         {isShowPrevAndNextWord && state.isTyping && (
           <>
@@ -193,13 +192,13 @@ export default function WordPanel() {
         {currentWord && (
           <div className="wenyan-fade-in relative flex w-full justify-center">
             {!state.isTyping && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--wenyan-paper)]">
-                <p className="select-none text-center text-[13px] font-medium text-[var(--wenyan-accent)]">
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-transparent">
+                <p className="select-none text-center text-[13px] font-medium tracking-[0.01em] text-[var(--wenyan-accent)]">
                   按任意键{state.timerData.time ? '继续' : '开始'}
                 </p>
               </div>
             )}
-            <div className="relative -translate-y-2">
+            <div className={`relative transition-transform duration-200 ${state.isTyping ? '-translate-y-4' : '-translate-y-1'}`}>
               <WordComponent word={currentWord} onFinish={onFinish} key={wordComponentKey} />
               {phoneticConfig.isOpen && <Phonetic word={currentWord} />}
               <Translation
