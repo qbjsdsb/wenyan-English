@@ -1,7 +1,5 @@
 import { TypingContext, TypingStateActionType } from '../../store'
 import ShareButton from '../ShareButton'
-import ConclusionBar from './ConclusionBar'
-import RemarkRing from './RemarkRing'
 import WordChip from './WordChip'
 import Tooltip from '@/components/Tooltip'
 import {
@@ -18,24 +16,19 @@ import { useCallback, useContext, useEffect, useMemo } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useNavigate } from 'react-router-dom'
 import IexportWords from '~icons/icon-park-outline/excel'
-import IconGithub from '~icons/simple-icons/github'
 import IconX from '~icons/tabler/x'
 
 const ResultScreen = () => {
-  // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
   const { state, dispatch } = useContext(TypingContext)!
-
   const setWordDictationConfig = useSetAtom(wordDictationConfigAtom)
   const currentDictInfo = useAtomValue(currentDictInfoAtom)
   const [currentChapter, setCurrentChapter] = useAtom(currentChapterAtom)
   const randomConfig = useAtomValue(randomConfigAtom)
   const navigate = useNavigate()
-
   const setReviewModeInfo = useSetAtom(reviewModeInfoAtom)
   const isReviewMode = useAtomValue(isReviewModeAtom)
 
   useEffect(() => {
-    // tick a zero timer to calc the stats
     dispatch({ type: TypingStateActionType.TICK_TIMER, addTime: 0 })
   }, [dispatch])
 
@@ -74,25 +67,7 @@ const ResultScreen = () => {
       .filter((word) => word !== undefined)
   }, [state.chapterData.userInputLogs, state.chapterData.words])
 
-  const isLastChapter = useMemo(() => {
-    return currentChapter >= currentDictInfo.chapterCount - 1
-  }, [currentChapter, currentDictInfo])
-
-  const correctRate = useMemo(() => {
-    const chapterLength = state.chapterData.words.length
-    const correctCount = chapterLength - wrongWords.length
-    return Math.floor((correctCount / chapterLength) * 100)
-  }, [state.chapterData.words.length, wrongWords.length])
-
-  const mistakeLevel = useMemo(() => {
-    if (correctRate >= 85) {
-      return 0
-    } else if (correctRate >= 70) {
-      return 1
-    } else {
-      return 2
-    }
-  }, [correctRate])
+  const isLastChapter = useMemo(() => currentChapter >= currentDictInfo.chapterCount - 1, [currentChapter, currentDictInfo])
 
   const timeString = useMemo(() => {
     const seconds = state.timerData.time
@@ -104,43 +79,20 @@ const ResultScreen = () => {
   }, [state.timerData.time])
 
   const repeatButtonHandler = useCallback(async () => {
-    if (isReviewMode) {
-      return
-    }
-
-    setWordDictationConfig((old) => {
-      if (old.isOpen) {
-        if (old.openBy === 'auto') {
-          return { ...old, isOpen: false }
-        }
-      }
-      return old
-    })
+    if (isReviewMode) return
+    setWordDictationConfig((old) => (old.isOpen && old.openBy === 'auto' ? { ...old, isOpen: false } : old))
     dispatch({ type: TypingStateActionType.REPEAT_CHAPTER, shouldShuffle: randomConfig.isOpen })
   }, [isReviewMode, setWordDictationConfig, dispatch, randomConfig.isOpen])
 
   const dictationButtonHandler = useCallback(async () => {
-    if (isReviewMode) {
-      return
-    }
-
+    if (isReviewMode) return
     setWordDictationConfig((old) => ({ ...old, isOpen: true, openBy: 'auto' }))
     dispatch({ type: TypingStateActionType.REPEAT_CHAPTER, shouldShuffle: randomConfig.isOpen })
   }, [isReviewMode, setWordDictationConfig, dispatch, randomConfig.isOpen])
 
   const nextButtonHandler = useCallback(() => {
-    if (isReviewMode) {
-      return
-    }
-
-    setWordDictationConfig((old) => {
-      if (old.isOpen) {
-        if (old.openBy === 'auto') {
-          return { ...old, isOpen: false }
-        }
-      }
-      return old
-    })
+    if (isReviewMode) return
+    setWordDictationConfig((old) => (old.isOpen && old.openBy === 'auto' ? { ...old, isOpen: false } : old))
     if (!isLastChapter) {
       setCurrentChapter((old) => old + 1)
       dispatch({ type: TypingStateActionType.NEXT_CHAPTER })
@@ -162,131 +114,112 @@ const ResultScreen = () => {
     navigate('/gallery')
   }, [navigate, setCurrentChapter, setReviewModeInfo])
 
-  useHotkeys(
-    'enter',
-    () => {
-      nextButtonHandler()
-    },
-    { preventDefault: true },
-  )
+  useHotkeys('enter', nextButtonHandler, { preventDefault: true })
+  useHotkeys('space', (event) => {
+    event.stopPropagation()
+    repeatButtonHandler()
+  }, { preventDefault: true })
+  useHotkeys('shift+enter', dictationButtonHandler, { preventDefault: true })
 
-  useHotkeys(
-    'space',
-    (e) => {
-      // 火狐浏览器的阻止事件无效，会导致按空格键后 再次输入正确的第一个字母会报错
-      e.stopPropagation()
-      repeatButtonHandler()
-    },
-    { preventDefault: true },
-  )
-
-  useHotkeys(
-    'shift+enter',
-    () => {
-      dictationButtonHandler()
-    },
-    { preventDefault: true },
-  )
+  const title = `${currentDictInfo.name} · ${isReviewMode ? '错词复习' : `第 ${currentChapter + 1} 章`}`
 
   return (
-    <div className="fixed inset-0 z-30 overflow-y-auto">
-      <div className="absolute inset-0 bg-gray-300 opacity-80 dark:bg-gray-600"></div>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/30 px-6 py-8 backdrop-blur-[2px]">
       <Transition
-        show={true}
-        enter="ease-in duration-300"
-        enterFrom="opacity-0"
-        enterTo="opacity-100"
-        leave="ease-out duration-100"
-        leaveFrom="opacity-100"
-        leaveTo="opacity-0"
+        appear
+        show
+        enter="ease-out duration-150"
+        enterFrom="opacity-0 translate-y-1 scale-[0.99]"
+        enterTo="opacity-100 translate-y-0 scale-100"
       >
-        <div className="flex h-screen items-center justify-center">
-          <div className="my-card fixed flex w-[90vw] max-w-6xl flex-col overflow-hidden rounded-3xl bg-white pb-14 pl-10 pr-5 pt-10 shadow-lg dark:bg-gray-800 md:w-4/5 lg:w-3/5">
-            <div className="text-center font-sans text-xl font-normal text-gray-900 dark:text-gray-400 md:text-2xl">
-              {`${currentDictInfo.name} ${isReviewMode ? '错题复习' : '第' + (currentChapter + 1) + '章'}`}
+        <div className="flex min-h-full items-center justify-center">
+          <section className="wenyan-surface relative w-full max-w-3xl overflow-hidden p-0">
+            <div className="flex items-start justify-between gap-6 border-b border-[var(--wenyan-line-soft)] px-7 py-6">
+              <div>
+                <p className="wenyan-muted text-[10px]">本次学习完成</p>
+                <h2 className="mt-1 text-[18px] font-semibold tracking-[-0.02em] text-[var(--wenyan-ink)]">{title}</h2>
+              </div>
+              <button
+                type="button"
+                aria-label="关闭结果页"
+                className="grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] text-[var(--wenyan-ink-muted)] hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]"
+                onClick={exitButtonHandler}
+              >
+                <IconX className="h-4 w-4" />
+              </button>
             </div>
-            <button className="absolute right-7 top-5" onClick={exitButtonHandler}>
-              <IconX className="text-gray-400" />
-            </button>
-            <div className="mt-10 flex flex-row gap-2 overflow-hidden">
-              <div className="flex flex-shrink-0 flex-grow-0 flex-col gap-3 px-4 sm:px-1 md:px-2 lg:px-4">
-                <RemarkRing remark={`${state.timerData.accuracy}%`} caption="正确率" percentage={state.timerData.accuracy} />
-                <RemarkRing remark={timeString} caption="章节耗时" />
-                <RemarkRing remark={state.timerData.wpm + ''} caption="WPM" />
-              </div>
-              <div className="z-10 ml-6 flex-1 overflow-visible rounded-xl bg-indigo-50 dark:bg-gray-700">
-                <div className="customized-scrollbar z-20 ml-8 mr-1 flex h-80 flex-row flex-wrap content-start gap-4 overflow-y-auto overflow-x-hidden pr-7 pt-9">
-                  {wrongWords.map((word, index) => (
-                    <WordChip key={`${index}-${word.name}`} word={word} />
-                  ))}
+
+            <div className="grid grid-cols-3 divide-x divide-[var(--wenyan-line-soft)] border-b border-[var(--wenyan-line-soft)] px-7 py-5">
+              {[
+                [`${state.timerData.accuracy}%`, '正确率'],
+                [timeString, '用时'],
+                [String(state.timerData.wpm), 'WPM'],
+              ].map(([value, label]) => (
+                <div key={label} className="text-center">
+                  <div className="text-[22px] font-semibold tabular-nums tracking-[-0.02em] text-[var(--wenyan-ink)]">{value}</div>
+                  <div className="wenyan-muted mt-1 text-[10px]">{label}</div>
                 </div>
-                <div className="align-center flex w-full flex-row justify-start rounded-b-xl bg-indigo-200 px-4 dark:bg-indigo-400">
-                  <ConclusionBar mistakeLevel={mistakeLevel} mistakeCount={wrongWords.length} />
+              ))}
+            </div>
+
+            <div className="px-7 py-6">
+              <div className="mb-3 flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--wenyan-ink)]">错词</h3>
+                  <p className="wenyan-muted mt-1 text-[10px]">{wrongWords.length ? `${wrongWords.length} 个词需要再看一眼` : '本章没有错词'}</p>
                 </div>
-              </div>
-              <div className="ml-2 flex flex-col items-center justify-end gap-3 text-xl">
                 {!isReviewMode && (
-                  <>
+                  <div className="flex items-center gap-2 text-[var(--wenyan-ink-muted)]">
                     <ShareButton />
-                    <IexportWords fontSize={18} className="cursor-pointer text-gray-500" onClick={exportWords}></IexportWords>
-                  </>
+                    <Tooltip content="导出本章数据">
+                      <button
+                        type="button"
+                        onClick={exportWords}
+                        aria-label="导出本章数据"
+                        className="grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]"
+                      >
+                        <IexportWords fontSize={16} />
+                      </button>
+                    </Tooltip>
+                  </div>
                 )}
-                <a href="https://github.com/RealKai42/qwerty-learner" target="_blank" rel="noreferrer" className="leading-[0px]">
-                  <IconGithub fontSize={16} className="text-gray-500 hover:text-green-800 focus:outline-none" />
-                </a>
+              </div>
+
+              <div className="min-h-[92px] rounded-[var(--wenyan-radius-md)] bg-[var(--wenyan-paper-muted)] p-4">
+                {wrongWords.length ? (
+                  <div className="flex max-h-40 flex-wrap content-start gap-2 overflow-y-auto customized-scrollbar">
+                    {wrongWords.map((word, index) => (
+                      <WordChip key={`${index}-${word.name}`} word={word} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="wenyan-muted flex min-h-[60px] items-center justify-center text-xs">保持这个节奏即可</div>
+                )}
               </div>
             </div>
-            <div className="mt-10 flex w-full flex-wrap justify-center gap-3 px-5 text-xl">
-              <button type="button" className="my-btn-primary h-12 bg-gray-100 text-base !text-gray-700 dark:bg-gray-700 dark:!text-gray-200" onClick={() => navigate('/today')}>返回今日学习</button>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--wenyan-line-soft)] px-7 py-4">
+              <button type="button" className="wenyan-button-secondary" onClick={() => navigate('/today')}>返回今天</button>
               {!isReviewMode && (
                 <>
-                  <Tooltip content="快捷键：shift + enter">
-                    <button
-                      className="my-btn-primary h-12 border-2 border-solid border-gray-300 bg-white text-base text-gray-700 dark:border-gray-700 dark:bg-gray-600 dark:text-white dark:hover:bg-gray-700"
-                      type="button"
-                      onClick={dictationButtonHandler}
-                      title="默写本章节"
-                    >
-                      默写本章节
-                    </button>
+                  <Tooltip content="快捷键：Shift + Enter">
+                    <button className="wenyan-button-secondary" type="button" onClick={dictationButtonHandler}>默写本章</button>
                   </Tooltip>
-                  <Tooltip content="快捷键：space">
-                    <button
-                      className="my-btn-primary h-12 border-2 border-solid border-gray-300 bg-white text-base text-gray-700 dark:border-gray-700 dark:bg-gray-600 dark:text-white dark:hover:bg-gray-700"
-                      type="button"
-                      onClick={repeatButtonHandler}
-                      title="重复本章节"
-                    >
-                      重复本章节
-                    </button>
+                  <Tooltip content="快捷键：Space">
+                    <button className="wenyan-button-secondary" type="button" onClick={repeatButtonHandler}>再练一遍</button>
                   </Tooltip>
                 </>
               )}
               {!isLastChapter && !isReviewMode && (
-                <Tooltip content="快捷键：enter">
-                  <button
-                    className={`{ isLastChapter ? 'cursor-not-allowed opacity-50' : ''} my-btn-primary h-12 text-base font-bold `}
-                    type="button"
-                    onClick={nextButtonHandler}
-                    title="下一章节"
-                  >
-                    下一章节
-                  </button>
+                <Tooltip content="快捷键：Enter">
+                  <button className="wenyan-button-primary" type="button" onClick={nextButtonHandler}>下一章</button>
                 </Tooltip>
               )}
-
               {isReviewMode && (
-                <button
-                  className="my-btn-primary h-12 text-base font-bold"
-                  type="button"
-                  onClick={onNavigateToGallery}
-                  title="练习其他章节"
-                >
-                  练习其他章节
-                </button>
+                <button className="wenyan-button-primary" type="button" onClick={onNavigateToGallery}>选择其他章节</button>
               )}
             </div>
-          </div>
+          </section>
         </div>
       </Transition>
     </div>
