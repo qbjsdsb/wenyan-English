@@ -7,6 +7,7 @@ import Layout from '@/components/Layout'
 import { isOpenDarkModeAtom } from '@/store'
 import dayjs from 'dayjs'
 import { useAtom } from 'jotai'
+import type { CSSProperties } from 'react'
 import { useMemo } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useNavigate } from 'react-router-dom'
@@ -71,19 +72,19 @@ const Analysis = () => {
             </section>
 
             <div className="border-t border-[var(--wenyan-line-soft)]">
-              <section className="wenyan-report-section border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '30ms' } as React.CSSProperties}>
+              <section className="wenyan-report-section border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '30ms' } as CSSProperties}>
                 <HeatmapCharts title="过去一年练习次数" data={exerciseRecord} />
               </section>
-              <section className="wenyan-report-section border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '80ms' } as React.CSSProperties}>
+              <section className="wenyan-report-section border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '80ms' } as CSSProperties}>
                 <HeatmapCharts title="过去一年练习词数" data={wordRecord} />
               </section>
-              <section className="wenyan-report-section h-[360px] border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '130ms' } as React.CSSProperties}>
+              <section className="wenyan-report-section h-[360px] border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '130ms' } as CSSProperties}>
                 <LineCharts title="WPM 趋势" name="WPM" data={wpmRecord} />
               </section>
-              <section className="wenyan-report-section h-[360px] border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '180ms' } as React.CSSProperties}>
+              <section className="wenyan-report-section h-[360px] border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '180ms' } as CSSProperties}>
                 <LineCharts title="正确率趋势" name="正确率(%)" data={accuracyRecord} suffix="%" />
               </section>
-              <section className="wenyan-report-section h-[380px] py-8" style={{ '--wenyan-delay': '230ms' } as React.CSSProperties}>
+              <section className="wenyan-report-section h-[380px] py-8" style={{ '--wenyan-delay': '230ms' } as CSSProperties}>
                 <KeyboardWithBarCharts title="按键错误排行" name="错误次数" data={wrongTimeRecord} />
               </section>
             </div>
