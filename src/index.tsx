@@ -1,5 +1,6 @@
 import Loading from './components/Loading'
 import './index.css'
+import './wenyan.css'
 import { ErrorBook } from './pages/ErrorBook'
 import { FriendLinks } from './pages/FriendLinks'
 import MobilePage from './pages/Mobile'

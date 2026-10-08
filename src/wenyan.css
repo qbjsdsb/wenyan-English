@@ -1,0 +1,53 @@
+:root {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  min-width: 1024px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f7f8fa;
+  background-image:
+    radial-gradient(circle at 18% -10%, rgba(99, 102, 241, 0.055), transparent 34%),
+    radial-gradient(circle at 86% 4%, rgba(148, 163, 184, 0.07), transparent 30%);
+  background-attachment: fixed;
+  color: #111827;
+}
+
+html.dark body {
+  background-color: #090d16;
+  background-image:
+    radial-gradient(circle at 18% -10%, rgba(99, 102, 241, 0.10), transparent 34%),
+    radial-gradient(circle at 86% 4%, rgba(51, 65, 85, 0.16), transparent 30%);
+  color: #f3f4f6;
+}
+
+::selection {
+  background: rgba(99, 102, 241, 0.16);
+}
+
+html.dark ::selection {
+  background: rgba(129, 140, 248, 0.28);
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

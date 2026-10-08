@@ -7,23 +7,14 @@ import Setting from '../Setting'
 import SoundSwitcher from '../SoundSwitcher'
 import WordDictationSwitcher from '../WordDictationSwitcher'
 import Tooltip from '@/components/Tooltip'
-import { isOpenDarkModeAtom } from '@/store'
 import { CTRL } from '@/utils'
-import { useAtom } from 'jotai'
 import { useContext } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
-import IconMoon from '~icons/heroicons/moon-solid'
-import IconSun from '~icons/heroicons/sun-solid'
 import IconLanguage from '~icons/tabler/language'
 import IconLanguageOff from '~icons/tabler/language-off'
 
 export default function Switcher() {
-  const [isOpenDarkMode, setIsOpenDarkMode] = useAtom(isOpenDarkModeAtom)
   const { state, dispatch } = useContext(TypingContext) ?? {}
-
-  const changeDarkModeState = () => {
-    setIsOpenDarkMode((old) => !old)
-  }
 
   const changeTransVisibleState = () => {
     if (dispatch) {
@@ -41,7 +32,7 @@ export default function Switcher() {
   )
 
   return (
-    <div className="flex items-center justify-center gap-2">
+    <div className="flex items-center justify-center gap-2 rounded-xl border border-gray-200/70 bg-white/60 px-2.5 py-1.5 text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
       <Tooltip content="音效设置">
         <SoundSwitcher />
       </Tooltip>
@@ -55,7 +46,7 @@ export default function Switcher() {
       </Tooltip>
       <Tooltip className="h-7 w-7" content={`开关释义显示（${CTRL} + Shift + V）`}>
         <button
-          className={`p-[2px] ${state?.isTransVisible ? 'text-indigo-500' : 'text-gray-500'} text-lg focus:outline-none`}
+          className={`grid h-7 w-7 place-items-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-white/10 ${state?.isTransVisible ? 'text-indigo-500' : 'text-gray-500 dark:text-gray-400'} focus:outline-none`}
           type="button"
           onClick={(e) => {
             changeTransVisibleState()
@@ -75,21 +66,8 @@ export default function Switcher() {
         <AnalysisButton />
       </Tooltip>
 
-      <Tooltip className="h-7 w-7" content="开关深色模式">
-        <button
-          className={`p-[2px] text-lg text-indigo-500 focus:outline-none`}
-          type="button"
-          onClick={(e) => {
-            changeDarkModeState()
-            e.currentTarget.blur()
-          }}
-          aria-label="开关深色模式"
-        >
-          {isOpenDarkMode ? <IconMoon className="icon" /> : <IconSun className="icon" />}
-        </button>
-      </Tooltip>
       <Tooltip className="h-7 w-7" content="指法图示">
-        <HandPositionIllustration></HandPositionIllustration>
+        <HandPositionIllustration />
       </Tooltip>
       <Tooltip content="设置">
         <Setting />
