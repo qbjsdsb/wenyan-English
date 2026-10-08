@@ -5,11 +5,14 @@ import { supabase } from '@/supabase/client'
 export type LearningIntentScope = 'ongoing' | 'day' | 'session'
 
 interface LearningIntentRow {
+  id: string
   scope: LearningIntentScope
+  timezone: string
   revision: number
   effectiveFrom: number
   expiresAt: number | null
   constraints: SessionConstraints
+  boundSessionId: string | null
 }
 
 interface CachedLearningIntents {
@@ -19,10 +22,17 @@ interface CachedLearningIntents {
   intents: LearningIntentRow[]
 }
 
+export interface ResolvedIntentScope {
+  id: string
+  scope: LearningIntentScope
+  revision: number
+  boundSessionId: string | null
+}
+
 export interface ResolvedSmartSessionIntent {
   constraints: SessionConstraints
   source: 'cloud' | 'cached-cloud' | 'local-defaults'
-  scopes: { scope: LearningIntentScope; revision: number }[]
+  scopes: ResolvedIntentScope[]
   warnings: string[]
   cachedAt?: number
 }
@@ -44,6 +54,25 @@ function timestamp(value: unknown, fallback: number | null) {
   if (typeof value !== 'string') return fallback
   const parsed = Date.parse(value)
   return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function validTimezone(value: unknown) {
+  if (typeof value !== 'string' || !value || value.length > 64) return undefined
+  try {
+    new Intl.DateTimeFormat('en-CA', { timeZone: value }).format(0)
+    return value
+  } catch {
+    return undefined
+  }
+}
+
+function calendarDay(time: number, timezone: string) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(time)
 }
 
 function parseConstraints(value: unknown, warnings: string[]): SessionConstraints {
@@ -85,8 +114,13 @@ function parseConstraints(value: unknown, warnings: string[]): SessionConstraint
 
 function parseIntent(value: unknown, warnings: string[]): LearningIntentRow | undefined {
   const row = object(value)
-  if (!row || !SCOPE_ORDER.includes(row.scope as LearningIntentScope)) {
+  if (!row || typeof row.id !== 'string' || !row.id || !SCOPE_ORDER.includes(row.scope as LearningIntentScope)) {
     warnings.push('ignored_invalid_intent_scope')
+    return undefined
+  }
+  const timezone = validTimezone(row.timezone)
+  if (!timezone) {
+    warnings.push('ignored_invalid_intent_timezone')
     return undefined
   }
   if (typeof row.revision !== 'number' || !Number.isInteger(row.revision) || row.revision < 1) {
@@ -100,21 +134,58 @@ function parseIntent(value: unknown, warnings: string[]): LearningIntentRow | un
     warnings.push('ignored_invalid_intent_time')
     return undefined
   }
+  const boundSessionId = row.boundSessionId === null || row.boundSessionId === undefined
+    ? null
+    : typeof row.boundSessionId === 'string' && row.boundSessionId.length <= 120
+      ? row.boundSessionId
+      : undefined
+  if (boundSessionId === undefined) {
+    warnings.push('ignored_invalid_session_binding')
+    return undefined
+  }
 
   return {
+    id: row.id,
     scope: row.scope as LearningIntentScope,
+    timezone,
     revision: row.revision,
     effectiveFrom,
     expiresAt,
     constraints: parseConstraints(row.constraints, warnings),
+    boundSessionId,
   }
 }
 
-function activeIntents(value: unknown, now: number, warnings: string[]) {
+function activeIntents(
+  value: unknown,
+  now: number,
+  warnings: string[],
+  source: 'cloud' | 'cached-cloud',
+  runtimeSessionId?: string,
+) {
   return (Array.isArray(value) ? value : [])
     .map((item) => parseIntent(item, warnings))
     .filter((item): item is LearningIntentRow => Boolean(item))
-    .filter((item) => item.effectiveFrom <= now && (item.expiresAt === null || now < item.expiresAt))
+    .filter((item) => {
+      if (item.effectiveFrom > now || (item.expiresAt !== null && now >= item.expiresAt)) return false
+      if (item.scope === 'day' && calendarDay(item.effectiveFrom, item.timezone) !== calendarDay(now, item.timezone)) {
+        warnings.push('day_intent_outside_effective_calendar_day')
+        return false
+      }
+      if (item.scope === 'session') {
+        if (item.boundSessionId !== null && item.boundSessionId !== runtimeSessionId) {
+          warnings.push('session_intent_bound_elsewhere')
+          return false
+        }
+        // An unbound cached session intent may have been claimed by another device
+        // while this browser was offline. Only live cloud state may claim it.
+        if (source === 'cached-cloud' && item.boundSessionId === null) {
+          warnings.push('unbound_cached_session_intent_ignored')
+          return false
+        }
+      }
+      return true
+    })
 }
 
 function cacheKey(userId: string) {
@@ -154,9 +225,10 @@ export function mergeActiveLearningIntents(
   fallbackDictionary: string,
   now = Date.now(),
   source: 'cloud' | 'cached-cloud' = 'cloud',
+  runtimeSessionId?: string,
 ): ResolvedSmartSessionIntent {
   const warnings: string[] = []
-  const parsed = activeIntents(value, now, warnings).sort(
+  const parsed = activeIntents(value, now, warnings, source, runtimeSessionId).sort(
     (a, b) => SCOPE_ORDER.indexOf(a.scope) - SCOPE_ORDER.indexOf(b.scope),
   )
 
@@ -178,16 +250,16 @@ export function mergeActiveLearningIntents(
     source: parsed.length > 0 ? source : 'local-defaults',
     scopes: SCOPE_ORDER.flatMap((scope) => {
       const intent = byScope.get(scope)
-      return intent ? [{ scope, revision: intent.revision }] : []
+      return intent ? [{ id: intent.id, scope, revision: intent.revision, boundSessionId: intent.boundSessionId }] : []
     }),
     warnings: Array.from(new Set(warnings)),
   }
 }
 
-function unavailableWithCache(userId: string, fallbackDictionary: string, now: number) {
+function unavailableWithCache(userId: string, fallbackDictionary: string, now: number, runtimeSessionId?: string) {
   const cached = readCachedIntents(userId)
   if (cached) {
-    const resolved = mergeActiveLearningIntents(cached.intents, fallbackDictionary, now, 'cached-cloud')
+    const resolved = mergeActiveLearningIntents(cached.intents, fallbackDictionary, now, 'cached-cloud', runtimeSessionId)
     if (resolved.source === 'cached-cloud') {
       return {
         ...resolved,
@@ -201,7 +273,10 @@ function unavailableWithCache(userId: string, fallbackDictionary: string, now: n
   return { ...local, warnings: ['cloud_intent_unavailable'] }
 }
 
-export async function resolveSmartSessionLearningIntent(fallbackDictionary: string): Promise<ResolvedSmartSessionIntent> {
+export async function resolveSmartSessionLearningIntent(
+  fallbackDictionary: string,
+  runtimeSessionId?: string,
+): Promise<ResolvedSmartSessionIntent> {
   const now = Date.now()
   const local = mergeActiveLearningIntents([], fallbackDictionary, now)
   try {
@@ -210,13 +285,34 @@ export async function resolveSmartSessionLearningIntent(fallbackDictionary: stri
 
     const userId = sessionData.session.user.id
     const { data, error } = await supabase.rpc('get_learning_intents')
-    if (error) return unavailableWithCache(userId, fallbackDictionary, now)
+    if (error) return unavailableWithCache(userId, fallbackDictionary, now, runtimeSessionId)
 
     writeCachedIntents(userId, data, now)
-    return mergeActiveLearningIntents(data, fallbackDictionary, now, 'cloud')
+    return mergeActiveLearningIntents(data, fallbackDictionary, now, 'cloud', runtimeSessionId)
   } catch {
     // Without an authenticated user id we deliberately refuse to reuse another
     // account's cached cloud intent.
     return { ...local, warnings: ['cloud_intent_unavailable'] }
+  }
+}
+
+export async function bindResolvedSessionIntent(intent: ResolvedSmartSessionIntent, runtimeSessionId: string) {
+  const sessionIntent = intent.scopes.find((scope) => scope.scope === 'session')
+  if (!sessionIntent) return
+  if (sessionIntent.boundSessionId === runtimeSessionId) return
+  if (sessionIntent.boundSessionId !== null) throw new Error('session_intent_bound_elsewhere')
+  if (intent.source !== 'cloud') throw new Error('session_intent_binding_requires_live_cloud')
+
+  const { data, error } = await supabase.rpc('bind_learning_session_intent', {
+    p_intent_id: sessionIntent.id,
+    p_expected_revision: sessionIntent.revision,
+    p_session_id: runtimeSessionId,
+  })
+  if (error) throw new Error(error.message || 'session_intent_binding_failed')
+
+  const warnings: string[] = []
+  const bound = parseIntent(data, warnings)
+  if (!bound || bound.boundSessionId !== runtimeSessionId || bound.revision !== sessionIntent.revision) {
+    throw new Error('invalid_session_intent_binding_response')
   }
 }
