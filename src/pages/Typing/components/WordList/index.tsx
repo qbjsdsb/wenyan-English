@@ -16,7 +16,7 @@ const currentDictTitle = atom((get) => {
   return `${get(currentDictInfoAtom).name} 第 ${get(currentChapterAtom) + 1} 章`
 })
 
-export default function WordList() {
+export default function WordList({ inline = false }: { inline?: boolean }) {
   const { state, dispatch } = useContext(TypingContext)!
   const [isOpen, setIsOpen] = useState(false)
   const currentDictTitleValue = useAtomValue(currentDictTitle)
@@ -32,12 +32,16 @@ export default function WordList() {
 
   return (
     <>
-      <Tooltip content="本章词表" placement="top">
+      <Tooltip content="本章词表" placement={inline ? 'bottom' : 'top'}>
         <button
           type="button"
           onClick={openModal}
           aria-label="本章词表"
-          className="fixed bottom-5 left-5 z-20 grid h-9 w-9 place-items-center rounded-[var(--wenyan-radius-sm)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)] text-[var(--wenyan-ink-muted)] shadow-[0_4px_18px_rgba(0,0,0,0.04)] transition-colors hover:border-[var(--wenyan-line)] hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]"
+          className={`${
+            inline
+              ? 'grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] text-[var(--wenyan-ink-muted)] hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]'
+              : 'fixed bottom-5 left-5 z-20 grid h-9 w-9 place-items-center rounded-[var(--wenyan-radius-sm)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)] text-[var(--wenyan-ink-muted)] shadow-[0_4px_18px_rgba(0,0,0,0.04)] hover:border-[var(--wenyan-line)] hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]'
+          } transition-colors`}
         >
           <ListIcon className="h-4 w-4" />
         </button>
