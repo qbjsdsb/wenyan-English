@@ -1,6 +1,6 @@
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
-import { confirmLearningStage, getLearningPreferences, type LearningPreferencesSnapshot } from '@/coaching/preferences'
+import { type LearningPreferencesSnapshot, confirmLearningStage, getLearningPreferences } from '@/coaching/preferences'
 import type { LearningStage } from '@/coaching/types'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
