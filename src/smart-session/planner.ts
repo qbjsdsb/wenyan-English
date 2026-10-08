@@ -12,7 +12,7 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
   const optional = [c.targetMinutes, c.hardStopMinutes, c.newWordCeiling, input.lastActivityAt]
   if (!numbers.every(finite) || !optional.every((n) => n === undefined || finite(n))) throw new Error('Invalid planner numbers')
   if ((c.targetMinutes ?? 0) > 240 || (c.hardStopMinutes ?? 0) > 240 || (c.newWordCeiling ?? 0) > 50) {
-    throw new Error('Constraint exceeds v1 bounds')
+    throw new Error('Constraint exceeds planner bounds')
   }
   if (![input.newItemsToday, p.completedBlocks, p.newItemsIntroduced, c.newWordCeiling ?? 0].every(Number.isInteger)) {
     throw new Error('Counts must be integers')
@@ -150,14 +150,8 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
   const returning = input.lastActivityAt !== undefined && input.now - input.lastActivityAt >= 3 * DAY
   const dailyCeiling = Math.min(c.newWordCeiling ?? (c.intensity === 'gentle' ? 8 : 20), pressure || returning ? 5 : Infinity)
   let newSlots = Math.max(0, Math.min(dailyCeiling - input.newItemsToday, sessionCeiling - p.newItemsIntroduced))
-  const pattern: Purpose[] = horizon <= 12
-    ? ['correction', 'review', 'weak', 'new']
-    : horizon <= 30
-      ? ['review', 'correction', 'new', 'weak', 'review']
-      : horizon <= 60
-        ? ['review', 'correction', 'new', 'reading', 'weak', 'review']
-        : ['review', 'correction', 'new', 'weak', 'reading', 'review']
-  if (c.reviewPreference === 'review_first') pattern.unshift('weak', 'correction', 'review')
+  const pattern: Purpose[] = horizon <= 12 ? ['review', 'weak', 'new'] : horizon <= 30 ? ['review', 'new', 'weak', 'review'] : horizon <= 60 ? ['review', 'new', 'reading', 'weak', 'review'] : ['review', 'new', 'weak', 'reading', 'review']
+  if (c.reviewPreference === 'review_first') pattern.splice(1, 0, 'weak')
   let preferred = pattern[p.completedBlocks % pattern.length]
   if (p.completedBlocks > 0 && c.preferredActivities?.includes('reading')) preferred = 'reading'
   const order = Array.from(new Set([preferred, 'weak', 'correction', 'review', 'new', 'reading'] as Purpose[]))
