@@ -66,7 +66,7 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
       }
     }
     const existing = grouped.get(item.key)
-    if (existing && (existing.kind !== item.kind || item.kind === 'reading')) throw new Error('Conflicting canonical item')
+    if (existing && (existing.kind !== item.kind || item.kind !== 'vocabulary')) throw new Error('Conflicting canonical item')
     if (item.kind === 'vocabulary') {
       const prior = existing as VocabularyCandidate | undefined
       if (prior && JSON.stringify(prior.schedule) !== JSON.stringify(item.schedule)) throw new Error('Conflicting derived schedules')
@@ -111,6 +111,18 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
   items.forEach((item) => {
     if (!input.availableActivities.includes(item.kind)) return void deferred.set(item.key, 'unsupported_activity')
     if (seen.has(item.key)) return void deferred.set(item.key, 'already_attempted_in_session')
+    if (item.kind === 'semantic_recall') {
+      if (item.lastAttemptAt !== undefined && (!finite(item.lastAttemptAt) || item.lastAttemptAt > input.now)) throw new Error('Invalid semantic time')
+      // Product spacing heuristic, never FSRS or an inferred memory score.
+      const gap = item.lastRating === 'recalled' ? 3 * DAY : DAY
+      if (item.lastAttemptAt !== undefined && input.now - item.lastAttemptAt < gap) {
+        deferred.set(item.key, 'semantic_revisit_not_due')
+        return
+      }
+      eligible.push({ item, purpose: 'semantic_recall', score: item.lastRating && item.lastRating !== 'recalled' ? 1 : 0,
+        refs: [...item.evidenceRefs], reason: item.lastRating ? 'self_reported_semantic_revisit' : 'semantic_evidence_not_yet_observed' })
+      return
+    }
     if (item.kind === 'reading') {
       eligible.push({ item, purpose: 'reading', score: -item.recommendationRank, refs: [...item.evidenceRefs], reason: item.reason })
       return
@@ -170,13 +182,16 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
     correctionCooldownCount,
     newEligibleCount: eligible.filter((x) => x.purpose === 'new').length,
     newWordCapacity: newSlots,
+    semanticEligibleCount: eligible.filter((x) => x.purpose === 'semantic_recall').length,
     readingEligibleCount: eligible.filter((x) => x.purpose === 'reading').length,
   }
   const pattern: Purpose[] = horizon <= 12 ? ['review', 'weak', 'new'] : horizon <= 30 ? ['review', 'new', 'weak', 'review'] : horizon <= 60 ? ['review', 'new', 'reading', 'weak', 'review'] : ['review', 'new', 'weak', 'reading', 'review']
   if (c.reviewPreference === 'review_first') pattern.splice(1, 0, 'weak')
   let preferred = pattern[p.completedBlocks % pattern.length]
   if (p.completedBlocks > 0 && c.preferredActivities?.includes('reading')) preferred = 'reading'
-  const order = Array.from(new Set([preferred, 'weak', 'correction', 'review', 'new', 'reading'] as Purpose[]))
+  if (p.completedBlocks > 0 && p.completedBlocks % 3 === 1 && c.reviewPreference !== 'review_first' && eligible.some((x) => x.purpose === 'semantic_recall')) preferred = 'semantic_recall'
+  if (c.preferredActivities?.includes('semantic_recall')) preferred = 'semantic_recall'
+  const order = Array.from(new Set([preferred, 'weak', 'correction', 'review', 'new', 'semantic_recall', 'reading'] as Purpose[]))
   const ranked = [...eligible].sort((a, b) => order.indexOf(a.purpose) - order.indexOf(b.purpose) || b.score - a.score || compare(a.item.key, b.item.key))
   let purpose: Purpose | undefined
   const selected: Ranked[] = []
@@ -185,6 +200,7 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
     if (entry.purpose === 'new' && newSlots <= 0) return void deferred.set(entry.item.key, 'new_word_ceiling')
     if (purpose && purpose !== entry.purpose) return void deferred.set(entry.item.key, 'next_block_reconsider')
     // Reading is atomic and may exceed a vocabulary block, but never the remaining session budget.
+    if (entry.purpose === 'semantic_recall' && selected.length >= 6) return void deferred.set(entry.item.key, 'semantic_block_limit')
     const capacity = entry.purpose === 'reading' ? Math.min(25 * 60 - p.activeSecondsSinceBreak, remaining - 60) : blockSeconds
     if ((entry.purpose === 'reading' && selected.length > 0) || total + entry.item.estimatedSeconds > capacity) {
       return void deferred.set(entry.item.key, 'does_not_fit_block_or_budget')

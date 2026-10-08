@@ -34,6 +34,8 @@ jobs:
         run: node --experimental-strip-types scripts/check-smart-session.mjs
       - name: Execution availability deterministic scenarios
         run: node --experimental-strip-types scripts/check-execution-availability.mjs
+      - name: Semantic measurement and agent guardrails
+        run: node --experimental-strip-types scripts/check-semantic.mjs
       - name: AI Coaching deterministic scenarios
         run: node --experimental-strip-types scripts/check-coaching.mjs
       - name: AI Coach decision guardrail scenarios
@@ -47,7 +49,7 @@ jobs:
       - name: Install Chromium
         run: yarn playwright install --with-deps chromium
       - name: Verify Wenyan browser flows
-        run: yarn playwright test tests/e2e/study-plan.spec.ts tests/e2e/sync-queue.spec.ts tests/e2e/event-restore.spec.ts tests/e2e/oauth-consent.spec.ts tests/e2e/smart-session.spec.ts
+        run: yarn playwright test tests/e2e/study-plan.spec.ts tests/e2e/sync-queue.spec.ts tests/e2e/event-restore.spec.ts tests/e2e/oauth-consent.spec.ts tests/e2e/smart-session.spec.ts tests/e2e/semantic.spec.ts
       - name: Build production Pages artifact
         run: REACT_APP_DEPLOY_ENV=pages yarn vite build --base=/wenyan-English/
       - name: Verify Pages vocabulary and failure recovery

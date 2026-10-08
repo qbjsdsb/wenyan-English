@@ -1,8 +1,8 @@
 import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
 import type { WordDictationType } from '@/typings'
 
-export type LearningEventType = 'word_attempted' | 'chapter_completed' | 'question_attempted' | 'reading_completed'
-export type LearningEventSourceVersion = 1 | 2 | 3
+export type LearningEventType = 'word_attempted' | 'chapter_completed' | 'question_attempted' | 'reading_completed' | 'semantic_recall_attempted'
+export type LearningEventSourceVersion = 1 | 2 | 3 | 4
 
 export type LearningEventSyncState = 'pending' | 'synced' | 'failed'
 

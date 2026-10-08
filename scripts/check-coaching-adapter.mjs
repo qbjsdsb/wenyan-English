@@ -22,6 +22,11 @@ let executionMode = 'fresh'
 globalThis.fetch = async (input, init = {}) => {
   const rawUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
   const url = new URL(rawUrl)
+  if (url.pathname.endsWith('/rest/v1/learning_events') && url.searchParams.get('event_type') === 'eq.semantic_recall_attempted') {
+    assert.equal(init.headers.Authorization, 'Bearer test-token')
+    assert.equal(url.searchParams.get('limit'), '501')
+    return jsonResponse([])
+  }
   if (url.pathname.endsWith('/rest/v1/learning_events')) {
     eventReads += 1
     assert.equal(init.headers.Authorization, 'Bearer test-token')
@@ -152,8 +157,11 @@ try {
   assert.equal(intentReads, 2)
   assert.equal(preferenceReads, 2)
   assert.equal(executionReads, 2)
+  assert.equal(result.derived.semanticEvidence.status, 'available')
+  assert.equal(result.derived.semanticEvidence.summary.attempts, 0)
+  assert.equal(result.executionCapabilities.semanticRecall, 'unknown')
   assert.equal(result.schemaVersion, 1)
-  assert.equal(result.toolVersion, 'coaching-context-v1.3')
+  assert.equal(result.toolVersion, 'coaching-context-v1.4')
   assert.match(result.snapshot.id, /^sha256:[0-9a-f]{64}$/)
   assert.equal(repeated.snapshot.id, result.snapshot.id)
   assert.notEqual(repeated.requestId, result.requestId)

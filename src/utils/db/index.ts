@@ -1,3 +1,4 @@
+import type { SemanticRun } from '@/semantic/run'
 import type { ChapterCompletedPayload, LearningEventRecord, LearningSyncCursor, PlanTaskFactContext, WordAttemptedPayload } from '@/learning/types'
 import { createLearningEvent } from '@/learning/types'
 import { TypingContext, TypingStateActionType } from '@/pages/Typing/store'
@@ -12,6 +13,7 @@ import type { IChapterRecord, IReviewRecord, IRevisionDictRecord, IWordRecord, L
 import { ChapterRecord, ReviewRecord, WordRecord } from './record'
 
 class RecordDB extends Dexie {
+  semanticRuns!: Table<SemanticRun, string>
   wordRecords!: Table<IWordRecord, number>
   chapterRecords!: Table<IChapterRecord, number>
   reviewRecords!: Table<IReviewRecord, number>
@@ -47,6 +49,7 @@ class RecordDB extends Dexie {
       studyPlans: '&id,importedAt',
       studyPlanRuns: '&id,planId,taskId,startedAt',
     })
+    this.version(7).stores({ semanticRuns: '&id,sessionId,startedAt' })
     this.version(6).stores({
       learningSyncCursors: '&userId',
     })

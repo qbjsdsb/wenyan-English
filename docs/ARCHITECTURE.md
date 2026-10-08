@@ -77,3 +77,13 @@ The MCP layer should call narrowly scoped read RPCs such as `get_learning_overvi
 ### Phase 5 — Exam expansion
 
 Reuse the same event layer for reading, cloze, translation, long sentences and past-paper practice.
+
+## Evolution boundary: shared infrastructure, domain-specific evidence
+
+The next-generation semantic slice demonstrates one new activity without rewriting typing, Dexie history, OAuth, Cloud Plan or elastic-v2. Keep the common event envelope/sync, owner identity, session orchestration, content identity/version and bounded future intents; route activity payloads to separate domain validators and evidence reducers.
+
+Future content provider minimum: stable identity, exact version, domain/activity, source/provenance, public/private ownership and licensing status, validated availability, estimated cost with basis, executor admission. Semantic v1 implements stable identity + exact local reference hash; it does **not** establish the legal provenance or full-book denominator of legacy dictionaries. Unknown licensing must remain unknown; private materials stay outside public git. Do not build a CMS now.
+
+Literature remains frozen. Future ancient Chinese, modern/contemporary Chinese, foreign literature and literary theory need their own knowledge/response semantics, not shared spelling or generic mastery. Recall outlines, long responses, argument/rubric evidence and text analysis can reuse facts/session/plan infrastructure while having different payloads and validators. Verify the target-year official university catalog before implementing exam-specific content. Do not pin schema to an assumed exam year; Coaching Context's unconfigured targetYear is now null.
+
+Past-paper seam: versioned paper → section/passage → question identities and attempts, with domain-specific completion rules. Existing chapter completion is not a universal completion contract. Future cross-subject planning should allocate one global time budget before domain admission; no cross-subject planner is implemented here.

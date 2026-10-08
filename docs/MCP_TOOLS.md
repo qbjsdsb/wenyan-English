@@ -167,3 +167,13 @@ Cloud Plan 和 Command Bus 继续使用各自 capability。ChatGPT 不能 claim/
 不要添加 `run_sql(anything)`、`execute_js(anything)`、`control_wenyan(anything)` 这类万能工具。
 
 See also: `docs/AI_COACHING_LOOP_V1.md`、`docs/LEARNING_INTENT_V1.md`、`docs/SMART_SESSION_V1.md`、`docs/AI_COACH_CONTRACT.md`、`docs/CLOUD_PLAN_V2.md`、`docs/COMMAND_BUS.md`。
+
+## Next-generation v1.4 context and rollout
+
+No new all-purpose control tool. `get_coaching_context` adds `derived.semanticEvidence`, `agent.epistemicLevels`, `agent.execution`, and fresh `executionCapabilities.semanticRecall`. `runtime.executionAvailability.snapshot.semanticEligibleCount` is null for legacy executors and a nonnegative count for the new executor; null is not zero. Future intent adds the bounded enum `semantic_recall`. OAuth capabilities, owner RLS, stage confirmation and historical write prohibition remain intact.
+
+Deploy migration `20261008155208_semantic_recall_agent_contract.sql` after verifying original execution-availability table exists. It extends the existing validator and report RPC (default null parameter preserves old callers), without changing grants/RLS. Deploy the **full source tree**, including semantic/core.ts and coaching/agent.ts dependencies. Then verify unauthenticated rejection, OAuth discovery, authenticated context v1.4 and truthful capability reporting. Website release is a separate gate; backend presence alone cannot make an old client execute a semantic activity.
+
+Installed plugin, repository package and MCP server versions are independent: repository plugin.json still says wenyan-english 0.5.1, whereas the user-installed package was renamed wenyan 0.6.0. Do not overwrite or claim to update the installed package based only on the repository manifest. Existing context/intent tools receive the additive contract without broader permissions; refresh tool metadata after deployment if the client retains the old preferredActivities enum. A verified packaging reconciliation is a follow-up task.
+
+Repeatable packaging: `node scripts/package-mcp-source.mjs > /tmp/wenyan-mcp-deploy.json` produces the complete connector payload. Review the pinned dependency map and commit source first. The script does not authenticate or deploy. Production v14 was deployed with these same 11 dependency files and authenticated v1.4 smoke verified; frontend remains on its independent PR/release gate.

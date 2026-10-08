@@ -6,7 +6,7 @@ import { supabase } from '@/supabase/client'
  * never a learning fact, and reporting failure must never block local study.
  */
 export function executionAvailabilityReport(prepared: PreparedSmartSession) {
-  if (prepared.kind === 'resume') {
+  if (prepared.kind === 'resume' || prepared.kind === 'semantic-resume') {
     return {
       p_algorithm_version: 'elastic-v2',
       p_focus_dictionary: prepared.runtime.focusDictionary,
@@ -23,8 +23,9 @@ export function executionAvailabilityReport(prepared: PreparedSmartSession) {
       p_new_eligible_count: 0,
       p_new_word_capacity: 0,
       p_reading_eligible_count: 0,
+      p_semantic_eligible_count: 0,
       p_selected_purpose: prepared.runtime.currentBlock?.purpose ?? null,
-      p_selected_item_count: prepared.record.words.length,
+      p_selected_item_count: prepared.kind === 'semantic-resume' ? prepared.run.items.length - prepared.run.index : prepared.record.words.length,
       p_coverage: 'unknown',
     }
   }
@@ -47,6 +48,7 @@ export function executionAvailabilityReport(prepared: PreparedSmartSession) {
     p_new_eligible_count: availability.newEligibleCount,
     p_new_word_capacity: availability.newWordCapacity,
     p_reading_eligible_count: availability.readingEligibleCount,
+    p_semantic_eligible_count: availability.semanticEligibleCount ?? 0,
     p_selected_purpose: selected?.purpose ?? null,
     p_selected_item_count: selected?.activity.items.length ?? 0,
     // Local history is intentionally treated conservatively here. Coaching Context

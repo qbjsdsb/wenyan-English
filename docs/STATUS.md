@@ -2,6 +2,20 @@
 
 更新：2026-10-08。续接前仍须核对远端 `main`、开放 PR、CI、GitHub Pages 与 Supabase 实际部署版本；本页只记录已经核实的持久状态，不把聊天记忆当事实，也不保存用户真实学习明细。
 
+## 2026-10-09 next-generation 续接（优先于下方旧里程碑）
+
+- **Baseline**：开始时 main `2807972`（PR #48）；专用分支 `astra/wenyan-next-generation`，Draft PR #49。
+- **Designed**：语义测量边界、多活动渐进接入、Agent self-correction、四领域文学/真题的未来边界，详见 [durable handoff](ASTRA_WENYAN_NEXT_GENERATION.md)。文学未开发。
+- **Implemented**：词义主动回想独立活动、sourceVersion 4 facts、Dexie v7 原子保存/恢复、既有同步/严格恢复校验、独立词义证据、Context v1.4、bounded semantic intent、elastic-v2 semantic lane、Today 入口、键盘/揭示恢复/账号隔离。
+- **Tested**：实现提交 `674f962` 的 **Wenyan CI #202 全绿**：lint、typecheck、全部deterministic gates、production build、原有/新增浏览器流程、Pages artifact build与Pages资源/恢复回归均通过。本地只运行了针对性算法检查与一次typecheck，没有反复跑完整套件。
+- **Merged**：本分支尚未合并。不要把新版词义页面说成现有Pages已上线。
+- **Deployed**：semantic_recall_agent_contract migration；生产 MCP **v14 ACTIVE**，完整源码部署自 `834a306`，替换旧shim，server 0.8.0 / context v1.4。
+- **Smoke verified**：真实已安装插件可读取v1.4、词义证据状态、明确stale runtime、unknown新执行器能力；已有intent/preferences读取正常。OAuth discovery及既有Pages HTTP 200；匿名POST和无效token POST均401。未扩大能力授权。
+- **Real-user verified**：新词义活动尚无真实用户完成→同步→MCP回流验收；CI fixture不等于真实学习。
+- **Not completed**：正式Reading provider/orchestration、跨设备未完成活动迁移、objective semantic marking、FSRS、文学、插件安装包重新对齐。
+
+发现并记录：执行可用性表/RPC其实已在生产存在，但未完整反映在迁移列表；原生产v13只返回context v1.2。不能根据迁移列表缺行就重建表。旧文档中的v13/PR35/semantic未实现等描述为历史状态，以本节与handoff为准。
+
 ## 当前结论
 
 Wenyan English 已进入 **Local-first deterministic learning runtime + ChatGPT strategy brain** 阶段，英语词汇主闭环已能真实使用。

@@ -87,3 +87,13 @@ Context时长必须有真实测量依据，按需钻取word history，不倾倒�
 
 本批只有设计/core/fixtures，不声称上线。下一步adapter与执行上下文，再扩intent存储/工具。
 必须覆盖：改未来不改历史、停止不欠债、scope过期、revision冲突、unsupported reading不启动、离线可学、“现在20分钟”和“还有20分钟”区别、低信心解释不污染证据、partial block不触发chapter completion。
+
+## Next-generation additive contract (2026-10-08)
+
+Coaching Context v1.4 adds bounded semantic self-report evidence and agent execution guidance. `observed` semantic data means the learner reported recall after reveal; it does not mean Wenyan objectively verified recall. `derived` is deterministic aggregation; user statements and future recommendations remain separate; missing/unsynced/unavailable means unknown. Semantic evidence reads up to 500 facts from the last rolling 14 days, exposes truncation/invalid rows and at most six revisit examples. It does not expand raw event history into the main context.
+
+Semantic intent uses the existing revisioned `preferredActivities: ["semantic_recall"]`, ordinarily day/session scope. First check the fresh executor capability. This activity does not change long-term stage. Old clients still work but cannot execute it; unknown capability must not be represented as support.
+
+Intervention policy: stable plans are valid. Sparse data or one bad day does not justify workload oscillation. Default to one reversible adjustment, use multiple observed days before a trend-led change, and let explicit user constraints apply immediately. Cooldown/no-capacity→wait, explain or choose a supported activity within the same hard limits; never endlessly resubmit an unchanged blocked intent. No intervention is preferable to invented diagnosis.
+
+Operational sequence: context → current revision → bounded future intent if needed → selected online device → open Today → action receipt → fresh execution availability → later learning facts. `ready`, `queued`, `completed command` and `completed learning` are four distinct states. Availability is currently the latest owner-level report, not a device-bound promise; revalidate locally at start.

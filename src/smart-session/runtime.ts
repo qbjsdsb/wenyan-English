@@ -6,7 +6,8 @@ const MAX_IDLE_MS = 6 * 60 * 60 * 1000
 
 export interface SmartBlockRuntime {
   id: string
-  reviewRecordId: number
+  reviewRecordId?: number
+  semanticRunId?: string
   purpose: Purpose
   keys: string[]
   estimatedSeconds: number
@@ -118,9 +119,14 @@ export function getCurrentSmartSessionId(ownerUserId?: string, now = Date.now())
  * never recover a legacy/other-account runtime.
  */
 export async function getRecoverableSmartSessionFocusDictionary(ownerUserId?: string, now = Date.now()) {
+  const pending = await db.semanticRuns.orderBy('startedAt').reverse().filter((run) =>
+    run.ownerUserId === ownerUserId && run.completedAt === undefined && run.endedAt === undefined).first()
+  if (pending) return pending.dictionaryId
   const state = readStored()
   if (!state?.currentBlock || !sameOwner(state, ownerUserId) || now - state.updatedAt > MAX_IDLE_MS) return undefined
-  const record = await db.reviewRecords.get(state.currentBlock.reviewRecordId)
+  const record = state.currentBlock.semanticRunId
+    ? await db.semanticRuns.get(state.currentBlock.semanticRunId).then((run) => run && ({ isFinished: run.completedAt !== undefined || run.endedAt !== undefined, abandoned: run.endedAt !== undefined && run.completedAt === undefined }))
+    : state.currentBlock.reviewRecordId === undefined ? undefined : await db.reviewRecords.get(state.currentBlock.reviewRecordId)
   return record && !record.isFinished ? state.focusDictionary : undefined
 }
 
@@ -136,7 +142,14 @@ export async function loadSmartSessionRuntime(
     || state.focusDictionary !== focusDictionary
     || now - state.updatedAt > MAX_IDLE_MS
   ) {
-    state = freshRuntime(focusDictionary, options, now)
+    const pending = await db.semanticRuns.orderBy('startedAt').reverse().filter((run) =>
+      run.ownerUserId === options.ownerUserId && run.dictionaryId === focusDictionary && run.completedAt === undefined && run.endedAt === undefined).first()
+    state = pending ? {
+      ...(pending.sessionCheckpoint ?? freshRuntime(focusDictionary, { ...options, sessionId: pending.sessionId }, now)),
+      executionStartedAt: pending.sessionCheckpoint?.executionStartedAt ?? pending.startedAt, hardStopAt: pending.hardStopAt,
+      currentBlock: { id: pending.id, semanticRunId: pending.id, purpose: 'semantic_recall',
+        keys: pending.items.map((item) => item.key), estimatedSeconds: pending.items.length * 25, startedAt: pending.startedAt },
+    } : freshRuntime(focusDictionary, options, now)
     persist(state)
     return state
   }
@@ -152,14 +165,16 @@ export async function loadSmartSessionRuntime(
   }
 
   if (state.currentBlock) {
-    const record = await db.reviewRecords.get(state.currentBlock.reviewRecordId)
+    const record = state.currentBlock.semanticRunId
+    ? await db.semanticRuns.get(state.currentBlock.semanticRunId).then((run) => run && ({ isFinished: run.completedAt !== undefined || run.endedAt !== undefined, abandoned: run.endedAt !== undefined && run.completedAt === undefined }))
+    : state.currentBlock.reviewRecordId === undefined ? undefined : await db.reviewRecords.get(state.currentBlock.reviewRecordId)
     if (!record) {
       state = { ...state, currentBlock: undefined, updatedAt: now }
       persist(state)
     } else if (record.isFinished) {
       state = {
         ...state,
-        completedBlocks: state.completedBlocks + 1,
+        completedBlocks: state.completedBlocks + ('abandoned' in record && record.abandoned ? 0 : 1),
         estimatedActiveSeconds: state.estimatedActiveSeconds + state.currentBlock.estimatedSeconds,
         estimatedActiveSecondsSinceBreak: state.estimatedActiveSecondsSinceBreak + state.currentBlock.estimatedSeconds,
         currentBlock: undefined,
@@ -236,4 +251,9 @@ export function runtimeProgress(state: SmartSessionRuntime, now = Date.now()): S
     activeSecondsSinceBreak: state.estimatedActiveSecondsSinceBreak,
     timingQuality: 'estimated',
   }
+}
+
+export function readCurrentSmartRuntime(ownerUserId?: string) {
+  const state = readStored()
+  return state && sameOwner(state, ownerUserId) ? state : undefined
 }

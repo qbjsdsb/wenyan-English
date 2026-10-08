@@ -1,7 +1,13 @@
+import type { SemanticRun } from '@/semantic/run'
+import type { SemanticCandidate } from './types'
+import type { SemanticItem, SemanticPayload } from '@/semantic/core'
+import { parseSemanticPayload, semanticKey } from '@/semantic/core'
+import { semanticItem } from '@/semantic/provider'
 import { buildSmartSession } from './planner'
 import {
   type SmartSessionRuntime,
   beginSmartBlock,
+  createSmartSessionId,
   loadSmartSessionRuntime,
   reconcileSmartRuntimeEvidence,
   runtimeProgress,
@@ -46,6 +52,7 @@ function wordAttemptPayload(value: unknown): WordAttemptedPayload | undefined {
 }
 
 export type PreparedSmartSession =
+  | { kind: 'semantic-resume'; runtime: SmartSessionRuntime; run: SemanticRun }
   | {
       kind: 'resume'
       runtime: SmartSessionRuntime
@@ -56,6 +63,7 @@ export type PreparedSmartSession =
       runtime: SmartSessionRuntime
       draft: SmartSessionDraft
       wordsByContentId: Map<string, Word>
+      semanticItems?: Map<string, SemanticItem>
     }
 
 export async function prepareSmartVocabularySession(
@@ -74,16 +82,21 @@ export async function prepareSmartVocabularySession(
     sessionId: runtimeSessionId,
   })
   if (runtime.currentBlock) {
-    const record = await db.reviewRecords.get(runtime.currentBlock.reviewRecordId)
+    if (runtime.currentBlock.semanticRunId) {
+      const run = await db.semanticRuns.get(runtime.currentBlock.semanticRunId)
+      if (run && run.ownerUserId === ownerUserId && run.completedAt === undefined && run.endedAt === undefined) return { kind: 'semantic-resume', runtime, run }
+    }
+    const record = runtime.currentBlock.reviewRecordId === undefined ? undefined : await db.reviewRecords.get(runtime.currentBlock.reviewRecordId)
     if (record && !record.isFinished) return { kind: 'resume', runtime, record: record as ReviewRecord }
   }
 
-  const [words, rawEvents] = await Promise.all([
+  const [words, rawEvents, semanticEvents] = await Promise.all([
     wordListFetcher(dictionary.url),
     db.learningEvents.where('eventType').equals('word_attempted').toArray(),
+    db.learningEvents.where('eventType').equals('semantic_recall_attempted').toArray(),
   ])
   const visibleEvents = rawEvents
-    .filter((event) => visibleToCurrentOwner(ownerUserId, event.ownerUserId))
+    .filter((event) => visibleToCurrentOwner(ownerUserId, event.ownerUserId) && event.occurredAt <= now)
     .map((event) => ({ event, payload: wordAttemptPayload(event.payload) }))
     .filter((entry): entry is { event: (typeof rawEvents)[number]; payload: WordAttemptedPayload } => Boolean(entry.payload))
 
@@ -132,23 +145,55 @@ export async function prepareSmartVocabularySession(
     if (latest && (lastActivityAt === undefined || latest.occurredAt > lastActivityAt)) lastActivityAt = latest.occurredAt
   })
 
+  const semanticItems = new Map<string, SemanticItem>()
+  const latestSemantic = new Map<string, { id: string; occurredAt: number; payload: SemanticPayload }>()
+  for (const event of semanticEvents) {
+    if (!visibleToCurrentOwner(ownerUserId, event.ownerUserId) || event.occurredAt > now) continue
+    try {
+      const payload = parseSemanticPayload(event.payload)
+      const key = semanticKey(payload.dictionaryId, payload.word)
+      if (payload.sessionId === runtime.id) sessionAttemptedKeys.add(key)
+      const previous = latestSemantic.get(key)
+      if (!previous || previous.occurredAt < event.occurredAt || (previous.occurredAt === event.occurredAt && previous.id < event.id)) {
+        latestSemantic.set(key, { id: event.id, occurredAt: event.occurredAt, payload })
+      }
+    } catch { /* Unknown measurement is excluded, never reinterpreted as success. */ }
+  }
+  runtime = reconcileSmartRuntimeEvidence(runtime, Array.from(sessionAttemptedKeys), sessionNewItems, now)
+  // Only actually observed words are eligible. Missing semantic evidence must not create new-word exposure.
+  // Bound hashing work; candidates are deterministic, oldest semantic observation first.
+  const pool = words.filter((word) => attemptsByKey.has(smartVocabularyKey(word.name)))
+    .sort((a, b) => (latestSemantic.get(semanticKey(dictId, a.name))?.occurredAt ?? 0)
+      - (latestSemantic.get(semanticKey(dictId, b.name))?.occurredAt ?? 0) || a.name.localeCompare(b.name)).slice(0, 120)
+  const semanticCandidates: SemanticCandidate[] = []
+  for (const word of pool) {
+    const item = await semanticItem(dictId, word)
+    if (!item || semanticItems.has(item.contentId)) continue
+    semanticItems.set(item.contentId, item)
+    const prior = latestSemantic.get(item.key)
+    const matching = prior?.payload.contentVersion === item.contentVersion ? prior : undefined
+    semanticCandidates.push({ kind: 'semantic_recall', key: item.key, contentId: item.contentId, estimatedSeconds: 25,
+      lastAttemptAt: matching?.occurredAt, lastRating: matching?.payload.rating, evidenceRefs: matching ? [matching.id] : [] })
+  }
+
   const draft = buildSmartSession({
     now,
     snapshotId: `${dictId}:${visibleEvents.length}:${lastActivityAt ?? 0}`,
     constraints: {
       ...constraints,
       focusDictionary: dictId,
-      preferredActivities: ['vocabulary'],
+      preferredActivities: constraints.preferredActivities ?? ['vocabulary'],
     },
-    candidates,
-    availableActivities: ['vocabulary'],
+    candidates: [...candidates, ...semanticCandidates],
+    availableActivities: ['vocabulary', 'semantic_recall'],
     progress: runtimeProgress(runtime, now),
     newItemsToday,
     lastActivityAt,
     coverage: visibleEvents.length > 0 ? 'partial' : 'unknown',
   })
 
-  return { kind: 'draft', runtime, draft, wordsByContentId }
+  if (ownerUserId !== getLocalLearningOwnerId()) throw new Error('账号已经改变，请重新安排。')
+  return { kind: 'draft', runtime, draft, wordsByContentId, semanticItems }
 }
 
 function assertHardStopAllowsBlock(runtime: SmartSessionRuntime, block: SessionBlock, now: number) {
@@ -172,7 +217,7 @@ export function assertPreparedVocabularyBlockStartable(
   now = Date.now(),
 ) {
   const block: SessionBlock | undefined = prepared.draft.blocks[0]
-  if (!block || block.activity.kind !== 'vocabulary' || block.activity.items.length === 0) {
+  if (!block || !['vocabulary', 'semantic_recall'].includes(block.activity.kind) || block.activity.items.length === 0) {
     throw new Error('smart_session_has_no_vocabulary_block')
   }
   assertHardStopAllowsBlock(prepared.runtime, block, now)
@@ -183,8 +228,10 @@ export async function startPreparedVocabularyBlock(
   prepared: Extract<PreparedSmartSession, { kind: 'draft' }>,
   now = Date.now(),
 ): Promise<{ runtime: SmartSessionRuntime; record: ReviewRecord }> {
+  if (prepared.runtime.ownerUserId !== getLocalLearningOwnerId()) throw new Error('账号已经改变，请重新安排。')
   const block = assertPreparedVocabularyBlockStartable(prepared, now)
 
+  if (block.activity.kind !== 'vocabulary') throw new Error('vocabulary_block_required')
   const words = block.activity.items.map((item) => {
     const word = prepared.wordsByContentId.get(item.contentId)
     if (!word || smartVocabularyKey(word.name) !== item.key) throw new Error('smart_session_content_mismatch')
@@ -206,4 +253,26 @@ export async function startPreparedVocabularyBlock(
   )
 
   return { runtime, record }
+}
+
+/** Separate activity storage: semantic attempts cannot complete a spelling chapter or Cloud Plan chapter task. */
+export async function startPreparedSemanticBlock(prepared: Extract<PreparedSmartSession, { kind: 'draft' }>, now = Date.now()) {
+  if (prepared.runtime.ownerUserId !== getLocalLearningOwnerId()) throw new Error('账号已经改变，请重新安排。')
+  const block = assertPreparedVocabularyBlockStartable(prepared, now)
+  if (block.activity.kind !== 'semantic_recall') throw new Error('semantic_block_required')
+  if (prepared.runtime.ownerUserId !== getLocalLearningOwnerId()) throw new Error('账号已经改变，请重新安排。')
+  const items = block.activity.items.map((item) => {
+    const content = prepared.semanticItems?.get(item.contentId)
+    if (!content || content.key !== item.key) throw new Error('semantic_content_mismatch')
+    return content
+  })
+  const id = createSmartSessionId()
+  const hardStopAt = prepared.runtime.hardStopAt ?? (prepared.runtime.hardStopMinutes === undefined ? undefined
+    : (prepared.runtime.executionStartedAt ?? now) + prepared.runtime.hardStopMinutes * 60000)
+  const run: SemanticRun = { id, sessionCheckpoint: prepared.runtime, ownerUserId: prepared.runtime.ownerUserId, sessionId: prepared.runtime.id,
+    dictionaryId: prepared.runtime.focusDictionary, startedAt: now, hardStopAt, items, index: 0 }
+  await db.semanticRuns.add(run)
+  const runtime = beginSmartBlock(prepared.runtime, { semanticRunId: id, purpose: 'semantic_recall',
+    keys: items.map((item) => item.key), estimatedSeconds: block.estimatedSeconds }, now)
+  return { runtime, run }
 }

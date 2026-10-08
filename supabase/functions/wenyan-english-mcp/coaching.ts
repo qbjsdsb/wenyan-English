@@ -1,3 +1,5 @@
+import { buildSemanticEvidence, parseSemanticPayload } from '../../../src/semantic/core.ts'
+import { buildAgentExecutionGuidance } from '../../../src/coaching/agent.ts'
 import { buildCoachingContext } from '../../../src/coaching/context.ts'
 import type {
   CoachingWordFact,
@@ -57,8 +59,9 @@ interface ExecutionAvailabilitySnapshot {
   correctionCooldownCount: number
   newEligibleCount: number
   newWordCapacity: number
+  semanticEligibleCount: number | null
   readingEligibleCount: number
-  selectedPurpose: 'review' | 'correction' | 'weak' | 'new' | 'reading' | null
+  selectedPurpose: 'review' | 'correction' | 'weak' | 'new' | 'reading' | 'semantic_recall' | null
   selectedItemCount: number
   coverage: 'complete' | 'partial' | 'unknown'
   reportedAt: number
@@ -227,6 +230,34 @@ async function readWordFacts(options: CoachingAdapterOptions, receivedAtOrBefore
   }
 }
 
+async function readSemanticFacts(options: CoachingAdapterOptions, now: number) {
+  const url = new URL(`${options.supabaseUrl}/rest/v1/learning_events`)
+  url.searchParams.set('select', 'id,occurred_at,created_at,source_version,payload')
+  url.searchParams.set('event_type', 'eq.semantic_recall_attempted')
+  url.searchParams.set('created_at', `lte.${new Date(now).toISOString()}`)
+  url.searchParams.set('occurred_at', `gte.${new Date(now - 14 * 86400000).toISOString()}`)
+  url.searchParams.set('order', 'occurred_at.desc,id.desc')
+  url.searchParams.set('limit', '501')
+  try {
+    const rows = await fetchJson(url, options.token, options.publishableKey)
+    if (!Array.isArray(rows)) throw new Error('invalid_semantic_response')
+    let excluded = 0
+    const facts = rows.slice(0, 500).flatMap((row) => {
+      try {
+        if (row.source_version !== 4 || typeof row.id !== 'string') throw new Error('invalid_semantic_version')
+        const occurredAt = parseTimestamp(row.occurred_at)
+        if (occurredAt === null || occurredAt > now) throw new Error('invalid_semantic_time')
+        return [{ id: row.id, occurredAt, payload: parseSemanticPayload(row.payload) }]
+      } catch { excluded++; return [] }
+    })
+    return { status: 'available' as const, evidence: buildSemanticEvidence(facts, now), rowsRead: Math.min(rows.length, 500),
+      truncated: rows.length > 500, excluded, fingerprintRows: facts, localOnlyPossible: true }
+  } catch {
+    return { status: 'unavailable' as const, evidence: null, rowsRead: null, truncated: null, excluded: null,
+      fingerprintRows: [], localOnlyPossible: true }
+  }
+}
+
 function mapIntent(value: unknown): IntentReference | null {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return null
   const row = value as CloudIntentRow
@@ -353,7 +384,7 @@ function mapExecutionAvailability(value: unknown): { status: ExecutionAvailabili
     typeof row.reason !== 'string' || !row.reason ||
     (row.retryAt !== null && retryAt === null) ||
     counts.some((count) => count === null) ||
-    (selectedPurpose !== null && !['review', 'correction', 'weak', 'new', 'reading'].includes(String(selectedPurpose))) ||
+    (selectedPurpose !== null && !['review', 'correction', 'weak', 'new', 'reading', 'semantic_recall'].includes(String(selectedPurpose))) ||
     !['complete', 'partial', 'unknown'].includes(String(row.coverage))
   ) return { status: 'invalid_response', snapshot: null }
 
@@ -374,6 +405,7 @@ function mapExecutionAvailability(value: unknown): { status: ExecutionAvailabili
       correctionCooldownCount: counts[3] as number,
       newEligibleCount: counts[4] as number,
       newWordCapacity: counts[5] as number,
+      semanticEligibleCount: parseNonNegativeInteger(row.semanticEligibleCount),
       readingEligibleCount: counts[6] as number,
       selectedPurpose: selectedPurpose as ExecutionAvailabilitySnapshot['selectedPurpose'],
       selectedItemCount: counts[7] as number,
@@ -446,11 +478,12 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
   const receivedAtOrBefore = new Date(now).toISOString()
 
   // Learning facts are required. Intent, durable preferences and executor availability are optional enrichments and fail soft.
-  const [wordData, intentData, preferenceData, executionData] = await Promise.all([
+  const [wordData, intentData, preferenceData, executionData, semanticData] = await Promise.all([
     readWordFacts(options, receivedAtOrBefore),
     readIntents(options),
     readPreferences(options),
     readExecutionAvailability(options),
+    readSemanticFacts(options, now),
   ])
 
   const canonicalIntents = [...intentData.intents]
@@ -477,6 +510,8 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
     learningStage: preferenceData.stage,
     stageReminder: preferenceData.reminder,
     preferenceReadStatus: preferenceData.status,
+    semanticStatus: semanticData.status,
+    semanticRows: semanticData.fingerprintRows,
     executionAvailabilityStatus: executionData.status,
     executionAvailability: executionData.snapshot,
   })
@@ -527,7 +562,28 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
       ...context.evidence,
       refs: evidenceRefs,
     },
+    executionCapabilities: {
+      ...context.executionCapabilities,
+      semanticRecall: executionData.status === 'fresh' && executionData.snapshot?.semanticEligibleCount !== null
+        && executionData.snapshot?.semanticEligibleCount !== undefined ? 'available' : 'unknown',
+    },
+    derived: {
+      ...context.derived,
+      semanticEvidence: { status: semanticData.status, summary: semanticData.evidence,
+        coverage: { windowDays: 14, maxRows: 500, rowsRead: semanticData.rowsRead, truncated: semanticData.truncated,
+          invalidRowsExcluded: semanticData.excluded, localOnlyPossible: true } },
+    },
+    agent: {
+      epistemicLevels: { observed: 'Immutable event records; semantic ratings are reports, not verified correctness.',
+        derived: 'Versioned deterministic aggregation with bounded coverage.',
+        userStatement: 'Intent rationale marked user_statement; not a measured learning fact.',
+        recommendation: 'Future intent and Coach advice; never evidence of completion.',
+        unknown: 'Unavailable, unsynced or missing evidence is unknown, not zero ability.' },
+      execution: buildAgentExecutionGuidance(executionData),
+      semanticAction: 'Use preferredActivities=["semantic_recall"] for a reversible day/session vocabulary activity; do not change long-term stage. Only recommend automatic execution when executionCapabilities.semanticRecall is available; otherwise ask the user to open the updated website. If no known words with references are eligible, explain availability rather than treating spelling as semantic success.',
+    },
     runtime: {
+      deviceScope: 'latest_owner_report_not_bound_to_command_target_device',
       executionAvailability: {
         status: executionData.status,
         reportedAt: executionData.snapshot?.reportedAt ?? null,
@@ -548,6 +604,7 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
               correctionCooldownCount: executionData.snapshot.correctionCooldownCount,
               newEligibleCount: executionData.snapshot.newEligibleCount,
               newWordCapacity: executionData.snapshot.newWordCapacity,
+              semanticEligibleCount: executionData.snapshot.semanticEligibleCount,
               readingEligibleCount: executionData.snapshot.readingEligibleCount,
               selectedPurpose: executionData.snapshot.selectedPurpose,
               selectedItemCount: executionData.snapshot.selectedItemCount,
@@ -561,6 +618,7 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
     uncertainty: uniqueSorted([
       ...context.uncertainty,
       'snapshot_query_refs_are_descriptive_not_replay_handles',
+      ...(semanticData.status === 'available' ? ['semantic_self_report_is_not_objective_correctness'] : ['semantic_evidence_unavailable']),
       ...(intentData.status === 'available' ? [] : ['active_learning_intent_not_visible_in_this_snapshot']),
       ...(preferenceData.status === 'available' ? [] : ['learning_stage_preference_not_visible_in_this_snapshot']),
       ...(executionData.status === 'fresh'
@@ -569,11 +627,12 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
             ? 'execution_availability_is_stale_do_not_use_for_current_executor_capacity'
             : 'current_executor_capacity_not_visible_in_this_snapshot']),
     ]),
-    toolVersion: 'coaching-context-v1.3',
+    toolVersion: 'coaching-context-v1.4',
     requestId: crypto.randomUUID(),
     adapter: {
       source:
         'owner-scoped synced cloud learning_events; durable Learning Preferences and active Learning Intent when authorized and available; optional short-lived deterministic executor availability',
+      semanticReadStatus: semanticData.status,
       wordRowsRead: wordData.rowCount,
       invalidRowsExcluded: wordData.invalidRows,
       maxWordFacts: MAX_WORD_FACTS,
