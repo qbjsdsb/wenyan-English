@@ -7,6 +7,32 @@ const smartWords = ['alpha', 'beta', 'gamma'].map((name) => ({
   ukphone: '',
 }))
 
+const installAuthenticatedSession = async (page: Parameters<typeof test>[0] extends never ? never : any) => {
+  await page.addInitScript(() => {
+    const now = Math.floor(Date.now() / 1000)
+    localStorage.setItem(
+      'sb-cmjhxvpkdeheujuteqoi-auth-token',
+      JSON.stringify({
+        access_token: 'e2e-access-token',
+        refresh_token: 'e2e-refresh-token',
+        token_type: 'bearer',
+        expires_in: 3600,
+        expires_at: now + 3600,
+        user: {
+          id: '00000000-0000-4000-8000-000000000001',
+          aud: 'authenticated',
+          role: 'authenticated',
+          email: 'e2e@example.com',
+          app_metadata: {},
+          user_metadata: {},
+          identities: [],
+          created_at: new Date().toISOString(),
+        },
+      }),
+    )
+  })
+}
+
 test.beforeEach(async ({ page }) => {
   await page.route('**/*.supabase.co/**', (route) => route.abort())
   await page.route('**/dicts/CET4_T.json', (route) => route.fulfill({ json: smartWords }))
@@ -100,29 +126,7 @@ test('active Learning Intent is merged by scope and safely shapes the next block
       ],
     }),
   )
-  await page.addInitScript(() => {
-    const now = Math.floor(Date.now() / 1000)
-    localStorage.setItem(
-      'sb-cmjhxvpkdeheujuteqoi-auth-token',
-      JSON.stringify({
-        access_token: 'e2e-access-token',
-        refresh_token: 'e2e-refresh-token',
-        token_type: 'bearer',
-        expires_in: 3600,
-        expires_at: now + 3600,
-        user: {
-          id: '00000000-0000-4000-8000-000000000001',
-          aud: 'authenticated',
-          role: 'authenticated',
-          email: 'e2e@example.com',
-          app_metadata: {},
-          user_metadata: {},
-          identities: [],
-          created_at: new Date().toISOString(),
-        },
-      }),
-    )
-  })
+  await installAuthenticatedSession(page)
 
   await page.goto('/today')
 
@@ -130,4 +134,35 @@ test('active Learning Intent is merged by scope and safely shapes the next block
   await expect(dock).toHaveAttribute('data-intent-source', 'cloud')
   await expect(dock.getByText('继续推进 1 个新词', { exact: true })).toBeVisible()
   await expect(dock.getByText(/已按你最近的学习安排自动调整/)).toBeVisible()
+})
+
+test('review-only intent has an actionable empty state instead of a dead disabled button', async ({ page }) => {
+  await page.route('**/rest/v1/rpc/get_learning_intents', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      json: [
+        {
+          id: '00000000-0000-4000-8000-000000000004',
+          timezone: 'Asia/Shanghai',
+          scope: 'ongoing',
+          revision: 1,
+          constraints: { newWordCeiling: 0, reviewPreference: 'review_first' },
+        },
+      ],
+    }),
+  )
+  await installAuthenticatedSession(page)
+
+  await page.goto('/today')
+
+  const dock = page.getByRole('region', { name: '智能学习' })
+  await expect(dock).toHaveAttribute('data-intent-source', 'cloud')
+  await expect(dock.getByText('当前没有到期复习内容。', { exact: true })).toBeVisible()
+  await expect(dock.getByText(/今天的新词上限是 0/)).toBeVisible()
+  await expect(dock.getByText('今日新词上限 0', { exact: true })).toBeVisible()
+  await expect(dock.getByRole('button', { name: '重新检查', exact: true })).toBeEnabled()
+  const manual = dock.getByRole('link', { name: '仍要手动继续当前章节', exact: true })
+  await expect(manual).toBeVisible()
+  await manual.click()
+  await expect(page).toHaveURL(/\/$/)
 })
