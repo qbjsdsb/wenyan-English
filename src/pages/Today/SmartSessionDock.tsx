@@ -153,32 +153,51 @@ export default function SmartSessionDock() {
     <section
       aria-label="智能学习"
       data-intent-source={intent?.source ?? 'loading'}
-      className="relative mb-7 overflow-hidden rounded-3xl border border-indigo-100 bg-white px-7 py-8 shadow-sm dark:border-gray-700 dark:bg-gray-800 lg:px-10 lg:py-10"
+      className="relative mb-8 overflow-hidden rounded-[28px] border border-gray-200/70 bg-white/90 px-7 py-8 shadow-[0_18px_50px_-36px_rgba(15,23,42,0.45)] backdrop-blur dark:border-white/10 dark:bg-white/[0.055] lg:px-10 lg:py-10"
     >
-      <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-indigo-50 blur-3xl dark:bg-indigo-950/30" />
-      <div className="relative flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-indigo-400 via-indigo-500 to-violet-500" />
+      <div className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-indigo-100/50 blur-3xl dark:bg-indigo-500/10" />
+
+      <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-2xl">
-          <p className="text-xs font-medium tracking-[0.18em] text-indigo-600 dark:text-indigo-300">今天 · 下一段</p>
-          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-gray-950 dark:text-white lg:text-3xl">{label}</h2>
-          <p className="mt-3 max-w-xl text-sm leading-7 text-gray-500 dark:text-gray-400">{note}</p>
+          <div className="flex items-center gap-3">
+            <p className="text-[11px] font-semibold tracking-[0.2em] text-indigo-600 dark:text-indigo-300">NEXT SESSION</p>
+            <span className="h-px w-8 bg-gray-200 dark:bg-white/10" />
+            <p className="text-xs text-gray-400">今天只做下一小段</p>
+          </div>
+
+          <h2 className="mt-5 max-w-[680px] text-[28px] font-semibold leading-[1.2] tracking-[-0.035em] text-gray-950 dark:text-white lg:text-[34px]">
+            {label}
+          </h2>
+          <p className="mt-4 max-w-xl text-sm leading-7 text-gray-500 dark:text-gray-400">{note}</p>
+
           {meta.length > 0 && (
-            <div className="mt-5 flex flex-wrap gap-2" aria-label="这一段概况">
+            <div className="mt-6 flex flex-wrap gap-2" aria-label="这一段概况">
               {meta.map((item) => (
-                <span key={item} className="rounded-full bg-gray-50 px-3 py-1.5 text-xs text-gray-500 dark:bg-gray-900/50 dark:text-gray-400">
+                <span
+                  key={item}
+                  className="rounded-full border border-gray-200/70 bg-gray-50/80 px-3 py-1.5 text-xs text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400"
+                >
                   {item}
                 </span>
               ))}
             </div>
           )}
-          {error && <p role="alert" className="mt-4 text-xs text-red-600 dark:text-red-300">{error}</p>}
+
+          {error && (
+            <p role="alert" className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-xs leading-5 text-red-700 dark:bg-red-950/30 dark:text-red-300">
+              {error}
+            </p>
+          )}
         </div>
-        <div className="flex flex-col gap-3">
+
+        <div className="flex min-w-[180px] flex-col gap-3">
           {error && (
             <button
               type="button"
               disabled={busy}
               onClick={() => void refresh()}
-              className="rounded-xl border border-gray-300 px-5 py-3 text-sm disabled:opacity-50 dark:border-gray-600"
+              className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
             >
               重新安排
             </button>
@@ -187,10 +206,11 @@ export default function SmartSessionDock() {
             type="button"
             disabled={busy || (!hasBlock && !isBreak)}
             onClick={() => void start()}
-            className="w-full shrink-0 rounded-2xl bg-indigo-600 px-7 py-4 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
+            className="w-full shrink-0 rounded-2xl bg-gray-950 px-7 py-4 text-sm font-medium text-white shadow-[0_10px_28px_-14px_rgba(15,23,42,0.8)] transition duration-200 hover:-translate-y-0.5 hover:bg-gray-800 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-45 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white lg:w-auto"
           >
             {busy ? '正在准备…' : isBreak ? '休息好了，继续' : prepared?.kind === 'resume' ? '继续这一段' : '开始学习'}
           </button>
+          <p className="text-center text-[11px] leading-5 text-gray-400">真实学习后才会写入完成记录</p>
         </div>
       </div>
     </section>
