@@ -1,6 +1,6 @@
 /** Pure planning data; never a learning-event write contract. Times are milliseconds unless named otherwise. */
 export type ActivityKind = 'vocabulary' | 'reading' | 'dictation' | 'cloze' | 'translation' | 'writing' | 'grammar' | 'long_sentence' | 'new_question_type'
-export type Purpose = 'review' | 'weak' | 'new' | 'reading'
+export type Purpose = 'review' | 'correction' | 'weak' | 'new' | 'reading'
 export interface SessionConstraints {
   focusDictionary?: string
   targetMinutes?: number
@@ -74,12 +74,14 @@ export interface SessionBlock {
   estimatedSeconds: number
 }
 export interface SmartSessionDraft {
-  algorithmVersion: 'elastic-v1'
+  algorithmVersion: 'elastic-v2'
   snapshotId: string
   blocks: SessionBlock[]
   estimatedSeconds: number
   disposition: 'continue' | 'break' | 'finish'
   reason: string
+  /** Earliest safe retry for a currently cooling-down correction candidate. */
+  retryAt?: number
   deferred: { key: string; reason: string }[]
   warnings: string[]
 }
