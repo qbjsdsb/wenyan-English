@@ -1,5 +1,6 @@
-import type { PreparedSmartSession } from './adapter'
+import { getWenyanDeviceId } from '@/control/deviceId'
 import { supabase } from '@/supabase/client'
+import type { PreparedSmartSession } from './adapter'
 
 /**
  * Short-lived executor context for the Coach. This is derived runtime state,
@@ -58,8 +59,21 @@ export function executionAvailabilityReport(prepared: PreparedSmartSession) {
 }
 
 export async function reportSmartSessionExecutionAvailability(prepared: PreparedSmartSession) {
+  const report = executionAvailabilityReport(prepared)
+  const deviceId = getWenyanDeviceId()
   try {
-    const { error } = await supabase.rpc('report_execution_availability', executionAvailabilityReport(prepared))
+    if (deviceId) {
+      const { error } = await supabase.rpc('report_execution_availability_for_device', {
+        p_device_id: deviceId,
+        ...report,
+      })
+      if (!error) return true
+    }
+
+    // Transitional and registration-race fallback. Older deployments and a
+    // just-created browser device can still refresh owner-wide availability.
+    // This fallback is deliberately not presented to the Coach as target-bound.
+    const { error } = await supabase.rpc('report_execution_availability', report)
     return !error
   } catch {
     return false
