@@ -2,38 +2,20 @@ import HeatmapCharts from './components/HeatmapCharts'
 import KeyboardWithBarCharts from './components/KeyboardWithBarCharts'
 import LineCharts from './components/LineCharts'
 import { useWordStats } from './hooks/useWordStats'
+import Header from '@/components/Header'
 import Layout from '@/components/Layout'
 import { isOpenDarkModeAtom } from '@/store'
-import * as ScrollArea from '@radix-ui/react-scroll-area'
 import dayjs from 'dayjs'
 import { useAtom } from 'jotai'
-import { useCallback } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useNavigate } from 'react-router-dom'
-import IconX from '~icons/tabler/x'
 
 const Analysis = () => {
   const navigate = useNavigate()
   const [, setIsOpenDarkMode] = useAtom(isOpenDarkModeAtom)
 
-  const onBack = useCallback(() => {
-    navigate('/')
-  }, [navigate])
-
-  const changeDarkModeState = () => {
-    setIsOpenDarkMode((old) => !old)
-  }
-
-  useHotkeys(
-    'ctrl+d',
-    () => {
-      changeDarkModeState()
-    },
-    { enableOnFormTags: true, preventDefault: true },
-    [],
-  )
-
-  useHotkeys('enter,esc', onBack, { preventDefault: true })
+  useHotkeys('ctrl+d', () => setIsOpenDarkMode((old) => !old), { enableOnFormTags: true, preventDefault: true }, [])
+  useHotkeys('enter,esc', () => navigate('/today'), { preventDefault: true })
 
   const { isEmpty, exerciseRecord, wordRecord, wpmRecord, accuracyRecord, wrongTimeRecord } = useWordStats(
     dayjs().subtract(1, 'year').unix(),
@@ -42,38 +24,37 @@ const Analysis = () => {
 
   return (
     <Layout>
-      <div className="flex w-full flex-1 flex-col overflow-y-auto pl-20 pr-20 pt-20">
-        <IconX className="absolute right-20 top-10 mr-2 h-7 w-7 cursor-pointer text-gray-400" onClick={onBack} />
-        <ScrollArea.Root className="flex-1 overflow-y-auto">
-          <ScrollArea.Viewport className="h-full w-auto pb-[20rem] [&>div]:!block">
-            {isEmpty ? (
-              <div className="align-items-center m-4 grid h-80 w-auto place-content-center overflow-hidden rounded-lg shadow-lg dark:bg-gray-600">
-                <div className="text-2xl text-gray-400">暂无练习数据</div>
-              </div>
-            ) : (
-              <>
-                <div className="mx-4 my-8 h-auto w-auto overflow-hidden rounded-lg p-8 shadow-lg dark:bg-gray-700 dark:bg-opacity-50">
-                  <HeatmapCharts title="过去一年练习次数热力图" data={exerciseRecord} />
-                </div>
-                <div className="mx-4 my-8 h-auto w-auto overflow-hidden rounded-lg p-8 shadow-lg dark:bg-gray-700 dark:bg-opacity-50">
-                  <HeatmapCharts title="过去一年练习词数热力图" data={wordRecord} />
-                </div>
-                <div className="mx-4 my-8 h-80 w-auto overflow-hidden rounded-lg p-8 shadow-lg dark:bg-gray-700 dark:bg-opacity-50">
-                  <LineCharts title="过去一年WPM趋势图" name="WPM" data={wpmRecord} />
-                </div>
-                <div className="mx-4 my-8 h-80 w-auto overflow-hidden rounded-lg p-8 shadow-lg dark:bg-gray-700 dark:bg-opacity-50">
-                  <LineCharts title="过去一年正确率趋势图" name="正确率(%)" data={accuracyRecord} suffix="%" />
-                </div>
-                <div className="mx-4 my-8 h-80 w-auto overflow-hidden rounded-lg p-8 shadow-lg dark:bg-gray-700 dark:bg-opacity-50">
-                  <KeyboardWithBarCharts title="按键错误次数排行" name="错误次数" data={wrongTimeRecord} />
-                </div>
-              </>
-            )}
-          </ScrollArea.Viewport>
-          <ScrollArea.Scrollbar className="flex touch-none select-none bg-transparent " orientation="vertical"></ScrollArea.Scrollbar>
-        </ScrollArea.Root>
-        <div className="overflow-y-auto"></div>
-      </div>
+      <Header />
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
+        <div className="mb-8">
+          <h1 className="text-[30px] font-semibold tracking-[-0.035em] text-gray-950 dark:text-gray-100">记录</h1>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">过去一年的练习情况</p>
+        </div>
+
+        {isEmpty ? (
+          <div className="flex min-h-[320px] items-center justify-center border-y border-black/[0.08] text-sm text-gray-400 dark:border-white/[0.09] dark:text-gray-600">
+            暂无练习数据
+          </div>
+        ) : (
+          <div className="border-t border-black/[0.08] dark:border-white/[0.09]">
+            <section className="border-b border-black/[0.07] py-8 dark:border-white/[0.08]">
+              <HeatmapCharts title="过去一年练习次数" data={exerciseRecord} />
+            </section>
+            <section className="border-b border-black/[0.07] py-8 dark:border-white/[0.08]">
+              <HeatmapCharts title="过去一年练习词数" data={wordRecord} />
+            </section>
+            <section className="h-[360px] border-b border-black/[0.07] py-8 dark:border-white/[0.08]">
+              <LineCharts title="WPM 趋势" name="WPM" data={wpmRecord} />
+            </section>
+            <section className="h-[360px] border-b border-black/[0.07] py-8 dark:border-white/[0.08]">
+              <LineCharts title="正确率趋势" name="正确率(%)" data={accuracyRecord} suffix="%" />
+            </section>
+            <section className="h-[380px] py-8">
+              <KeyboardWithBarCharts title="按键错误排行" name="错误次数" data={wrongTimeRecord} />
+            </section>
+          </div>
+        )}
+      </main>
     </Layout>
   )
 }
