@@ -13,7 +13,7 @@
   --wenyan-accent-soft: rgba(70, 93, 116, 0.095);
   --wenyan-success: #58725f;
   --wenyan-danger: #a24f4f;
-  --wenyan-shadow: 0 12px 36px rgba(40, 39, 34, 0.06);
+  --wenyan-shadow: 0 10px 30px rgba(40, 39, 34, 0.045);
   --wenyan-radius-sm: 7px;
   --wenyan-radius-md: 10px;
   --wenyan-radius-lg: 14px;
@@ -26,20 +26,20 @@
 
 html.dark {
   color-scheme: dark;
-  --wenyan-paper: #121310;
-  --wenyan-paper-raised: #181916;
-  --wenyan-paper-muted: #1d1e1a;
-  --wenyan-ink: #efeee8;
-  --wenyan-ink-secondary: #aaa9a1;
-  --wenyan-ink-muted: #72736c;
-  --wenyan-line: rgba(239, 238, 232, 0.105);
-  --wenyan-line-soft: rgba(239, 238, 232, 0.065);
-  --wenyan-accent: #8ca2b7;
-  --wenyan-accent-hover: #a4b7c8;
-  --wenyan-accent-soft: rgba(140, 162, 183, 0.11);
-  --wenyan-success: #8faa96;
-  --wenyan-danger: #d88383;
-  --wenyan-shadow: 0 16px 44px rgba(0, 0, 0, 0.16);
+  --wenyan-paper: #121311;
+  --wenyan-paper-raised: #181917;
+  --wenyan-paper-muted: #1d1e1b;
+  --wenyan-ink: #f0efe9;
+  --wenyan-ink-secondary: #b0aea6;
+  --wenyan-ink-muted: #7d7c75;
+  --wenyan-line: rgba(240, 239, 233, 0.105);
+  --wenyan-line-soft: rgba(240, 239, 233, 0.06);
+  --wenyan-accent: #7c91a3;
+  --wenyan-accent-hover: #8da2b3;
+  --wenyan-accent-soft: rgba(124, 145, 163, 0.105);
+  --wenyan-success: #8ca493;
+  --wenyan-danger: #cf7d7d;
+  --wenyan-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
 }
 
 html {
@@ -95,22 +95,22 @@ select:focus-visible {
 .wenyan-brand {
   font-family: var(--wenyan-font-serif);
   color: var(--wenyan-ink);
-  letter-spacing: -0.025em;
+  letter-spacing: -0.026em;
 }
 
 .wenyan-page-title {
   color: var(--wenyan-ink);
-  font-size: 30px;
-  font-weight: 650;
-  letter-spacing: -0.038em;
-  line-height: 1.15;
+  font-size: 28px;
+  font-weight: 630;
+  letter-spacing: -0.035em;
+  line-height: 1.16;
 }
 
 .wenyan-section-title {
   color: var(--wenyan-ink);
-  font-size: 17px;
-  font-weight: 620;
-  letter-spacing: -0.022em;
+  font-size: 16px;
+  font-weight: 610;
+  letter-spacing: -0.018em;
 }
 
 .wenyan-body {
@@ -161,7 +161,7 @@ select:focus-visible {
 }
 
 html.dark .wenyan-button-primary {
-  color: #101310;
+  color: #f8f7f2;
 }
 
 .wenyan-button-secondary {
