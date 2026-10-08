@@ -14,8 +14,10 @@ function jsonResponse(value, status = 200) {
 let eventReads = 0
 let intentReads = 0
 let preferenceReads = 0
+let executionReads = 0
 let intentMode = 'available'
 let preferenceMode = 'available'
+let executionMode = 'fresh'
 
 globalThis.fetch = async (input, init = {}) => {
   const rawUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
@@ -96,6 +98,39 @@ globalThis.fetch = async (input, init = {}) => {
     })
   }
 
+  if (url.pathname.endsWith('/rest/v1/rpc/get_execution_availability')) {
+    executionReads += 1
+    assert.equal(init.method, 'POST')
+    if (executionMode === 'forbidden') return jsonResponse({ message: 'not_allowed' }, 403)
+    if (executionMode === 'transport') throw new TypeError('simulated execution availability network failure')
+    if (executionMode === 'decode') return new Response('{broken-json', { status: 200 })
+    return jsonResponse({
+      status: executionMode === 'stale' ? 'stale' : 'fresh',
+      reportedAt: nowIso,
+      ageSeconds: executionMode === 'stale' ? 300 : 0,
+      snapshot: {
+        algorithmVersion: 'elastic-v2',
+        focusDictionary: 'fixture-dict',
+        plannerSnapshotId: 'fixture-planner-snapshot',
+        availabilityStatus: 'evaluated',
+        sessionKind: 'draft',
+        disposition: 'continue',
+        reason: 'next_useful_block',
+        retryAt: null,
+        reviewEligibleCount: 2,
+        weakEligibleCount: 1,
+        correctionEligibleCount: 0,
+        correctionCooldownCount: 1,
+        newEligibleCount: 20,
+        newWordCapacity: 8,
+        readingEligibleCount: 0,
+        selectedPurpose: 'review',
+        selectedItemCount: 3,
+        coverage: 'unknown',
+      },
+    })
+  }
+
   throw new Error(`unexpected fetch ${url}`)
 }
 
@@ -116,8 +151,9 @@ try {
   assert.equal(eventReads, 2)
   assert.equal(intentReads, 2)
   assert.equal(preferenceReads, 2)
+  assert.equal(executionReads, 2)
   assert.equal(result.schemaVersion, 1)
-  assert.equal(result.toolVersion, 'coaching-context-v1.2')
+  assert.equal(result.toolVersion, 'coaching-context-v1.3')
   assert.match(result.snapshot.id, /^sha256:[0-9a-f]{64}$/)
   assert.equal(repeated.snapshot.id, result.snapshot.id)
   assert.notEqual(repeated.requestId, result.requestId)
@@ -134,17 +170,40 @@ try {
   assert.ok(result.snapshot.warnings.includes('visible_history_is_not_all_learning'))
   assert.ok(result.snapshot.warnings.includes('snapshot_descriptor_not_server_persisted'))
   assert.ok(result.snapshot.warnings.includes('multi_source_snapshot_not_atomic'))
+  assert.equal(result.runtime.executionAvailability.status, 'fresh')
+  assert.equal(result.runtime.executionAvailability.snapshot.reviewEligibleCount, 2)
+  assert.equal(result.runtime.executionAvailability.snapshot.correctionCooldownCount, 1)
+  assert.equal(result.runtime.executionAvailability.snapshot.newWordCapacity, 8)
+  assert.match(result.runtime.executionAvailability.interpretation, /not learning evidence or mastery/)
   assert.equal(result.adapter.wordRowsRead, 3)
   assert.equal(result.adapter.invalidRowsExcluded, 1)
   assert.equal(result.adapter.intentReadStatus, 'available')
   assert.equal(result.adapter.preferenceReadStatus, 'available')
+  assert.equal(result.adapter.executionAvailabilityReadStatus, 'fresh')
   assert.equal(result.adapter.readingCandidatesRequested, true)
   assert.equal(result.adapter.readingCandidatesAvailable, false)
   assert.equal(result.adapter.snapshotDescriptor.persistence, 'not_persisted')
   assert.equal(result.adapter.snapshotDescriptor.replaySupport, 'not_exposed')
   assert.equal(result.adapter.snapshotDescriptor.preferences.status, 'available')
+  assert.equal(result.adapter.snapshotDescriptor.executionAvailability.ttlSeconds, 120)
   assert.ok(result.evidence.refs.every((ref) => ref.replayable === false && ref.id.startsWith('query:')))
   assert.ok(Buffer.byteLength(JSON.stringify(result)) < 24 * 1024)
+
+  executionMode = 'stale'
+  const staleAvailability = await buildCloudCoachingContext(options)
+  assert.equal(staleAvailability.runtime.executionAvailability.status, 'stale')
+  assert.equal(staleAvailability.runtime.executionAvailability.snapshot.newWordCapacity, 8)
+  assert.ok(staleAvailability.snapshot.warnings.includes('execution_availability_stale'))
+  assert.ok(staleAvailability.uncertainty.includes('execution_availability_is_stale_do_not_use_for_current_executor_capacity'))
+
+  executionMode = 'transport'
+  const missingAvailability = await buildCloudCoachingContext(options)
+  assert.equal(missingAvailability.runtime.executionAvailability.status, 'unavailable')
+  assert.equal(missingAvailability.runtime.executionAvailability.snapshot, null)
+  assert.ok(missingAvailability.snapshot.warnings.includes('execution_availability_unavailable'))
+  assert.ok(missingAvailability.uncertainty.includes('current_executor_capacity_not_visible_in_this_snapshot'))
+  assert.equal(missingAvailability.derived.recentLearning.wordAttempts7, 2)
+  executionMode = 'fresh'
 
   intentMode = 'forbidden'
   const readOnly = await buildCloudCoachingContext(options)
@@ -207,7 +266,7 @@ try {
   assert.equal(preferenceDecode.preferences.learningStage.current, 'vocabulary')
   assert.equal(preferenceDecode.derived.recentLearning.wordAttempts7, 2)
 
-  console.log('9 cloud coaching adapter scenarios passed')
+  console.log('10 cloud coaching adapter scenarios passed')
 } finally {
   globalThis.fetch = originalFetch
 }
