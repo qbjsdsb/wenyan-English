@@ -62,8 +62,8 @@ export default function GalleryPage() {
     <Layout>
       <GalleryContext.Provider value={{ state: galleryState, setState: setGalleryState }}>
         <Header />
-        <main className="mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-6 pb-14 pt-10">
-          <div className="mb-9 flex items-end justify-between gap-8">
+        <main className="mx-auto w-full max-w-5xl px-6 pb-16 pt-9">
+          <div className="mb-8 flex items-end justify-between gap-8">
             <div>
               <h1 className="wenyan-page-title">词库</h1>
               <p className="wenyan-muted mt-2 text-sm">{currentDictInfo.name} · {currentDictInfo.length} 词</p>
@@ -71,14 +71,14 @@ export default function GalleryPage() {
             <DictRequest />
           </div>
 
-          <div className="mb-10 border-b border-[var(--wenyan-line-soft)] pb-3">
+          <div className="mb-9 border-b border-[var(--wenyan-line-soft)] pb-3">
             <LanguageTabSwitcher />
           </div>
 
-          <div className="space-y-12">
+          <div className="space-y-11">
             {groupedByCategoryAndTag.map(([category, groupeByTag]) => (
               <section key={category}>
-                <div className="mb-5 flex items-center justify-between gap-4">
+                <div className="mb-4 flex items-center justify-between gap-4">
                   <h2 className="wenyan-section-title">{category}</h2>
                 </div>
                 <DictionaryGroup groupedDictsByTag={groupeByTag} />
