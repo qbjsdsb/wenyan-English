@@ -6,11 +6,13 @@ import Phonetic from './components/Phonetic'
 import Translation from './components/Translation'
 import WordComponent from './components/Word'
 import { usePrefetchPronunciationSound } from '@/hooks/usePronunciation'
+import { isSmartSessionHardStopReached } from '@/smart-session/runtime'
 import { isReviewModeAtom, isShowPrevAndNextWordAtom, loopWordConfigAtom, phoneticConfigAtom, reviewModeInfoAtom } from '@/store'
 import type { Word } from '@/typings'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { useCallback, useContext, useMemo, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 export default function WordPanel() {
   // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
@@ -22,6 +24,9 @@ export default function WordPanel() {
   const { times: loopWordTimes } = useAtomValue(loopWordConfigAtom)
   const currentWord = state.chapterData.words[state.chapterData.index]
   const nextWord = state.chapterData.words[state.chapterData.index + 1] as Word | undefined
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const smartSessionId = searchParams.get('smartSession')
 
   const setReviewModeInfo = useSetAtom(reviewModeInfoAtom)
   const isReviewMode = useAtomValue(isReviewModeAtom)
@@ -51,10 +56,39 @@ export default function WordPanel() {
     [setReviewModeInfo],
   )
 
+  const stopAtHardBoundary = useCallback(
+    (nextReviewIndex: number) => {
+      if (!smartSessionId || !isSmartSessionHardStopReached(smartSessionId)) return false
+      if (isReviewMode) {
+        setReviewModeInfo((old) => ({
+          ...old,
+          reviewRecord: old.reviewRecord
+            ? { ...old.reviewRecord, index: nextReviewIndex, isFinished: false }
+            : undefined,
+        }))
+      }
+      dispatch({ type: TypingStateActionType.SET_IS_TYPING, payload: false })
+      navigate('/today?ended=hard-stop')
+      return true
+    },
+    [dispatch, isReviewMode, navigate, setReviewModeInfo, smartSessionId],
+  )
+
   const onFinish = useCallback(() => {
-    if (state.chapterData.index < state.chapterData.words.length - 1 || currentWordExerciseCount < loopWordTimes - 1) {
+    const isLastWord = state.chapterData.index >= state.chapterData.words.length - 1
+    const isLastExercise = currentWordExerciseCount >= loopWordTimes - 1
+    const genuinelyFinished = isLastWord && isLastExercise
+
+    // A hard stop never fabricates FINISH_CHAPTER. Finish the current word,
+    // persist the next review index, then return to Today with the block unfinished.
+    if (!genuinelyFinished) {
+      const nextReviewIndex = isLastExercise ? state.chapterData.index + 1 : state.chapterData.index
+      if (stopAtHardBoundary(nextReviewIndex)) return
+    }
+
+    if (!genuinelyFinished) {
       // 用户完成当前单词
-      if (currentWordExerciseCount < loopWordTimes - 1) {
+      if (!isLastExercise) {
         setCurrentWordExerciseCount((old) => old + 1)
         dispatch({ type: TypingStateActionType.LOOP_CURRENT_WORD })
         reloadCurrentWordComponent()
@@ -72,7 +106,7 @@ export default function WordPanel() {
         }
       }
     } else {
-      // 用户完成当前章节
+      // 用户真实完成当前章节/复习段
       dispatch({ type: TypingStateActionType.FINISH_CHAPTER })
       if (isReviewMode) {
         setReviewModeInfo((old) => ({ ...old, reviewRecord: old.reviewRecord ? { ...old.reviewRecord, isFinished: true } : undefined }))
@@ -83,6 +117,7 @@ export default function WordPanel() {
     state.chapterData.words.length,
     currentWordExerciseCount,
     loopWordTimes,
+    stopAtHardBoundary,
     dispatch,
     reloadCurrentWordComponent,
     isReviewMode,
