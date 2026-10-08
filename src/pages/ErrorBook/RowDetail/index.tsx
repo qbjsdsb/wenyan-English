@@ -54,16 +54,16 @@ const RowDetail: React.FC<RowDetailProps> = ({ currentRowDetail, allRecords }) =
   useHotkeys('ctrl+j', () => wordPronunciationIconRef.current?.play(), [], { enableOnFormTags: true, preventDefault: true })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-6 backdrop-blur-[2px] dark:bg-black/45">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-6 backdrop-blur-[2px]">
       <button aria-label="关闭错词详情" className="absolute inset-0 cursor-default" onClick={onClose} />
-      <section className="relative z-10 w-full max-w-xl rounded-xl border border-black/[0.1] bg-[#fbfbf8] px-8 py-8 shadow-2xl dark:border-white/[0.1] dark:bg-[#171816]">
+      <section className="wenyan-surface relative z-10 w-full max-w-xl px-8 py-8">
         <button
           type="button"
           aria-label="关闭"
-          className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-md text-gray-400 transition-colors hover:bg-black/[0.04] hover:text-gray-700 dark:text-gray-600 dark:hover:bg-white/[0.05] dark:hover:text-gray-300"
+          className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] text-[var(--wenyan-ink-muted)] transition-colors hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]"
           onClick={onClose}
         >
-          <IconX className="h-5 w-5" />
+          <IconX className="h-4 w-4" />
         </button>
 
         <div className="flex flex-col items-center pt-4 text-center">
@@ -83,12 +83,12 @@ const RowDetail: React.FC<RowDetailProps> = ({ currentRowDetail, allRecords }) =
               />
             )}
           </div>
-          <div className="mt-2 max-w-md text-sm leading-7 text-gray-600 dark:text-gray-400">
+          <div className="wenyan-body mt-2 max-w-md text-sm leading-7">
             {word ? word.trans.join('；') : <LoadingWordUI isLoading={isLoading} hasError={hasError} />}
           </div>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-x-8 gap-y-4 border-y border-black/[0.07] py-5 dark:border-white/[0.08]">
+        <div className="mt-8 grid grid-cols-2 gap-x-8 gap-y-4 border-y border-[var(--wenyan-line-soft)] py-5">
           <DataTag icon={ClockIcon} name="平均用时" data={rowDetailData.time} />
           <DataTag icon={HashtagIcon} name="练习次数" data={rowDetailData.sumCount} />
           <DataTag icon={CheckCircle} name="正确次数" data={rowDetailData.correctCount} />
