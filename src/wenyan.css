@@ -1,56 +1,74 @@
 :root {
   color-scheme: light;
-  --wenyan-paper: #f7f6f2;
-  --wenyan-paper-raised: #fbfaf7;
-  --wenyan-paper-muted: #f0efe9;
-  --wenyan-ink: #1d1d1a;
-  --wenyan-ink-secondary: #61615b;
-  --wenyan-ink-muted: #92918a;
-  --wenyan-line: rgba(29, 29, 26, 0.11);
-  --wenyan-line-soft: rgba(29, 29, 26, 0.065);
-  --wenyan-accent: #465d74;
-  --wenyan-accent-hover: #364c63;
-  --wenyan-accent-soft: rgba(70, 93, 116, 0.095);
-  --wenyan-success: #58725f;
-  --wenyan-danger: #a24f4f;
-  --wenyan-shadow: 0 10px 30px rgba(40, 39, 34, 0.045);
-  --wenyan-radius-sm: 7px;
-  --wenyan-radius-md: 10px;
-  --wenyan-radius-lg: 14px;
+  --wenyan-canvas: #ecebe6;
+  --wenyan-paper: #f6f5f0;
+  --wenyan-paper-raised: #fffdfa;
+  --wenyan-paper-muted: #efeee7;
+  --wenyan-paper-elevated: #ffffff;
+  --wenyan-paper-focus: #f3f7fb;
+  --wenyan-ink: #17191b;
+  --wenyan-ink-secondary: #555b61;
+  --wenyan-ink-muted: #8a8f93;
+  --wenyan-line: rgba(23, 25, 27, 0.13);
+  --wenyan-line-soft: rgba(23, 25, 27, 0.075);
+  --wenyan-accent: #3d6f9d;
+  --wenyan-accent-hover: #2e5f8d;
+  --wenyan-accent-soft: rgba(61, 111, 157, 0.115);
+  --wenyan-accent-glow: rgba(61, 111, 157, 0.105);
+  --wenyan-warm: #a86f2c;
+  --wenyan-warm-soft: rgba(168, 111, 44, 0.12);
+  --wenyan-success: #4f775c;
+  --wenyan-danger: #a44d50;
+  --wenyan-shadow: 0 12px 34px rgba(40, 42, 44, 0.075);
+  --wenyan-shadow-focus: 0 18px 44px rgba(45, 68, 88, 0.12);
+  --wenyan-radius-sm: 8px;
+  --wenyan-radius-md: 12px;
+  --wenyan-radius-lg: 17px;
   --wenyan-control-height: 36px;
   --wenyan-motion-fast: 120ms;
-  --wenyan-motion: 160ms;
-  --wenyan-font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
-  --wenyan-font-serif: Georgia, 'Times New Roman', 'Songti SC', serif;
+  --wenyan-motion: 180ms;
+  --wenyan-font-ui: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  --wenyan-font-serif: 'Iowan Old Style', 'Palatino Linotype', Georgia, 'Songti SC', serif;
+  --wenyan-font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
 html.dark {
   color-scheme: dark;
-  --wenyan-paper: #121311;
-  --wenyan-paper-raised: #181917;
-  --wenyan-paper-muted: #1d1e1b;
-  --wenyan-ink: #f0efe9;
-  --wenyan-ink-secondary: #b0aea6;
-  --wenyan-ink-muted: #7d7c75;
-  --wenyan-line: rgba(240, 239, 233, 0.105);
-  --wenyan-line-soft: rgba(240, 239, 233, 0.06);
-  --wenyan-accent: #7c91a3;
-  --wenyan-accent-hover: #8da2b3;
-  --wenyan-accent-soft: rgba(124, 145, 163, 0.105);
-  --wenyan-success: #8ca493;
-  --wenyan-danger: #cf7d7d;
-  --wenyan-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  --wenyan-canvas: #090d12;
+  --wenyan-paper: #0f151c;
+  --wenyan-paper-raised: #151d27;
+  --wenyan-paper-muted: #1a2430;
+  --wenyan-paper-elevated: #202b38;
+  --wenyan-paper-focus: #132335;
+  --wenyan-ink: #f4f6f8;
+  --wenyan-ink-secondary: #c0c7ce;
+  --wenyan-ink-muted: #7f8a94;
+  --wenyan-line: rgba(235, 242, 248, 0.15);
+  --wenyan-line-soft: rgba(235, 242, 248, 0.08);
+  --wenyan-accent: #78aee3;
+  --wenyan-accent-hover: #91bdea;
+  --wenyan-accent-soft: rgba(120, 174, 227, 0.15);
+  --wenyan-accent-glow: rgba(90, 151, 213, 0.13);
+  --wenyan-warm: #d7a257;
+  --wenyan-warm-soft: rgba(215, 162, 87, 0.13);
+  --wenyan-success: #85b091;
+  --wenyan-danger: #df8587;
+  --wenyan-shadow: 0 16px 38px rgba(0, 0, 0, 0.22);
+  --wenyan-shadow-focus: 0 22px 56px rgba(0, 0, 0, 0.28);
 }
 
 html {
-  background: var(--wenyan-paper);
+  background: var(--wenyan-canvas);
 }
 
 body {
   min-width: 1024px;
   margin: 0;
   font-family: var(--wenyan-font-ui);
-  background: var(--wenyan-paper);
+  background-color: var(--wenyan-paper);
+  background-image:
+    radial-gradient(900px 420px at 50% -260px, var(--wenyan-accent-glow), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--wenyan-paper) 94%, var(--wenyan-canvas)) 0%, var(--wenyan-paper) 46%, var(--wenyan-paper) 100%);
   color: var(--wenyan-ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -73,7 +91,7 @@ select {
 
 button,
 a {
-  transition-property: color, background-color, border-color, opacity, transform;
+  transition-property: color, background-color, border-color, opacity, transform, box-shadow;
   transition-duration: var(--wenyan-motion-fast);
   transition-timing-function: ease-out;
 }
@@ -88,29 +106,40 @@ a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--wenyan-accent) 52%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--wenyan-accent) 56%, transparent);
   outline-offset: 2px;
+}
+
+.wenyan-studio-shell {
+  background: transparent;
+}
+
+.wenyan-chrome {
+  background: color-mix(in srgb, var(--wenyan-paper-raised) 83%, transparent);
+  box-shadow: 0 1px 0 var(--wenyan-line-soft), 0 8px 30px color-mix(in srgb, var(--wenyan-canvas) 18%, transparent);
+  backdrop-filter: blur(18px) saturate(1.12);
+  -webkit-backdrop-filter: blur(18px) saturate(1.12);
 }
 
 .wenyan-brand {
   font-family: var(--wenyan-font-serif);
   color: var(--wenyan-ink);
-  letter-spacing: -0.026em;
+  letter-spacing: -0.034em;
 }
 
 .wenyan-page-title {
   color: var(--wenyan-ink);
-  font-size: 28px;
-  font-weight: 630;
-  letter-spacing: -0.035em;
-  line-height: 1.16;
+  font-size: 30px;
+  font-weight: 650;
+  letter-spacing: -0.042em;
+  line-height: 1.12;
 }
 
 .wenyan-section-title {
   color: var(--wenyan-ink);
-  font-size: 16px;
-  font-weight: 610;
-  letter-spacing: -0.018em;
+  font-size: 17px;
+  font-weight: 630;
+  letter-spacing: -0.022em;
 }
 
 .wenyan-body {
@@ -119,6 +148,10 @@ select:focus-visible {
 
 .wenyan-muted {
   color: var(--wenyan-ink-muted);
+}
+
+.wenyan-mono {
+  font-family: var(--wenyan-font-mono);
 }
 
 .wenyan-link {
@@ -145,7 +178,7 @@ select:focus-visible {
   border-radius: var(--wenyan-radius-sm);
   padding: 0 14px;
   font-size: 13px;
-  font-weight: 560;
+  font-weight: 590;
   line-height: 1;
 }
 
@@ -153,24 +186,27 @@ select:focus-visible {
   border: 1px solid var(--wenyan-accent);
   background: var(--wenyan-accent);
   color: #fff;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--wenyan-accent) 20%, transparent);
 }
 
 .wenyan-button-primary:hover:not(:disabled) {
   border-color: var(--wenyan-accent-hover);
   background: var(--wenyan-accent-hover);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--wenyan-accent) 26%, transparent);
 }
 
 html.dark .wenyan-button-primary {
-  color: #f8f7f2;
+  color: #0b1117;
 }
 
 .wenyan-button-secondary {
   border: 1px solid var(--wenyan-line);
-  background: transparent;
+  background: color-mix(in srgb, var(--wenyan-paper-raised) 78%, transparent);
   color: var(--wenyan-ink-secondary);
 }
 
 .wenyan-button-secondary:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--wenyan-accent) 25%, var(--wenyan-line));
   background: var(--wenyan-paper-muted);
   color: var(--wenyan-ink);
 }
@@ -191,6 +227,36 @@ html.dark .wenyan-button-primary {
 .wenyan-soft-surface {
   border-radius: var(--wenyan-radius-md);
   background: var(--wenyan-paper-muted);
+}
+
+.wenyan-focus-surface {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--wenyan-accent) 24%, var(--wenyan-line-soft));
+  border-radius: var(--wenyan-radius-lg);
+  background:
+    linear-gradient(135deg, var(--wenyan-paper-elevated) 0%, color-mix(in srgb, var(--wenyan-accent) 7%, var(--wenyan-paper-raised)) 100%);
+  box-shadow: var(--wenyan-shadow-focus);
+}
+
+.wenyan-focus-surface::before {
+  content: '';
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  right: -120px;
+  top: -150px;
+  border-radius: 999px;
+  background: var(--wenyan-accent-glow);
+  filter: blur(2px);
+  pointer-events: none;
+}
+
+.wenyan-overview-surface {
+  border: 1px solid var(--wenyan-line-soft);
+  border-radius: var(--wenyan-radius-md);
+  background: color-mix(in srgb, var(--wenyan-paper-raised) 90%, var(--wenyan-paper-muted));
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--wenyan-canvas) 8%, transparent);
 }
 
 .wenyan-divider {
@@ -214,7 +280,7 @@ html.dark .wenyan-button-primary {
 }
 
 .wenyan-input:focus {
-  border-color: color-mix(in srgb, var(--wenyan-accent) 58%, var(--wenyan-line));
+  border-color: color-mix(in srgb, var(--wenyan-accent) 62%, var(--wenyan-line));
 }
 
 .wenyan-reading-copy {
@@ -222,15 +288,74 @@ html.dark .wenyan-button-primary {
   font-family: var(--wenyan-font-serif);
   font-size: 18px;
   line-height: 1.82;
-  color: color-mix(in srgb, var(--wenyan-ink) 89%, var(--wenyan-ink-secondary));
+  color: color-mix(in srgb, var(--wenyan-ink) 90%, var(--wenyan-ink-secondary));
   letter-spacing: 0.002em;
+}
+
+.wenyan-focus-shell {
+  background-color: var(--wenyan-paper);
+  background-image:
+    radial-gradient(700px 360px at 50% 42%, transparent, transparent),
+    linear-gradient(180deg, color-mix(in srgb, var(--wenyan-paper) 96%, var(--wenyan-canvas)) 0%, var(--wenyan-paper) 100%);
+  transition: background-color var(--wenyan-motion) ease-out, background-image var(--wenyan-motion) ease-out;
+}
+
+.wenyan-focus-shell.is-active {
+  background-image:
+    radial-gradient(660px 360px at 50% 45%, var(--wenyan-accent-glow) 0%, transparent 67%),
+    linear-gradient(180deg, color-mix(in srgb, var(--wenyan-paper) 94%, var(--wenyan-canvas)) 0%, var(--wenyan-paper) 100%);
+}
+
+.wenyan-focus-bar {
+  border-bottom: 1px solid var(--wenyan-line-soft);
+  background: color-mix(in srgb, var(--wenyan-paper-raised) 58%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.wenyan-setup-bar {
+  border: 1px solid var(--wenyan-line-soft);
+  border-radius: var(--wenyan-radius-md);
+  background: color-mix(in srgb, var(--wenyan-paper-raised) 88%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--wenyan-canvas) 8%, transparent);
+}
+
+.wenyan-word-stage {
+  position: relative;
+  isolation: isolate;
+}
+
+.wenyan-word-stage::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: min(70vw, 780px);
+  height: 280px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -48%);
+  border-radius: 999px;
+  background: radial-gradient(closest-side, var(--wenyan-accent-glow), transparent 76%);
+  opacity: 0.28;
+  transition: opacity var(--wenyan-motion) ease-out, transform var(--wenyan-motion) ease-out;
+  pointer-events: none;
+}
+
+.is-active .wenyan-word-stage::before {
+  opacity: 0.74;
+  transform: translate(-50%, -50%) scale(1.04);
+}
+
+.wenyan-focus-metrics {
+  color: var(--wenyan-ink-muted);
+  font-family: var(--wenyan-font-mono);
 }
 
 .wenyan-fade-in {
   animation: wenyan-fade-in var(--wenyan-motion) ease-out both;
 }
 
-/* Legacy neutral compatibility: older Qwerty-era screens inherit Wenyan's warm palette. */
+/* Legacy neutral compatibility: older Qwerty-era screens inherit Wenyan's palette. */
 .text-gray-950,
 .text-gray-900,
 .text-gray-800,
@@ -310,7 +435,7 @@ html.dark .dark\:border-white\/12 {
 @keyframes wenyan-fade-in {
   from {
     opacity: 0;
-    transform: translateY(3px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
