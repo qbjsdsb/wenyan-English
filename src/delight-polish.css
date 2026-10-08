@@ -1,4 +1,4 @@
-/* Wenyan Delight Polish v1
+/* Wenyan Delight Polish
  * Micro-interactions should reward attention without competing with content.
  * Correct = cool starlight, wrong = warm ember, completion = quiet aurora.
  */
@@ -17,25 +17,18 @@ html.dark {
   --wenyan-ember-soft: rgba(222, 112, 106, 0.22);
 }
 
-/* Page arrival: enough continuity to feel like one workspace, not a hard route swap. */
 .wenyan-studio-shell > main,
 .wenyan-focus-shell > .wenyan-focus-bar,
-.wenyan-focus-shell > div:not(.wenyan-focus-bar) {
+.wenyan-focus-shell > div:not(.wenyan-focus-bar),
+.wenyan-reading-shell > main {
   animation: wenyan-page-arrive 180ms ease-out both;
 }
 
 @keyframes wenyan-page-arrive {
-  from {
-    opacity: 0;
-    transform: translateY(3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Primary controls carry a tiny light response instead of a large hover lift. */
 .wenyan-button-primary {
   position: relative;
   overflow: hidden;
@@ -51,17 +44,12 @@ html.dark {
   pointer-events: none;
 }
 
-.wenyan-button-primary:hover::after {
-  transform: translateX(130%);
-}
+.wenyan-button-primary:hover::after { transform: translateX(130%); }
 
-/* Correct letters: a short cool flash plus a few tiny points of light. */
 .wenyan-letter-correct {
   position: relative;
   animation: wenyan-letter-settle 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  text-shadow:
-    0 0 7px var(--wenyan-starlight-soft),
-    0 0 15px color-mix(in srgb, var(--wenyan-starlight) 28%, transparent);
+  text-shadow: 0 0 7px var(--wenyan-starlight-soft), 0 0 15px color-mix(in srgb, var(--wenyan-starlight) 28%, transparent);
 }
 
 .wenyan-letter-correct::after {
@@ -80,39 +68,21 @@ html.dark {
 }
 
 @keyframes wenyan-letter-settle {
-  0% {
-    color: color-mix(in srgb, var(--wenyan-starlight) 82%, var(--wenyan-success));
-    transform: translateY(1px) scale(0.98);
-  }
-  45% {
-    transform: translateY(-0.5px) scale(1.015);
-  }
-  100% {
-    transform: none;
-  }
+  0% { color: color-mix(in srgb, var(--wenyan-starlight) 82%, var(--wenyan-success)); transform: translateY(1px) scale(0.98); }
+  45% { transform: translateY(-0.5px) scale(1.015); }
+  100% { transform: none; }
 }
 
 @keyframes wenyan-stardust {
-  0% {
-    opacity: 0;
-    transform: scale(0.7) translateY(2px);
-  }
-  28% {
-    opacity: 0.95;
-  }
-  100% {
-    opacity: 0;
-    transform: scale(1.28) translateY(-3px);
-  }
+  0% { opacity: 0; transform: scale(0.7) translateY(2px); }
+  28% { opacity: 0.95; }
+  100% { opacity: 0; transform: scale(1.28) translateY(-3px); }
 }
 
-/* Wrong letters: one short ember pulse. No violent shake. */
 .wenyan-letter-wrong {
   position: relative;
   animation: wenyan-letter-error 190ms cubic-bezier(0.22, 0.8, 0.35, 1) both;
-  text-shadow:
-    0 0 8px var(--wenyan-ember-soft),
-    0 0 16px color-mix(in srgb, var(--wenyan-ember) 28%, transparent);
+  text-shadow: 0 0 8px var(--wenyan-ember-soft), 0 0 16px color-mix(in srgb, var(--wenyan-ember) 28%, transparent);
 }
 
 .wenyan-letter-wrong::after {
@@ -137,7 +107,6 @@ html.dark {
   to { opacity: 0; transform: scale(1.18); }
 }
 
-/* A word closes with a gentle breath before the next one arrives. */
 .wenyan-word-complete {
   position: relative;
   isolation: isolate;
@@ -167,28 +136,14 @@ html.dark {
   to { opacity: 0; transform: scale(1.16); }
 }
 
-/* Completion screen: a restrained star field and one slow aurora sweep. */
 .wenyan-completion-stage {
   isolation: isolate;
-  background:
-    radial-gradient(900px 460px at 50% 18%, color-mix(in srgb, var(--wenyan-accent) 12%, transparent), transparent 72%),
-    color-mix(in srgb, var(--wenyan-canvas) 42%, transparent);
+  background: radial-gradient(900px 460px at 50% 18%, color-mix(in srgb, var(--wenyan-accent) 12%, transparent), transparent 72%), color-mix(in srgb, var(--wenyan-canvas) 42%, transparent);
 }
 
-.wenyan-completion-stage > * {
-  position: relative;
-  z-index: 1;
-}
-
+.wenyan-completion-stage > * { position: relative; z-index: 1; }
 .wenyan-completion-stage::before,
-.wenyan-completion-stage::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-}
-
+.wenyan-completion-stage::after { content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 .wenyan-completion-stage::before {
   background:
     radial-gradient(circle at 13% 22%, var(--wenyan-starlight) 0 1px, transparent 1.6px),
@@ -202,59 +157,187 @@ html.dark {
   opacity: 0;
   animation: wenyan-completion-stars 1050ms ease-out 80ms both;
 }
-
 .wenyan-completion-stage::after {
   background: radial-gradient(ellipse at 50% 48%, color-mix(in srgb, var(--wenyan-accent) 12%, transparent), transparent 58%);
   opacity: 0;
   transform: scale(0.86);
   animation: wenyan-completion-aurora 900ms ease-out both;
 }
-
-.wenyan-completion-stage .wenyan-surface {
-  box-shadow:
-    0 26px 72px color-mix(in srgb, var(--wenyan-canvas) 24%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--wenyan-accent) 7%, transparent);
-}
+.wenyan-completion-stage .wenyan-surface { box-shadow: 0 26px 72px color-mix(in srgb, var(--wenyan-canvas) 24%, transparent), 0 0 0 1px color-mix(in srgb, var(--wenyan-accent) 7%, transparent); }
 
 @keyframes wenyan-completion-stars {
   0% { opacity: 0; transform: translateY(4px) scale(0.98); }
   34% { opacity: 0.72; }
   100% { opacity: 0.2; transform: translateY(-3px) scale(1.01); }
 }
-
 @keyframes wenyan-completion-aurora {
   0% { opacity: 0; transform: scale(0.82); }
   42% { opacity: 0.9; }
   100% { opacity: 0.18; transform: scale(1.12); }
 }
 
-/* Gentle interaction polish across the workspace. */
+/* Reading: selection behaves like ink settling into paper. */
+.wenyan-reading-shell { --wenyan-reading-progress: 0%; }
+.wenyan-reading-progress {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 60;
+  width: var(--wenyan-reading-progress);
+  height: 2px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--wenyan-accent) 62%, transparent), var(--wenyan-accent));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--wenyan-accent) 25%, transparent);
+  transition: width 260ms ease-out;
+}
+.wenyan-reading-option {
+  position: relative;
+  transition: background-color 150ms ease, color 150ms ease, transform 150ms ease, box-shadow 180ms ease;
+}
+.wenyan-reading-option::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--wenyan-accent) 10%, transparent), transparent 70%);
+  opacity: 0;
+  transform: scaleX(0.94);
+  transform-origin: left;
+  transition: opacity 160ms ease, transform 180ms ease;
+  pointer-events: none;
+}
+.wenyan-reading-option.is-selected::before { opacity: 1; transform: scaleX(1); }
+.wenyan-reading-option.is-selected { box-shadow: inset 2px 0 0 color-mix(in srgb, var(--wenyan-accent) 56%, transparent); }
+.wenyan-reading-option.is-correct { animation: wenyan-answer-correct 420ms ease-out both; }
+.wenyan-reading-option.is-wrong { animation: wenyan-answer-wrong 300ms ease-out both; }
+.wenyan-reading-question.is-revealed { animation: wenyan-answer-reveal 320ms ease-out both; }
+.wenyan-reading-result { animation: wenyan-result-rise 520ms cubic-bezier(.2,.8,.2,1) both; }
+
+@keyframes wenyan-answer-correct {
+  0% { box-shadow: inset 2px 0 0 transparent, 0 0 0 transparent; }
+  42% { box-shadow: inset 2px 0 0 var(--wenyan-success), 0 0 18px color-mix(in srgb, var(--wenyan-success) 12%, transparent); }
+  100% { box-shadow: inset 2px 0 0 color-mix(in srgb, var(--wenyan-success) 65%, transparent), 0 0 0 transparent; }
+}
+@keyframes wenyan-answer-wrong {
+  0% { transform: translateX(0); }
+  38% { transform: translateX(-1.5px); }
+  70% { transform: translateX(1px); }
+  100% { transform: translateX(0); }
+}
+@keyframes wenyan-answer-reveal {
+  from { opacity: 0.7; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes wenyan-result-rise {
+  0% { opacity: 0; transform: translateY(5px); filter: brightness(1); }
+  45% { opacity: 1; filter: brightness(1.06); }
+  100% { opacity: 1; transform: none; filter: brightness(1); }
+}
+
+/* Today: facts move gently; completed work should feel settled, not celebrated loudly. */
+.wenyan-metric-value { animation: wenyan-metric-arrive 300ms ease-out both; }
+.wenyan-task-complete { position: relative; }
+.wenyan-task-complete::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 5%, color-mix(in srgb, var(--wenyan-starlight) 13%, transparent) 48%, transparent 90%);
+  opacity: 0;
+  animation: wenyan-task-settle 560ms ease-out both;
+}
+@keyframes wenyan-metric-arrive {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes wenyan-task-settle {
+  0% { opacity: 0; transform: translateX(-8%); }
+  35% { opacity: 0.8; }
+  100% { opacity: 0; transform: translateX(8%); }
+}
+
+/* Reports: first give the user a readable conclusion, then the charts. */
+.wenyan-report-summary {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--wenyan-paper-raised) 94%, var(--wenyan-accent) 6%), var(--wenyan-paper-raised));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 36%, transparent);
+}
+.wenyan-report-section { animation: wenyan-report-reveal 420ms ease-out both; animation-delay: var(--wenyan-delay, 0ms); }
+@keyframes wenyan-report-reveal {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Error book: mistakes are embers; intensity communicates recurrence without turning the row red. */
+.wenyan-ember-count { display: inline-flex; align-items: center; gap: 7px; }
+.wenyan-ember-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--wenyan-ember) 42%, var(--wenyan-line));
+  box-shadow: 0 0 0 transparent;
+}
+.wenyan-ember-dot[data-level='2'] { background: color-mix(in srgb, var(--wenyan-ember) 66%, var(--wenyan-line)); box-shadow: 0 0 8px var(--wenyan-ember-soft); }
+.wenyan-ember-dot[data-level='3'] { background: var(--wenyan-ember); box-shadow: 0 0 12px var(--wenyan-ember-soft); }
+
+/* Sync: calm pulse while working; a short clear light when the queue settles. */
+.wenyan-sync-surface { position: relative; overflow: hidden; }
+.wenyan-sync-surface.is-busy::after {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  pointer-events: none;
+  background: radial-gradient(circle at 70% 64%, color-mix(in srgb, var(--wenyan-accent) 11%, transparent), transparent 36%);
+  animation: wenyan-sync-breathe 1500ms ease-in-out infinite alternate;
+}
+.wenyan-sync-status.is-settled { animation: wenyan-sync-settle 520ms ease-out both; }
+@keyframes wenyan-sync-breathe { from { opacity: 0.25; transform: scale(0.98); } to { opacity: 0.75; transform: scale(1.03); } }
+@keyframes wenyan-sync-settle {
+  0% { text-shadow: 0 0 0 transparent; }
+  42% { text-shadow: 0 0 14px var(--wenyan-starlight-soft); color: var(--wenyan-accent); }
+  100% { text-shadow: none; }
+}
+
+/* Learning journey: progress is a quiet path, not a settings table. */
+.wenyan-stage-path { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.wenyan-stage-path::before {
+  content: '';
+  position: absolute;
+  left: 16.66%;
+  right: 16.66%;
+  top: 10px;
+  height: 1px;
+  background: var(--wenyan-line);
+}
+.wenyan-stage-node { position: relative; z-index: 1; text-align: center; }
+.wenyan-stage-node-dot {
+  margin: 0 auto 9px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid var(--wenyan-line);
+  background: var(--wenyan-paper-raised);
+  transition: all 220ms ease;
+}
+.wenyan-stage-node.is-active .wenyan-stage-node-dot {
+  border-color: color-mix(in srgb, var(--wenyan-accent) 58%, var(--wenyan-line));
+  background: color-mix(in srgb, var(--wenyan-accent) 14%, var(--wenyan-paper-raised));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--wenyan-accent) 22%, transparent), inset 0 0 0 5px var(--wenyan-paper-raised);
+}
+
 .wenyan-overview-surface,
 .wenyan-setup-bar,
 .wenyan-focus-surface,
 .wenyan-surface {
-  transition:
-    border-color var(--wenyan-motion) ease-out,
-    background-color var(--wenyan-motion) ease-out,
-    box-shadow var(--wenyan-motion) ease-out;
+  transition: border-color var(--wenyan-motion) ease-out, background-color var(--wenyan-motion) ease-out, box-shadow var(--wenyan-motion) ease-out;
 }
-
-.wenyan-library-list [role='button']:hover {
-  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--wenyan-accent) 30%, transparent);
-}
+.wenyan-library-list [role='button']:hover { box-shadow: inset 2px 0 0 color-mix(in srgb, var(--wenyan-accent) 30%, transparent); }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     scroll-behavior: auto !important;
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
-
   .wenyan-letter-correct,
-  .wenyan-letter-wrong {
-    text-shadow: none;
-  }
+  .wenyan-letter-wrong { text-shadow: none; }
 }
