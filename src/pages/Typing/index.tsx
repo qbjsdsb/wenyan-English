@@ -1,4 +1,3 @@
-import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import Tooltip from '@/components/Tooltip'
 import { idDictionaryMap } from '@/resources/dictionary'
@@ -12,7 +11,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useImmerReducer } from 'use-immer'
 import { DictChapterButton } from './components/DictChapterButton'
-import PronunciationSwitcher from './components/PronunciationSwitcher'
 import ResultScreen from './components/ResultScreen'
 import Speed from './components/Speed'
 import StartButton from './components/StartButton'
@@ -30,6 +28,7 @@ const App: React.FC = () => {
   const [retryingWords, setRetryingWords] = useState(false)
 
   const [currentDictId, setCurrentDictId] = useAtom(currentDictIdAtom)
+  const currentChapter = useAtomValue(currentChapterAtom)
   const setCurrentChapter = useSetAtom(currentChapterAtom)
   const randomConfig = useAtomValue(randomConfigAtom)
   const chapterLogUploader = useMixPanelChapterLogUploader(state)
@@ -133,10 +132,10 @@ const App: React.FC = () => {
       <button
         className={`${
           state.isShowSkip ? 'opacity-100' : 'pointer-events-none w-0 px-0 opacity-0'
-        } rounded-md px-2.5 py-1.5 text-xs text-gray-500 transition-all hover:bg-black/[0.04] hover:text-gray-900 dark:text-gray-500 dark:hover:bg-white/[0.06] dark:hover:text-gray-200`}
+        } rounded-[var(--wenyan-radius-sm)] px-2.5 py-1.5 text-xs text-[var(--wenyan-ink-muted)] transition-all hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]`}
         onClick={skipWord}
       >
-        Skip
+        跳过
       </button>
     </Tooltip>
   )
@@ -144,49 +143,59 @@ const App: React.FC = () => {
   return (
     <TypingContext.Provider value={{ state: state, dispatch }}>
       {state.isFinished && <ResultScreen />}
-      {saveError && <div role="alert" className="fixed bottom-4 left-4 z-50 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
-        {saveError}
-        <button className="ml-3 underline" onClick={() => {
-          void saveChapterRecord(state, searchParams.get('taskRun')).then(() => setSaveError('')).catch(() => setSaveError('保存仍未成功，请检查浏览器存储空间后重试。'))
-        }}>重试保存</button>
-      </div>}
+      {saveError && (
+        <div role="alert" className="wenyan-surface fixed bottom-4 left-4 z-50 p-4 text-sm text-[var(--wenyan-danger)]">
+          {saveError}
+          <button className="ml-3 underline" onClick={() => {
+            void saveChapterRecord(state, searchParams.get('taskRun')).then(() => setSaveError('')).catch(() => setSaveError('保存仍未成功，请检查浏览器存储空间后重试。'))
+          }}>重试保存</button>
+        </div>
+      )}
 
-      <main className="flex min-h-screen w-full flex-col">
+      <main className="flex min-h-screen w-full flex-col bg-[var(--wenyan-paper)]">
         {state.isTyping ? (
-          <div className="mx-auto flex h-12 w-full max-w-5xl items-center justify-between px-6 text-xs text-gray-400 dark:text-gray-600">
-            <Link to="/today" aria-label="今日学习" className="font-serif text-sm font-semibold text-gray-500 no-underline transition-colors hover:text-gray-900 dark:text-gray-500 dark:hover:text-gray-200">
+          <div className="mx-auto flex h-12 w-full max-w-5xl items-center justify-between px-6 text-[11px] text-[var(--wenyan-ink-muted)]">
+            <Link to="/today" aria-label="今日学习" className="wenyan-brand text-[13px] font-semibold no-underline opacity-70 transition-opacity hover:opacity-100">
               Wenyan
             </Link>
             <div className="flex items-center gap-3">
-              <span>{idDictionaryMap[currentDictId]?.name}</span>
+              <span>{idDictionaryMap[currentDictId]?.name} · 第 {currentChapter + 1} 章</span>
+              {state.chapterData.words.length > 0 && (
+                <span className="tabular-nums">{Math.min(state.chapterData.index + 1, state.chapterData.words.length)} / {state.chapterData.words.length}</span>
+              )}
               <StartButton isLoading={isLoading || Boolean(wordListError)} />
               {skipButton}
             </div>
           </div>
         ) : (
-          <Header>
-            <DictChapterButton />
-            <PronunciationSwitcher />
-            <Switcher />
-            <StartButton isLoading={isLoading || Boolean(wordListError)} />
-            {skipButton}
-          </Header>
+          <Header />
         )}
 
         <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-6">
+          {!state.isTyping && (
+            <div className="flex items-center justify-between gap-6 border-b border-[var(--wenyan-line-soft)] py-4">
+              <DictChapterButton />
+              <div className="flex items-center gap-2">
+                <Switcher />
+                <StartButton isLoading={isLoading || Boolean(wordListError)} />
+                {skipButton}
+              </div>
+            </div>
+          )}
+
           <div className="relative flex flex-1 flex-col items-center">
-            <div className="flex w-full flex-1 items-center justify-center">
+            <div className="flex min-h-[420px] w-full flex-1 items-center justify-center">
               {wordListError ? (
                 <div role="alert" className="flex max-w-md flex-col items-center gap-4 text-center">
-                  <h2 className="text-lg font-medium">词库暂时无法加载</h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-500">{wordListError.message}</p>
-                  <button type="button" disabled={retryingWords} className="rounded-lg border border-black/[0.1] px-4 py-2 text-sm disabled:opacity-50 dark:border-white/[0.12]" onClick={() => {
+                  <h2 className="text-lg font-medium text-[var(--wenyan-ink)]">词库暂时无法加载</h2>
+                  <p className="wenyan-muted text-sm">{wordListError.message}</p>
+                  <button type="button" disabled={retryingWords} className="wenyan-button-secondary" onClick={() => {
                     setRetryingWords(true)
                     void retryWordList().catch(() => undefined).finally(() => setRetryingWords(false))
                   }}>{retryingWords ? '正在重试…' : '重新加载词库'}</button>
                 </div>
               ) : isLoading ? (
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-r-transparent dark:border-gray-700 dark:border-r-transparent" role="status" />
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--wenyan-line)] border-r-transparent" role="status" />
               ) : (
                 !state.isFinished && <WordPanel />
               )}
@@ -194,8 +203,6 @@ const App: React.FC = () => {
             <Speed />
           </div>
         </div>
-
-        {!state.isTyping && <Footer />}
       </main>
       <WordList />
     </TypingContext.Provider>
