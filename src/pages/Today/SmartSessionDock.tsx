@@ -20,9 +20,9 @@ function retryLabel(retryAt: number | undefined) {
 }
 
 function purposeLabel(prepared: PreparedSmartSession | undefined) {
-  if (!prepared) return '正在根据最近记录安排…'
+  if (!prepared) return '正在安排下一段…'
   if (prepared.kind === 'resume') return `继续刚才的 ${prepared.record.words.length} 个词`
-  if (prepared.draft.disposition === 'break') return '已经学了一阵，适合稍微休息一下。'
+  if (prepared.draft.disposition === 'break') return '先休息一下'
   const block = prepared.draft.blocks[0]
   if (!block) {
     if (prepared.draft.reason === 'review_only_waiting_for_correction_cooldown' || prepared.draft.reason === 'waiting_for_correction_cooldown') {
@@ -65,11 +65,11 @@ function intentNote(intent: ResolvedSmartSessionIntent | undefined, prepared: Pr
   if (prepared?.kind === 'draft' && prepared.draft.warnings.length > 0) {
     return '只依据当前可见学习记录安排；缺失记录不会被当成不会。'
   }
-  return '随时可以停，下次会重新计算，不会累积成欠任务。'
+  return ''
 }
 
 function blockMeta(prepared: PreparedSmartSession | undefined, intent: ResolvedSmartSessionIntent | undefined) {
-  if (prepared?.kind === 'resume') return ['未完成的一段会原样继续']
+  if (prepared?.kind === 'resume') return ['继续未完成内容']
   const block = prepared?.kind === 'draft' ? prepared.draft.blocks[0] : undefined
   const items = block?.activity.items.length ?? 0
   const minutes = block ? Math.max(1, Math.ceil(block.estimatedSeconds / 60)) : 0
@@ -81,7 +81,7 @@ function blockMeta(prepared: PreparedSmartSession | undefined, intent: ResolvedS
   }
   if (intent?.source === 'cloud') meta.push('最近安排已应用')
   if (intent?.source === 'cached-cloud') meta.push('沿用最近有效安排')
-  if (prepared?.runtime.hardStopMinutes !== undefined || prepared?.runtime.hardStopAt !== undefined) meta.push('到点按单词边界停止')
+  if (prepared?.runtime.hardStopMinutes !== undefined || prepared?.runtime.hardStopAt !== undefined) meta.push('到点停止')
   return meta
 }
 
@@ -207,72 +207,56 @@ export default function SmartSessionDock() {
     <section
       aria-label="智能学习"
       data-intent-source={intent?.source ?? 'loading'}
-      className="relative mb-8 overflow-hidden rounded-[28px] border border-gray-200/70 bg-white/90 px-7 py-8 shadow-[0_18px_50px_-36px_rgba(15,23,42,0.45)] backdrop-blur dark:border-white/10 dark:bg-white/[0.055] lg:px-10 lg:py-10"
+      className="mb-10 border-y border-black/[0.08] py-8 dark:border-white/[0.09]"
     >
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-indigo-400 via-indigo-500 to-violet-500" />
-      <div className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-indigo-100/50 blur-3xl dark:bg-indigo-500/10" />
-
-      <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-2xl">
-          <div className="flex items-center gap-3">
-            <p className="text-[11px] font-semibold tracking-[0.2em] text-indigo-600 dark:text-indigo-300">NEXT SESSION</p>
-            <span className="h-px w-8 bg-gray-200 dark:bg-white/10" />
-            <p className="text-xs text-gray-400">今天只做下一小段</p>
-          </div>
-
-          <h2 className="mt-5 max-w-[680px] text-[28px] font-semibold leading-[1.2] tracking-[-0.035em] text-gray-950 dark:text-white lg:text-[34px]">
-            {label}
-          </h2>
-          <p className="mt-4 max-w-xl text-sm leading-7 text-gray-500 dark:text-gray-400">{note}</p>
+      <div className="flex items-end justify-between gap-10">
+        <div className="min-w-0 max-w-2xl">
+          <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">继续学习</p>
+          <h2 className="text-[26px] font-semibold leading-tight tracking-[-0.025em] text-gray-950 dark:text-gray-100">{label}</h2>
 
           {meta.length > 0 && (
-            <div className="mt-6 flex flex-wrap gap-2" aria-label="这一段概况">
-              {meta.map((item) => (
-                <span
-                  key={item}
-                  className="rounded-full border border-gray-200/70 bg-gray-50/80 px-3 py-1.5 text-xs text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400"
-                >
-                  {item}
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-500" aria-label="这一段概况">
+              {meta.map((item, index) => (
+                <span key={item} className="contents">
+                  {index > 0 && <span aria-hidden="true">·</span>}
+                  <span>{item}</span>
                 </span>
               ))}
             </div>
           )}
 
-          {error && (
-            <p role="alert" className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-xs leading-5 text-red-700 dark:bg-red-950/30 dark:text-red-300">
-              {error}
-            </p>
-          )}
+          {note && <p className="mt-3 max-w-2xl text-xs leading-5 text-gray-500 dark:text-gray-500">{note}</p>}
+          {error && <p role="alert" className="mt-3 text-xs leading-5 text-red-600 dark:text-red-400">{error}</p>}
         </div>
 
-        <div className="flex min-w-[180px] flex-col gap-3">
+        <div className="flex shrink-0 flex-col items-end gap-2">
           {error && (
             <button
               type="button"
-              disabled={busy}
+              aria-label="重新安排"
               onClick={() => void refresh()}
-              className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+              className="rounded-lg border border-black/[0.1] px-4 py-2.5 text-sm text-gray-600 transition-colors hover:bg-black/[0.03] dark:border-white/[0.12] dark:text-gray-400 dark:hover:bg-white/[0.05]"
             >
-              重新安排
+              重试
             </button>
           )}
           <button
             type="button"
             disabled={busy || (!prepared && !error) || Boolean(error)}
             onClick={() => void (canSmartStart ? start() : refresh())}
-            className="w-full shrink-0 rounded-2xl bg-gray-950 px-7 py-4 text-sm font-medium text-white shadow-[0_10px_28px_-14px_rgba(15,23,42,0.8)] transition duration-200 hover:-translate-y-0.5 hover:bg-gray-800 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-45 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white lg:w-auto"
+            className="rounded-lg bg-[#1d1d1b] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-40 dark:bg-[#eeeeea] dark:text-[#111210] dark:hover:bg-white"
           >
             {primaryLabel}
           </button>
           {!canSmartStart && prepared && !busy && (
             <Link
               to="/"
-              className="text-center text-xs leading-5 text-gray-400 underline-offset-4 transition-colors hover:text-indigo-600 hover:underline dark:hover:text-indigo-300"
+              aria-label="手动继续当前章节（不按这条智能安排）"
+              className="text-xs text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-600 dark:hover:text-gray-300"
             >
-              手动继续当前章节（不按这条智能安排）
+              手动继续
             </Link>
           )}
-          <p className="text-center text-[11px] leading-5 text-gray-400">真实学习后才会写入完成记录</p>
         </div>
       </div>
     </section>

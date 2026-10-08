@@ -1,4 +1,16 @@
-import Layout from '../../components/Layout'
+import Footer from '@/components/Footer'
+import Header from '@/components/Header'
+import Tooltip from '@/components/Tooltip'
+import { idDictionaryMap } from '@/resources/dictionary'
+import { currentChapterAtom, currentDictIdAtom, isReviewModeAtom, randomConfigAtom, reviewModeInfoAtom } from '@/store'
+import { IsDesktop, isLegal } from '@/utils'
+import { useSaveChapterRecord } from '@/utils/db'
+import { useMixPanelChapterLogUploader } from '@/utils/mixpanel'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai'
+import type React from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { useImmerReducer } from 'use-immer'
 import { DictChapterButton } from './components/DictChapterButton'
 import PronunciationSwitcher from './components/PronunciationSwitcher'
 import ResultScreen from './components/ResultScreen'
@@ -10,18 +22,6 @@ import WordPanel from './components/WordPanel'
 import { useConfetti } from './hooks/useConfetti'
 import { useWordList } from './hooks/useWordList'
 import { TypingContext, TypingStateActionType, initialState, typingReducer } from './store'
-import Header from '@/components/Header'
-import Tooltip from '@/components/Tooltip'
-import { idDictionaryMap } from '@/resources/dictionary'
-import { currentChapterAtom, currentDictIdAtom, isReviewModeAtom, randomConfigAtom, reviewModeInfoAtom } from '@/store'
-import { IsDesktop, isLegal } from '@/utils'
-import { useSaveChapterRecord } from '@/utils/db'
-import { useMixPanelChapterLogUploader } from '@/utils/mixpanel'
-import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import type React from 'react'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { useImmerReducer } from 'use-immer'
 
 const App: React.FC = () => {
   const [state, dispatch] = useImmerReducer(typingReducer, structuredClone(initialState))
@@ -42,17 +42,13 @@ const App: React.FC = () => {
   const isReviewMode = useAtomValue(isReviewModeAtom)
 
   useEffect(() => {
-    // 检测用户设备
     if (!IsDesktop()) {
       setTimeout(() => {
-        alert(
-          ' Qwerty Learner 目的为提高键盘工作者的英语输入效率，目前暂未适配移动端，希望您使用桌面端浏览器访问。如您使用的是 Ipad 等平板电脑设备，可以使用外接键盘使用本软件。',
-        )
+        alert('Wenyan 英语学习目前以桌面键盘为主要使用方式。平板设备建议连接外接键盘。')
       }, 500)
     }
   }, [])
 
-  // 在组件挂载和currentDictId改变时，检查当前字典是否存在，如果不存在，则将其重置为默认值
   useEffect(() => {
     const id = currentDictId
     if (!(id in idDictionaryMap)) {
@@ -108,7 +104,6 @@ const App: React.FC = () => {
   }, [words])
 
   useEffect(() => {
-    // 当用户完成章节后且完成 word Record 数据保存，记录 chapter Record 数据,
     if (!state.isFinished) savedChapter.current = false
     if (state.isFinished && !state.isSavingRecord && !savedChapter.current) {
       savedChapter.current = true
@@ -122,7 +117,6 @@ const App: React.FC = () => {
   }, [state.isFinished, state.isSavingRecord])
 
   useEffect(() => {
-    // 启动计时器
     let intervalId: number
     if (state.isTyping) {
       intervalId = window.setInterval(() => {
@@ -134,52 +128,65 @@ const App: React.FC = () => {
 
   useConfetti(state.isFinished)
 
+  const skipButton = (
+    <Tooltip content="跳过该词">
+      <button
+        className={`${
+          state.isShowSkip ? 'opacity-100' : 'pointer-events-none w-0 px-0 opacity-0'
+        } rounded-md px-2.5 py-1.5 text-xs text-gray-500 transition-all hover:bg-black/[0.04] hover:text-gray-900 dark:text-gray-500 dark:hover:bg-white/[0.06] dark:hover:text-gray-200`}
+        onClick={skipWord}
+      >
+        Skip
+      </button>
+    </Tooltip>
+  )
+
   return (
     <TypingContext.Provider value={{ state: state, dispatch }}>
-
       {state.isFinished && <ResultScreen />}
-      {saveError && <div role="alert" className="fixed bottom-4 left-4 z-50 rounded-xl bg-red-100 p-4 text-red-900">
+      {saveError && <div role="alert" className="fixed bottom-4 left-4 z-50 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
         {saveError}
         <button className="ml-3 underline" onClick={() => {
           void saveChapterRecord(state, searchParams.get('taskRun')).then(() => setSaveError('')).catch(() => setSaveError('保存仍未成功，请检查浏览器存储空间后重试。'))
         }}>重试保存</button>
       </div>}
-      <Layout>
-        <Header>
-          <DictChapterButton />
-          <PronunciationSwitcher />
-          <Switcher />
-          <StartButton isLoading={isLoading || Boolean(wordListError)} />
-          <Tooltip content="跳过该词">
-            <button
-              className={`${
-                state.isShowSkip ? 'bg-orange-400' : 'invisible w-0 bg-gray-300 px-0 opacity-0'
-              } my-btn-primary transition-all duration-300 `}
-              onClick={skipWord}
-            >
-              Skip
-            </button>
-          </Tooltip>
-        </Header>
-        <div className="container mx-auto flex h-full flex-1 flex-col items-center justify-center pb-5">
-          <div className="container relative mx-auto flex h-full flex-col items-center">
-            <div className="container flex flex-grow items-center justify-center">
+
+      <main className="flex min-h-screen w-full flex-col">
+        {state.isTyping ? (
+          <div className="mx-auto flex h-12 w-full max-w-5xl items-center justify-between px-6 text-xs text-gray-400 dark:text-gray-600">
+            <Link to="/today" aria-label="今日学习" className="font-serif text-sm font-semibold text-gray-500 no-underline transition-colors hover:text-gray-900 dark:text-gray-500 dark:hover:text-gray-200">
+              Wenyan
+            </Link>
+            <div className="flex items-center gap-3">
+              <span>{idDictionaryMap[currentDictId]?.name}</span>
+              <StartButton isLoading={isLoading || Boolean(wordListError)} />
+              {skipButton}
+            </div>
+          </div>
+        ) : (
+          <Header>
+            <DictChapterButton />
+            <PronunciationSwitcher />
+            <Switcher />
+            <StartButton isLoading={isLoading || Boolean(wordListError)} />
+            {skipButton}
+          </Header>
+        )}
+
+        <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-6">
+          <div className="relative flex flex-1 flex-col items-center">
+            <div className="flex w-full flex-1 items-center justify-center">
               {wordListError ? (
-                <div role="alert" className="flex max-w-md flex-col items-center gap-4 px-6 text-center">
+                <div role="alert" className="flex max-w-md flex-col items-center gap-4 text-center">
                   <h2 className="text-lg font-medium">词库暂时无法加载</h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{wordListError.message}</p>
-                  <button type="button" disabled={retryingWords} className="my-btn-primary disabled:opacity-50" onClick={() => {
+                  <p className="text-sm text-gray-500 dark:text-gray-500">{wordListError.message}</p>
+                  <button type="button" disabled={retryingWords} className="rounded-lg border border-black/[0.1] px-4 py-2 text-sm disabled:opacity-50 dark:border-white/[0.12]" onClick={() => {
                     setRetryingWords(true)
                     void retryWordList().catch(() => undefined).finally(() => setRetryingWords(false))
                   }}>{retryingWords ? '正在重试…' : '重新加载词库'}</button>
                 </div>
               ) : isLoading ? (
-                <div className="flex flex-col items-center justify-center ">
-                  <div
-                    className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid  border-indigo-400 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-                    role="status"
-                  ></div>
-                </div>
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-r-transparent dark:border-gray-700 dark:border-r-transparent" role="status" />
               ) : (
                 !state.isFinished && <WordPanel />
               )}
@@ -187,7 +194,9 @@ const App: React.FC = () => {
             <Speed />
           </div>
         </div>
-      </Layout>
+
+        {!state.isTyping && <Footer />}
+      </main>
       <WordList />
     </TypingContext.Provider>
   )
