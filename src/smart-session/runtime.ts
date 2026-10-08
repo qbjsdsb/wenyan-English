@@ -34,9 +34,10 @@ export interface SmartSessionRuntime {
 interface RuntimeOptions {
   ownerUserId?: string
   hardStopMinutes?: number
+  sessionId?: string
 }
 
-function uuid() {
+export function createSmartSessionId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
   return `smart-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
@@ -50,7 +51,7 @@ function hardStopAt(startedAt: number, hardStopMinutes: number | undefined) {
 function freshRuntime(focusDictionary: string, options: RuntimeOptions = {}, now = Date.now()): SmartSessionRuntime {
   return {
     schemaVersion: 1,
-    id: uuid(),
+    id: options.sessionId ?? createSmartSessionId(),
     ownerUserId: options.ownerUserId,
     focusDictionary,
     startedAt: now,
@@ -92,6 +93,12 @@ function persist(state: SmartSessionRuntime) {
 
 function sameOwner(state: SmartSessionRuntime, ownerUserId: string | undefined) {
   return ownerUserId ? state.ownerUserId === ownerUserId : state.ownerUserId === undefined
+}
+
+export function getCurrentSmartSessionId(ownerUserId?: string, now = Date.now()) {
+  const state = readStored()
+  if (!state || !sameOwner(state, ownerUserId) || now - state.updatedAt > MAX_IDLE_MS) return undefined
+  return state.id
 }
 
 /**
@@ -177,7 +184,7 @@ export function beginSmartBlock(
   const next: SmartSessionRuntime = {
     ...state,
     updatedAt: now,
-    currentBlock: { ...block, id: uuid(), startedAt: now },
+    currentBlock: { ...block, id: createSmartSessionId(), startedAt: now },
   }
   persist(next)
   return next
