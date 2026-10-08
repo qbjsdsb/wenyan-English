@@ -8,7 +8,9 @@ import SoundSwitcher from '../SoundSwitcher'
 import WordDictationSwitcher from '../WordDictationSwitcher'
 import Tooltip from '@/components/Tooltip'
 import { CTRL } from '@/utils'
-import { useContext } from 'react'
+import { Popover, Transition } from '@headlessui/react'
+import { SlidersHorizontal } from 'lucide-react'
+import { Fragment, useContext } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import IconLanguage from '~icons/tabler/language'
 import IconLanguageOff from '~icons/tabler/language-off'
@@ -17,61 +19,68 @@ export default function Switcher() {
   const { state, dispatch } = useContext(TypingContext) ?? {}
 
   const changeTransVisibleState = () => {
-    if (dispatch) {
-      dispatch({ type: TypingStateActionType.TOGGLE_TRANS_VISIBLE })
-    }
+    if (dispatch) dispatch({ type: TypingStateActionType.TOGGLE_TRANS_VISIBLE })
   }
 
   useHotkeys(
     'ctrl+shift+v',
-    () => {
-      changeTransVisibleState()
-    },
+    () => changeTransVisibleState(),
     { enableOnFormTags: true, preventDefault: true },
     [],
   )
 
   return (
-    <div className="flex items-center justify-center gap-2 rounded-xl border border-gray-200/70 bg-white/60 px-2.5 py-1.5 text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
-      <Tooltip content="音效设置">
-        <SoundSwitcher />
-      </Tooltip>
+    <Popover className="relative">
+      {({ open }) => (
+        <>
+          <Popover.Button
+            className={`${open ? 'bg-[var(--wenyan-paper-muted)] text-[var(--wenyan-ink)]' : ''} wenyan-button-secondary inline-flex items-center gap-2 !px-3.5`}
+          >
+            <SlidersHorizontal aria-hidden="true" size={14} strokeWidth={1.75} />
+            <span>学习设置</span>
+          </Popover.Button>
 
-      <Tooltip className="h-7 w-7" content="设置单个单词循环">
-        <LoopWordSwitcher />
-      </Tooltip>
+          <Transition
+            as={Fragment}
+            enter="transition ease-out duration-150"
+            enterFrom="opacity-0 translate-y-1"
+            enterTo="opacity-100 translate-y-0"
+            leave="transition ease-in duration-100"
+            leaveFrom="opacity-100 translate-y-0"
+            leaveTo="opacity-0 translate-y-1"
+          >
+            <Popover.Panel className="wenyan-surface absolute right-0 z-40 mt-2 w-[340px] p-4">
+              <div className="mb-3 flex items-baseline justify-between">
+                <span className="text-sm font-semibold text-[var(--wenyan-ink)]">学习设置</span>
+                <span className="wenyan-muted text-[10px]">低频选项集中在这里</span>
+              </div>
 
-      <Tooltip className="h-7 w-7" content={`开关默写模式（${CTRL} + V）`}>
-        <WordDictationSwitcher />
-      </Tooltip>
-      <Tooltip className="h-7 w-7" content={`开关释义显示（${CTRL} + Shift + V）`}>
-        <button
-          className={`grid h-7 w-7 place-items-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-white/10 ${state?.isTransVisible ? 'text-indigo-500' : 'text-gray-500 dark:text-gray-400'} focus:outline-none`}
-          type="button"
-          onClick={(e) => {
-            changeTransVisibleState()
-            e.currentTarget.blur()
-          }}
-          aria-label={`开关释义显示（${CTRL} + Shift + V）`}
-        >
-          {state?.isTransVisible ? <IconLanguage /> : <IconLanguageOff />}
-        </button>
-      </Tooltip>
-
-      <Tooltip content="错题本">
-        <ErrorBookButton />
-      </Tooltip>
-
-      <Tooltip className="h-7 w-7" content="查看数据统计">
-        <AnalysisButton />
-      </Tooltip>
-
-      <Tooltip className="h-7 w-7" content="指法图示">
-        <HandPositionIllustration />
-      </Tooltip>
-      <Tooltip content="设置">
-        <Setting />
-      </Tooltip>
-    </div>
+              <div className="wenyan-study-settings grid grid-cols-4 gap-2 rounded-[var(--wenyan-radius-md)] bg-[var(--wenyan-paper-muted)] p-2">
+                <Tooltip content="音效设置"><SoundSwitcher /></Tooltip>
+                <Tooltip content="设置单个单词循环"><LoopWordSwitcher /></Tooltip>
+                <Tooltip content={`开关默写模式（${CTRL} + V）`}><WordDictationSwitcher /></Tooltip>
+                <Tooltip content={`开关释义显示（${CTRL} + Shift + V）`}>
+                  <button
+                    className={`${state?.isTransVisible ? 'text-[var(--wenyan-accent)]' : 'text-[var(--wenyan-ink-muted)]'} grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors hover:bg-[var(--wenyan-paper-raised)] hover:text-[var(--wenyan-ink)]`}
+                    type="button"
+                    onClick={(e) => {
+                      changeTransVisibleState()
+                      e.currentTarget.blur()
+                    }}
+                    aria-label={`开关释义显示（${CTRL} + Shift + V）`}
+                  >
+                    {state?.isTransVisible ? <IconLanguage /> : <IconLanguageOff />}
+                  </button>
+                </Tooltip>
+                <Tooltip content="错词本"><ErrorBookButton /></Tooltip>
+                <Tooltip content="查看数据统计"><AnalysisButton /></Tooltip>
+                <Tooltip content="指法图示"><HandPositionIllustration /></Tooltip>
+                <Tooltip content="更多设置"><Setting /></Tooltip>
+              </div>
+            </Popover.Panel>
+          </Transition>
+        </>
+      )}
+    </Popover>
   )
 }
