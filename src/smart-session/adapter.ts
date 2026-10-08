@@ -98,9 +98,10 @@ export async function prepareSmartVocabularySession(
 
   const sessionAttemptedKeys = new Set<string>()
   let sessionNewItems = 0
+  const evidenceSince = runtime.executionStartedAt ?? now
   attemptsByKey.forEach((attempts, key) => {
-    if (attempts.some((attempt) => attempt.occurredAt >= runtime.startedAt)) sessionAttemptedKeys.add(key)
-    if (attempts[0]?.occurredAt >= runtime.startedAt) sessionNewItems += 1
+    if (attempts.some((attempt) => attempt.occurredAt >= evidenceSince)) sessionAttemptedKeys.add(key)
+    if (runtime.executionStartedAt !== undefined && attempts[0]?.occurredAt >= runtime.executionStartedAt) sessionNewItems += 1
   })
   runtime = reconcileSmartRuntimeEvidence(runtime, Array.from(sessionAttemptedKeys), sessionNewItems, now)
 
@@ -150,20 +151,39 @@ export async function prepareSmartVocabularySession(
   return { kind: 'draft', runtime, draft, wordsByContentId }
 }
 
-export async function startPreparedVocabularyBlock(
+function assertHardStopAllowsBlock(runtime: SmartSessionRuntime, block: SessionBlock, now: number) {
+  if (runtime.hardStopAt !== undefined) {
+    if (now >= runtime.hardStopAt) throw new Error('smart_session_hard_stop_reached')
+    if (now + block.estimatedSeconds * 1000 + HARD_STOP_RESERVE_MS > runtime.hardStopAt) {
+      throw new Error('smart_session_hard_stop_would_be_exceeded')
+    }
+    return
+  }
+  if (
+    runtime.hardStopMinutes !== undefined
+    && block.estimatedSeconds * 1000 + HARD_STOP_RESERVE_MS > runtime.hardStopMinutes * 60_000
+  ) {
+    throw new Error('smart_session_hard_stop_would_be_exceeded')
+  }
+}
+
+export function assertPreparedVocabularyBlockStartable(
   prepared: Extract<PreparedSmartSession, { kind: 'draft' }>,
   now = Date.now(),
-): Promise<{ runtime: SmartSessionRuntime; record: ReviewRecord }> {
+) {
   const block: SessionBlock | undefined = prepared.draft.blocks[0]
   if (!block || block.activity.kind !== 'vocabulary' || block.activity.items.length === 0) {
     throw new Error('smart_session_has_no_vocabulary_block')
   }
-  if (prepared.runtime.hardStopAt !== undefined) {
-    if (now >= prepared.runtime.hardStopAt) throw new Error('smart_session_hard_stop_reached')
-    if (now + block.estimatedSeconds * 1000 + HARD_STOP_RESERVE_MS > prepared.runtime.hardStopAt) {
-      throw new Error('smart_session_hard_stop_would_be_exceeded')
-    }
-  }
+  assertHardStopAllowsBlock(prepared.runtime, block, now)
+  return block
+}
+
+export async function startPreparedVocabularyBlock(
+  prepared: Extract<PreparedSmartSession, { kind: 'draft' }>,
+  now = Date.now(),
+): Promise<{ runtime: SmartSessionRuntime; record: ReviewRecord }> {
+  const block = assertPreparedVocabularyBlockStartable(prepared, now)
 
   const words = block.activity.items.map((item) => {
     const word = prepared.wordsByContentId.get(item.contentId)
