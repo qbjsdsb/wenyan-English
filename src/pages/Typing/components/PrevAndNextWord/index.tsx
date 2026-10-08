@@ -8,9 +8,7 @@ import IconPrev from '~icons/tabler/arrow-narrow-left'
 import IconNext from '~icons/tabler/arrow-narrow-right'
 
 export default function PrevAndNextWord({ type }: LastAndNextWordProps) {
-  // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
   const { state, dispatch } = useContext(TypingContext)!
-
   const wordDictationConfig = useAtomValue(wordDictationConfigAtom)
   const newIndex = useMemo(() => state.chapterData.index + (type === 'prev' ? -1 : 1), [state.chapterData.index, type])
   const word = state.chapterData.words[newIndex]
@@ -19,52 +17,34 @@ export default function PrevAndNextWord({ type }: LastAndNextWordProps) {
 
   const onClickWord = useCallback(() => {
     if (!word) return
-
-    if (type === 'prev') dispatch({ type: TypingStateActionType.SKIP_2_WORD_INDEX, newIndex })
-    if (type === 'next') dispatch({ type: TypingStateActionType.SKIP_2_WORD_INDEX, newIndex })
-  }, [type, dispatch, newIndex, word])
+    dispatch({ type: TypingStateActionType.SKIP_2_WORD_INDEX, newIndex })
+  }, [dispatch, newIndex, word])
 
   const headWord = useMemo(() => {
     if (!word) return ''
-
     const showWord = ['romaji', 'hapin'].includes(currentLanguage) ? word.notation : word.name
-
-    if (type === 'prev') return showWord
-
-    if (type === 'next') {
-      return !wordDictationConfig.isOpen ? showWord : (showWord || '').replace(/./g, '_')
-    }
+    if (type === 'next' && wordDictationConfig.isOpen) return (showWord || '').replace(/./g, '_')
+    return showWord
   }, [word, currentLanguage, type, wordDictationConfig.isOpen])
 
-  return (
-    <>
-      {word ? (
-        <Tooltip content={`快捷键: ${shortCutKey}`}>
-          <div
-            onClick={onClickWord}
-            className="flex max-w-xs cursor-pointer select-none items-center text-gray-700 opacity-60 duration-200 ease-in-out hover:opacity-100 dark:text-gray-400"
-          >
-            {type === 'prev' && <IconPrev className="mr-4 shrink-0 grow-0 text-2xl" />}
+  if (!word) return <div />
 
-            <div className={`grow-1 flex w-full flex-col ${type === 'next' ? 'items-end text-right' : ''}`}>
-              <p
-                className={`font-mono text-2xl font-normal text-gray-700 dark:text-gray-400 ${
-                  !wordDictationConfig.isOpen ? 'tracking-normal' : 'tracking-wider'
-                }`}
-              >
-                {headWord}
-              </p>
-              {state.isTransVisible && (
-                <p className="line-clamp-1 max-w-full text-sm font-normal text-gray-600 dark:text-gray-500">{word.trans.join('；')}</p>
-              )}
-            </div>
-            {type === 'next' && <IconNext className="ml-4 shrink-0 grow-0 text-2xl" />}
-          </div>
-        </Tooltip>
-      ) : (
-        <div />
-      )}
-    </>
+  const label = type === 'prev' ? '上一词' : '下一词'
+
+  return (
+    <Tooltip content={`${label} · ${shortCutKey}`}>
+      <button
+        type="button"
+        onClick={onClickWord}
+        aria-label={`${label} ${headWord}`}
+        className="group flex max-w-[220px] select-none items-center gap-2 rounded-md px-2 py-1 text-[var(--wenyan-ink-muted)] opacity-35 transition-all hover:bg-[color-mix(in_srgb,var(--wenyan-paper-raised)_46%,transparent)] hover:text-[var(--wenyan-ink-secondary)] hover:opacity-90 focus-visible:opacity-100"
+      >
+        {type === 'prev' && <IconPrev className="h-3.5 w-3.5 shrink-0" />}
+        <span className="text-[9px] tracking-[0.06em]">{label}</span>
+        <span className={`wenyan-mono truncate text-[12px] ${wordDictationConfig.isOpen ? 'tracking-wider' : ''}`}>{headWord}</span>
+        {type === 'next' && <IconNext className="h-3.5 w-3.5 shrink-0 transition-transform group-hover:translate-x-0.5" />}
+      </button>
+    </Tooltip>
   )
 }
 
