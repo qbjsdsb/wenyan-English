@@ -29,6 +29,8 @@ check('new user: sparse evidence never low ability', () => {
   const c = buildCoachingContext(base)
   assert.equal(c.snapshot.coverageQuality, 'sparse')
   assert.equal(c.derived.recentLearning.wordAttempts7, 0)
+  assert.equal(c.derived.learningEvidence.comparability, 'sparse')
+  assert.equal(c.derived.learningEvidence.windows.current7.wordAttempts, 0)
   assert.equal(c.derived.reviewPressure.scheduledDueCount, null)
   assert.equal(c.preferences.vocabularyRoute.observedProgress, null)
   assert.ok(!JSON.stringify(c).includes('masteryRate'))
@@ -39,9 +41,52 @@ check('weeks of activity produce descriptive evidence without changing stage', (
   assert.equal(c.derived.recentLearning.activeDays7, 7)
   assert.equal(c.derived.recentLearning.activeDays14, 14)
   assert.equal(c.derived.recentLearning.firstObservedWords7, 7)
+  assert.equal(c.derived.learningEvidence.windows.current7.activeDays, 7)
+  assert.equal(c.derived.learningEvidence.windows.previous7.activeDays, 7)
+  assert.equal(c.derived.learningEvidence.windows.delta.activeDays, 0)
+  assert.equal(c.derived.learningEvidence.continuity.recentActiveDayStreak, 28)
+  assert.equal(c.derived.learningEvidence.comparability, 'complete_visible_history')
   assert.equal(c.preferences.learningStage.current, 'vocabulary')
   assert.equal(c.evidence.sampleFactIds.length, 6)
   assert.equal(c.evidence.samplesAreExhaustive, false)
+})
+check('learning evidence compares equal calendar windows and bounds repeated spelling errors', () => {
+  const facts = [
+    fact('p1', 'alpha', now - 13 * day, 1),
+    fact('p2', 'beta', now - 9 * day, 0),
+    fact('p3', 'gamma', now - 7 * day, 0),
+    fact('c1', 'alpha', now - 6 * day, 2),
+    fact('c2', 'alpha', now - 4 * day, 1),
+    fact('c3', 'delta', now - 2 * day, 0),
+    fact('c4', 'epsilon', now - day, 1),
+    fact('c5', 'zeta', now, 0),
+  ]
+  const c = buildCoachingContext({ ...base, wordFacts: facts })
+  const evidence = c.derived.learningEvidence
+  assert.equal(evidence.algorithmVersion, 'learning-evidence-v1')
+  assert.equal(evidence.windows.previous7.wordAttempts, 3)
+  assert.equal(evidence.windows.current7.wordAttempts, 5)
+  assert.equal(evidence.windows.delta.wordAttempts, 2)
+  assert.equal(evidence.windows.current7.spellingErrorAttempts, 3)
+  assert.equal(evidence.windows.previous7.spellingErrorAttempts, 1)
+  assert.equal(evidence.windows.delta.spellingErrorAttempts, 2)
+  assert.equal(evidence.continuity.calendarDaysSinceLatest, 0)
+  assert.equal(evidence.repeatedSpellingErrors14[0].surface, 'alpha')
+  assert.equal(evidence.repeatedSpellingErrors14[0].errorAttempts, 3)
+  assert.deepEqual(evidence.repeatedSpellingErrors14[0].evidenceIds, ['p1', 'c1', 'c2'])
+  assert.ok(evidence.uncertainties.includes('window_deltas_are_descriptive_not_causal'))
+  assert.ok(!JSON.stringify(evidence).includes('improved'))
+  assert.ok(!JSON.stringify(evidence).includes('fatigue'))
+})
+check('partial coverage keeps useful window counts but marks comparison partial', () => {
+  const c = buildCoachingContext({
+    ...base,
+    wordFacts: [fact('a', 'alpha', now - day, 1), fact('b', 'alpha', now, 0)],
+    coverage: { ...base.coverage, localOnlyPossible: true },
+  })
+  assert.equal(c.derived.learningEvidence.windows.current7.wordAttempts, 2)
+  assert.equal(c.derived.learningEvidence.comparability, 'partial_visible_history')
+  assert.ok(c.derived.learningEvidence.uncertainties.includes('visible_history_may_exclude_unsynced_learning'))
 })
 check('user decline persists next day and only explicit revisit policy can open reconsideration', () => {
   const p = { target: 'mixed', declinedAt: now, provenanceRef: 'user:decline', revisit: { kind: 'user_reopens' } }
