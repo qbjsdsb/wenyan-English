@@ -34,17 +34,23 @@ export default function DictionaryComponent({ dictionary, withTopBorder = false 
       <DialogTrigger asChild>
         <div
           ref={divRef}
-          className={`${withTopBorder ? 'border-t border-[var(--wenyan-line-soft)]' : ''} group flex min-h-[78px] w-full cursor-pointer items-center gap-5 px-4 py-3.5 text-left transition-colors hover:bg-[var(--wenyan-paper-muted)] focus:outline-none`}
+          className={`${withTopBorder ? 'border-t border-[var(--wenyan-line-soft)]' : ''} ${
+            isSelected ? 'bg-[color-mix(in_srgb,var(--wenyan-accent-soft)_58%,transparent)]' : ''
+          } group flex min-h-[76px] w-full cursor-pointer items-center gap-4 px-3 py-3.5 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--wenyan-paper-muted)_78%,transparent)] focus:outline-none`}
           role="button"
           tabIndex={0}
         >
+          <span
+            aria-hidden="true"
+            className={`${isSelected ? 'bg-[var(--wenyan-accent)]' : 'bg-[var(--wenyan-line-soft)]'} h-8 w-[3px] shrink-0 rounded-full transition-colors`}
+          />
+
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2.5">
-              {isSelected && <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--wenyan-accent)]" />}
               <h3 className={`truncate text-[14px] font-semibold ${isSelected ? 'text-[var(--wenyan-accent)]' : 'text-[var(--wenyan-ink)]'}`}>
                 {dictionary.name}
               </h3>
-              {isSelected && <span className="wenyan-muted text-[10px]">当前词书</span>}
+              {isSelected && <span className="text-[10px] font-medium text-[var(--wenyan-accent)]">当前</span>}
             </div>
             <TooltipProvider>
               <Tooltip delayDuration={400}>
@@ -57,7 +63,7 @@ export default function DictionaryComponent({ dictionary, withTopBorder = false 
               </Tooltip>
             </TooltipProvider>
             {progress > 0 && (
-              <Progress.Root value={progress} max={100} className="mt-2 h-[2px] w-36 overflow-hidden rounded-full bg-[var(--wenyan-line-soft)]">
+              <Progress.Root value={progress} max={100} className="mt-2 h-[2px] w-32 overflow-hidden rounded-full bg-[var(--wenyan-line-soft)]">
                 <Progress.Indicator
                   className="h-full rounded-full bg-[var(--wenyan-accent)] transition-[width] duration-300"
                   style={{ width: `${progress}%` }}
@@ -67,8 +73,8 @@ export default function DictionaryComponent({ dictionary, withTopBorder = false 
           </div>
 
           <div className="wenyan-muted flex shrink-0 items-center gap-4 text-[11px]">
-            <span>{dictionary.length} 词</span>
-            {progress > 0 && <span className="tabular-nums">{progress}%</span>}
+            <span className="wenyan-mono">{dictionary.length} 词</span>
+            {progress > 0 && <span className="wenyan-mono tabular-nums">{progress}%</span>}
             <ChevronRight aria-hidden="true" size={14} strokeWidth={1.6} className="transition-transform group-hover:translate-x-0.5" />
           </div>
         </div>
