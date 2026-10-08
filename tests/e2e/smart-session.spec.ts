@@ -161,7 +161,7 @@ test('review-only intent has an actionable empty state instead of a dead disable
   await expect(dock.getByText(/今天的新词上限是 0/)).toBeVisible()
   await expect(dock.getByText('今日新词上限 0', { exact: true })).toBeVisible()
   await expect(dock.getByRole('button', { name: '重新检查', exact: true })).toBeEnabled()
-  const manual = dock.getByRole('link', { name: '仍要手动继续当前章节', exact: true })
+  const manual = dock.getByRole('link', { name: '手动继续当前章节（不按这条智能安排）', exact: true })
   await expect(manual).toBeVisible()
   await manual.click()
   await expect(page).toHaveURL(/\/$/)
