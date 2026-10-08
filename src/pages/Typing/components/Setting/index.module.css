@@ -1,24 +1,28 @@
 .tab-content {
-  @apply flex w-full flex-col items-start justify-start gap-10 overflow-y-auto pb-40 pl-6 pr-9 pt-8;
+  @apply flex w-full flex-col items-start justify-start gap-7 overflow-y-auto px-7 pb-10 pt-7;
 }
 
 .section {
-  @apply flex w-full flex-col items-start gap-4;
+  @apply wenyan-setting-section flex w-full flex-col items-start gap-3.5;
 }
+
 .section-label {
-  @apply pb-0 text-xl font-medium text-gray-600;
+  @apply text-[15px] font-semibold tracking-[-0.015em] text-[var(--wenyan-ink)];
 }
+
 .section-description {
-  @apply -mt-1 pl-4 text-left text-xs font-normal leading-tight text-gray-600;
+  @apply max-w-2xl text-left text-xs font-normal leading-6 text-[var(--wenyan-ink-muted)];
 }
 
 .block {
-  @apply flex w-full flex-col items-start gap-2 py-0 pl-4;
+  @apply flex w-full flex-col items-start gap-2.5 py-0;
 }
+
 .block-label {
-  @apply font-medium text-gray-600;
+  @apply text-xs font-medium text-[var(--wenyan-ink-secondary)];
 }
+
 .switch-block {
   composes: block;
-  @apply flex-row items-center justify-between;
+  @apply flex-row items-center justify-between rounded-[var(--wenyan-radius-sm)] bg-[color-mix(in_srgb,var(--wenyan-paper-muted)_56%,transparent)] px-3.5 py-2.5;
 }
