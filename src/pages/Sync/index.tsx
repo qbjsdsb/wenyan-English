@@ -1,4 +1,3 @@
-import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import { getWenyanRedirectUrl, supabase } from '@/supabase/client'
 import { type LearningQueueSummary, claimUnownedLearningEvents, getLearningQueueSummary } from '@/sync/learningQueue'
@@ -87,7 +86,7 @@ export default function SyncPage() {
   return (
     <div className="flex min-h-screen flex-col text-[var(--wenyan-ink)]">
       <Header />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 pb-14 pt-9">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-6 pb-16 pt-9">
         <div className="mb-7">
           <h1 className="wenyan-page-title">同步</h1>
           <p className="wenyan-muted mt-2 text-sm">学习记录在设备之间保持一致</p>
@@ -160,7 +159,6 @@ export default function SyncPage() {
           </div>
         </details>
       </main>
-      <Footer />
     </div>
   )
 }

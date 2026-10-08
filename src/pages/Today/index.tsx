@@ -1,5 +1,4 @@
 import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import type { WordAttemptedPayload } from '@/learning/types'
 import { createLearningEvent } from '@/learning/types'
 import { syncCloudPlanToLocal } from '@/plans/cloud'
@@ -155,7 +154,7 @@ export default function TodayPage() {
   return (
     <div className="flex min-h-screen flex-col text-[var(--wenyan-ink)]">
       <Header />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-10 pt-9">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-12 pt-9">
         <div className="mb-6 flex items-center justify-between gap-6">
           <h1 className="wenyan-page-title">今天</h1>
           <div className="wenyan-muted flex items-center gap-2 text-[11px]">
@@ -296,7 +295,6 @@ export default function TodayPage() {
           <Link to="/analysis" className={quietLink}>记录</Link>
         </nav>
       </main>
-      <Footer />
     </div>
   )
 }
