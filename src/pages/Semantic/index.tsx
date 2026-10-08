@@ -1,5 +1,6 @@
-import type { RecallRating, SemanticRun } from '@/semantic/core'
-import { endSemanticRun, loadSemanticRun, revealSemanticItem, saveSemanticRating } from '@/semantic/runtime'
+import type { SemanticRun } from '@/semantic/run'
+import type { RecallRating } from '@/semantic/core'
+import { endloadrevealSemanticItem, saveSemanticRating } from '@/semantic/runtime'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 

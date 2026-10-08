@@ -1,5 +1,6 @@
+import type { SemanticRun } from '@/semantic/run'
 import type { SemanticCandidate } from './types'
-import type { SemanticItem, SemanticPayload, SemanticRun } from '@/semantic/core'
+import type { SemanticItem, SemanticPayload } from '@/semantic/core'
 import { parseSemanticPayload, semanticKey } from '@/semantic/core'
 import { semanticItem } from '@/semantic/provider'
 import { buildSmartSession } from './planner'
@@ -268,7 +269,7 @@ export async function startPreparedSemanticBlock(prepared: Extract<PreparedSmart
   const id = createSmartSessionId()
   const hardStopAt = prepared.runtime.hardStopAt ?? (prepared.runtime.hardStopMinutes === undefined ? undefined
     : (prepared.runtime.executionStartedAt ?? now) + prepared.runtime.hardStopMinutes * 60000)
-  const run: SemanticRun = { id, ownerUserId: prepared.runtime.ownerUserId, sessionId: prepared.runtime.id,
+  const run: SemanticRun = { id, sessionCheckpoint: prepared.runtime, ownerUserId: prepared.runtime.ownerUserId, sessionId: prepared.runtime.id,
     dictionaryId: prepared.runtime.focusDictionary, startedAt: now, hardStopAt, items, index: 0 }
   await db.semanticRuns.add(run)
   const runtime = beginSmartBlock(prepared.runtime, { semanticRunId: id, purpose: 'semantic_recall',

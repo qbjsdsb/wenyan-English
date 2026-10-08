@@ -110,3 +110,13 @@ These should be added only with measurement semantics that survive pause, blur a
 `public.learning_events` is the durable fact table. It is append-only for normal clients. Derived concepts such as mastery, weak words, review urgency and study summaries are computed from events and can change as algorithms improve.
 
 AI tools must never be allowed to silently rewrite historical events just to make a recommendation look cleaner.
+
+## Semantic recall v1 (sourceVersion 4; next-generation branch)
+
+`semantic_recall_attempted` is a separate immutable fact. Fields: domain=english, activity=semantic_recall, direction=en_to_meaning, cue=word_only, responseMode=mental_recall, measurement=self_report_after_reveal, answerRevealed=true, resumedAfterReveal, rating=recalled|partial|not_recalled, dictionaryId/word, contentId/contentVersion, sessionId/blockId. The observation is the **user's report**, not objectively checked correctness. No response latency or mastery score is recorded.
+
+Content identity is dictionary + normalized surface, independent of array ordinal. SHA-256 versions the exact displayed word/reference meanings. Definition text stays local; no new corpus is uploaded or committed. Changed definitions are a different evidence version. Multi-sense recognition and reading comprehension are not measured.
+
+Dexie v7 adds semanticRuns without touching legacy tables. Reveal is persisted before rendering; fact and run cursor commit in one transaction. Failed storage leaves the current item in place. Only all real ratings finish a run; stopping sets runtime endedAt and does not synthesize completion. The existing owner-scoped sync queue ingests v4 facts. Restore validates measurement fields before moving the cursor. Old clients encountering v4 stop restoration and require update; do not silently skip new facts. Existing chapter Cloud Plan completion rules remain unchanged.
+
+Future domain events should reuse the envelope, owner/sync/idempotency, session/plan references and versioned content identity. Keep separately typed domain payloads: neither an essay nor a literary concept belongs in WordAttemptedPayload. Do not retrofit historical rows or assign missing domain semantics by guesswork.

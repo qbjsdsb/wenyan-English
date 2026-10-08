@@ -182,3 +182,9 @@ Facts v3增量：session_started/paused/resumed/finished、block/activity/contex
 轻量回归：Node 22.6+运行 node --experimental-strip-types scripts/check-smart-session.mjs。当前环境Node24运行16组通过；现有CI使用Node22并已加入同一命令。不引入测试框架。独立strict typecheck已通过；完整lint/type/build因依赖下载未完成，见STATUS。
 
 core的candidate池须已由adapter校验归属/内容与来源，不能把MCP任意JSON直接断言成SmartSessionInput。跨来源相同canonical key合并UUID；冲突事实/冲突schedule会拒绝，交给adapter诊断而不是默默篡改。
+
+## Next-generation extension: semantic_recall
+
+elastic-v2 retains vocabulary selection and adds one separately typed SemanticCandidate lane. Candidates require an actual spelling observation plus a nonempty reference; this prerequisite means prior exposure, never semantic competence. Semantic evidence/keys do not merge with spelling evidence/keys. Max six words, budget reserve and hard-stop apply, completed keys cannot repeat in the same session. Balanced sessions may interleave after a spelling block; explicit semantic intent is preferred when available. No candidate means no invented activity. Vocabulary-only input retains its previous selection behavior.
+
+Provider work is bounded to 120 observed candidates, oldest semantic observation first. This is a bounded candidate view, not the full backlog. Raw definitions are frozen in a dedicated local run with exact content hash; no live content mutation during execution. Semantic persistence is distinct from legacy review/chapter records. Target estimates stay estimates. Long-term Reading stage gates are unchanged.

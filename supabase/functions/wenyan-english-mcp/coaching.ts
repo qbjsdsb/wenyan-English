@@ -583,6 +583,7 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
       semanticAction: 'Use preferredActivities=["semantic_recall"] for a reversible day/session vocabulary activity; do not change long-term stage. Only recommend automatic execution when executionCapabilities.semanticRecall is available; otherwise ask the user to open the updated website. If no known words with references are eligible, explain availability rather than treating spelling as semantic success.',
     },
     runtime: {
+      deviceScope: 'latest_owner_report_not_bound_to_command_target_device',
       executionAvailability: {
         status: executionData.status,
         reportedAt: executionData.snapshot?.reportedAt ?? null,

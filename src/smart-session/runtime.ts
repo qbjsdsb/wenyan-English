@@ -145,8 +145,8 @@ export async function loadSmartSessionRuntime(
     const pending = await db.semanticRuns.orderBy('startedAt').reverse().filter((run) =>
       run.ownerUserId === options.ownerUserId && run.dictionaryId === focusDictionary && run.completedAt === undefined && run.endedAt === undefined).first()
     state = pending ? {
-      ...freshRuntime(focusDictionary, { ...options, sessionId: pending.sessionId }, now),
-      executionStartedAt: pending.startedAt, hardStopAt: pending.hardStopAt,
+      ...(pending.sessionCheckpoint ?? freshRuntime(focusDictionary, { ...options, sessionId: pending.sessionId }, now)),
+      executionStartedAt: pending.sessionCheckpoint?.executionStartedAt ?? pending.startedAt, hardStopAt: pending.hardStopAt,
       currentBlock: { id: pending.id, semanticRunId: pending.id, purpose: 'semantic_recall',
         keys: pending.items.map((item) => item.key), estimatedSeconds: pending.items.length * 25, startedAt: pending.startedAt },
     } : freshRuntime(focusDictionary, options, now)

@@ -1,4 +1,5 @@
-import type { RecallRating, SemanticPayload, SemanticRun } from './core'
+import type { SemanticRun } from '@/semantic/run'
+import type { RecallRating, SemanticPayload } from './core'
 import { parseSemanticPayload } from './core'
 import { createLearningEvent } from '@/learning/types'
 import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'

@@ -42,3 +42,15 @@ Implemented working draft: sourceVersion 4 semantic facts and restore validator;
 Found and corrected adapter's hard-coded preferredActivities=['vocabulary']; it otherwise discards legitimate future activity intent. Future timestamps are excluded from local spelling candidates instead of poisoning the planner.
 
 Git HTTPS push has no credential helper in this environment. Durable checkpoints use the authorized GitHub Git Data/Contents connector, with expected-head lease. First checkpoint and Draft PR #49 are confirmed remote. No credentials requested or placed in files.
+
+## Checkpoint 3 — closed code path and deployment findings
+
+- Semantic facts → existing outbox/owner RLS → restore v4 → bounded semantic evidence → Coaching Context v1.4 → existing bounded intent (`semantic_recall`) → deterministic lane → Today runner implemented on branch.
+- New MCP Agent guidance distinguishes unknown/stale, resume, ready, break, cooldown wait and explain/revise. Same command receipt still cannot mean learning completion. No new broad write tool or permission.
+- New semantic block = at most six previously observed words; 25s/item is a planning heuristic, not measured recall latency. Revisit after 1d for partial/not recalled and 3d for recalled is a transparent product heuristic, not FSRS. English meaning activity stays within vocabulary stage.
+- Separate runtime table prevents typing/chapter/task completion contamination. Atomic fact+cursor, reveal-before-display persistence, owner guard, stopped-run exit, and crash recovery from durable runs are implemented.
+- Production inspection correction: execution availability table and RPC **exist**, despite being absent from migration history listing. Do not replay create-table migration blindly. Confirmed columns match main's original contract; no semantic column yet.
+- Authenticated real plugin call confirms production toolVersion `coaching-context-v1.2`, no runtime context, existing intent/preferences reads available. No real user learning data saved in repo.
+- CI checkpoint caught ES5 Map iterator compatibility; corrected with Array.from. Next CI passed lint/typecheck and exposed a planner fallback regression when no semantic candidates exist; corrected by only selecting a semantic interleave when eligible candidates exist. Local original 20 planner scenarios pass after correction.
+- Local targeted semantic measurement/spacing/budget/agent checks pass; cloud adapter 10 scenarios pass. Browser checks added for full Today→semantic→refresh→fact and storage rollback/owner isolation. CI is the general gate.
+- CLI telemetry was blocked by automatic review; no approval bypass attempted. Generated migration file retained; use authorized Supabase connector for DDL. No new CLI calls needed.

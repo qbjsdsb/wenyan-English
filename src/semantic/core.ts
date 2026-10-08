@@ -20,19 +20,6 @@ export interface SemanticPayload {
 }
 export interface SemanticFact { id: string; occurredAt: number; payload: SemanticPayload }
 export interface SemanticItem { contentId: string; contentVersion: string; word: string; meanings: string[]; key: string }
-export interface SemanticRun {
-  id: string
-  ownerUserId?: string
-  sessionId: string
-  dictionaryId: string
-  startedAt: number
-  hardStopAt?: number
-  items: SemanticItem[]
-  index: number
-  revealedIndex?: number
-  completedAt?: number
-  endedAt?: number
-}
 export const semanticKey = (dictionaryId: string, word: string) => `semantic:${dictionaryId}:${word.normalize('NFKC').trim().toLowerCase()}`
 
 export function parseSemanticPayload(value: unknown): SemanticPayload {
