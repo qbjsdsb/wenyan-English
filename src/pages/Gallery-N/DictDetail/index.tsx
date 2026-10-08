@@ -21,7 +21,7 @@ enum Tab {
 }
 
 const tabClass =
-  'h-8 rounded-[var(--wenyan-radius-sm)] px-3 text-xs font-medium text-[var(--wenyan-ink-secondary)] transition-colors hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)] data-[state=on]:bg-[var(--wenyan-accent-soft)] data-[state=on]:text-[var(--wenyan-accent)] disabled:opacity-100'
+  'h-8 border-b-2 border-transparent px-2 text-xs font-medium text-[var(--wenyan-ink-secondary)] transition-colors hover:text-[var(--wenyan-ink)] data-[state=on]:border-[var(--wenyan-accent)] data-[state=on]:text-[var(--wenyan-ink)] disabled:opacity-100'
 
 export default function DictDetail({ dictionary: dict }: { dictionary: Dictionary }) {
   const [currentChapter, setCurrentChapter] = useAtom(currentChapterAtom)
@@ -35,9 +35,7 @@ export default function DictDetail({ dictionary: dict }: { dictionary: Dictionar
   const chapter = useMemo(() => (dict.id === currentDictId ? currentChapter : 0), [currentChapter, currentDictId, dict.id])
   const { errorWordData, isLoading, error } = useErrorWordData(dict, reload)
 
-  const tableData = useMemo(() => {
-    return getRowsFromErrorWordData(errorWordData)
-  }, [errorWordData])
+  const tableData = useMemo(() => getRowsFromErrorWordData(errorWordData), [errorWordData])
 
   const onDelete = useCallback(
     async (word: string) => {
@@ -59,43 +57,37 @@ export default function DictDetail({ dictionary: dict }: { dictionary: Dictionar
 
   const handleTabChange = useCallback(
     (value: Tab) => {
-      if (value && value !== curTab) {
-        setCurTab(value)
-      }
+      if (value && value !== curTab) setCurTab(value)
     },
     [curTab],
   )
 
   return (
-    <div className="flex flex-col px-2 pb-2 pt-1 text-[var(--wenyan-ink)]">
-      <div className="mb-6 flex items-end justify-between gap-8 border-b border-[var(--wenyan-line-soft)] pb-5">
-        <div className="min-w-0">
-          <h3 className="text-[24px] font-semibold tracking-[-0.03em] text-[var(--wenyan-ink)]">{dict.name}</h3>
-          <p className="wenyan-muted mt-2 text-xs">{dict.chapterCount} 章节 · {dict.length} 词</p>
-          <p className="wenyan-body mt-3 max-w-2xl text-sm leading-6">{dict.description}</p>
-        </div>
+    <div className="flex flex-col px-1 pb-1 pt-0.5 text-[var(--wenyan-ink)]">
+      <div className="mb-5 border-b border-[var(--wenyan-line-soft)] pb-4">
+        <div className="flex items-end justify-between gap-8">
+          <div className="min-w-0">
+            <h3 className="text-[22px] font-semibold tracking-[-0.03em] text-[var(--wenyan-ink)]">{dict.name}</h3>
+            <p className="wenyan-muted mt-1.5 text-[11px]">{dict.chapterCount} 章节 · {dict.length} 词</p>
+          </div>
 
-        <ToggleGroup type="single" value={curTab} onValueChange={handleTabChange} className="shrink-0 gap-1">
-          <ToggleGroupItem value={Tab.Chapters} disabled={curTab === Tab.Chapters} className={tabClass}>
-            章节
-          </ToggleGroupItem>
-          {errorWordData.length > 0 && (
-            <>
-              <ToggleGroupItem value={Tab.Errors} disabled={curTab === Tab.Errors} className={tabClass}>
-                错词
-              </ToggleGroupItem>
-              <ToggleGroupItem value={Tab.Review} disabled={curTab === Tab.Review} className={tabClass}>
-                回顾
-              </ToggleGroupItem>
-            </>
-          )}
-        </ToggleGroup>
+          <ToggleGroup type="single" value={curTab} onValueChange={handleTabChange} className="shrink-0 gap-4">
+            <ToggleGroupItem value={Tab.Chapters} disabled={curTab === Tab.Chapters} className={tabClass}>章节</ToggleGroupItem>
+            {errorWordData.length > 0 && (
+              <>
+                <ToggleGroupItem value={Tab.Errors} disabled={curTab === Tab.Errors} className={tabClass}>错词</ToggleGroupItem>
+                <ToggleGroupItem value={Tab.Review} disabled={curTab === Tab.Review} className={tabClass}>回顾</ToggleGroupItem>
+              </>
+            )}
+          </ToggleGroup>
+        </div>
+        <p className="wenyan-body mt-3 max-w-2xl text-[13px] leading-6">{dict.description}</p>
       </div>
 
-      <Tabs value={curTab} className="h-[30rem] w-full">
+      <Tabs value={curTab} className="h-[28rem] w-full">
         <TabsContent value={Tab.Chapters} className="h-full">
-          <ScrollArea className="h-[30rem] pr-3">
-            <div className="flex w-full flex-wrap gap-3">
+          <ScrollArea className="h-[28rem] pr-3">
+            <div className="flex w-full flex-wrap gap-2.5">
               {range(0, dict.chapterCount, 1).map((index) => (
                 <Chapter
                   key={`${dict.id}-${index}`}
