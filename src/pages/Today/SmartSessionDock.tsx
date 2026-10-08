@@ -12,9 +12,11 @@ import { useAtomValue, useSetAtom } from 'jotai'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-function retryTime(retryAt: number | undefined) {
+function retryLabel(retryAt: number | undefined) {
   if (retryAt === undefined) return ''
-  return new Date(retryAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const minutes = Math.ceil((retryAt - Date.now()) / 60_000)
+  if (minutes <= 0) return '现在可以重新检查'
+  return `约 ${minutes} 分钟后可再检查`
 }
 
 function purposeLabel(prepared: PreparedSmartSession | undefined) {
@@ -44,8 +46,8 @@ function intentNote(intent: ResolvedSmartSessionIntent | undefined, prepared: Pr
   if (prepared?.kind === 'draft') {
     const { reason, retryAt } = prepared.draft
     if (reason === 'review_only_waiting_for_correction_cooldown' || reason === 'waiting_for_correction_cooldown') {
-      const at = retryTime(retryAt)
-      return `今天仍按复习优先。刚练过的错词先留一点间隔${at ? `，${at} 后` : '，稍后'}重新检查就会进入纠错。`
+      const retry = retryLabel(retryAt)
+      return `今天仍按复习优先。刚练过的错词先留一点间隔${retry ? `，${retry}` : '，稍后再检查'}，然后会进入纠错。`
     }
     if (reason === 'new_word_ceiling_no_review') {
       if (intent?.constraints.newWordCeiling === 0) {
@@ -73,8 +75,8 @@ function blockMeta(prepared: PreparedSmartSession | undefined, intent: ResolvedS
   const minutes = block ? Math.max(1, Math.ceil(block.estimatedSeconds / 60)) : 0
   const meta = block ? [`约 ${minutes} 分钟`, `${items} 个词`] : []
   if (prepared?.kind === 'draft' && !block) {
-    const at = retryTime(prepared.draft.retryAt)
-    if (at) meta.push(`最早 ${at} 再检查`)
+    const retry = retryLabel(prepared.draft.retryAt)
+    if (retry) meta.push(retry)
     if (intent?.constraints.newWordCeiling === 0) meta.push('今日新词上限 0')
   }
   if (intent?.source === 'cloud') meta.push('最近安排已应用')
