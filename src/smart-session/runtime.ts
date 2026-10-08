@@ -19,9 +19,13 @@ export interface SmartSessionRuntime {
   /** Missing only for legacy/anonymous local sessions. Authenticated sessions never reuse another owner's runtime. */
   ownerUserId?: string
   focusDictionary: string
+  /** Runtime creation timestamp; retained for old state compatibility. */
   startedAt: number
+  /** First real Smart Block start. Budget clocks use this, not page-open time. */
+  executionStartedAt?: number
   updatedAt: number
-  /** Elapsed-time ceiling fixed when this runtime first adopts a hard-stop constraint. */
+  /** Bound before start, converted into hardStopAt on the first real block. */
+  hardStopMinutes?: number
   hardStopAt?: number
   completedBlocks: number
   attemptedKeys: string[]
@@ -42,10 +46,10 @@ export function createSmartSessionId() {
   return `smart-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-function hardStopAt(startedAt: number, hardStopMinutes: number | undefined) {
-  if (hardStopMinutes === undefined) return undefined
-  if (!Number.isInteger(hardStopMinutes) || hardStopMinutes < 0 || hardStopMinutes > 240) throw new Error('invalid_smart_session_hard_stop')
-  return startedAt + hardStopMinutes * 60_000
+function validateHardStopMinutes(value: number | undefined) {
+  if (value === undefined) return undefined
+  if (!Number.isInteger(value) || value < 0 || value > 240) throw new Error('invalid_smart_session_hard_stop')
+  return value
 }
 
 function freshRuntime(focusDictionary: string, options: RuntimeOptions = {}, now = Date.now()): SmartSessionRuntime {
@@ -56,7 +60,7 @@ function freshRuntime(focusDictionary: string, options: RuntimeOptions = {}, now
     focusDictionary,
     startedAt: now,
     updatedAt: now,
-    hardStopAt: hardStopAt(now, options.hardStopMinutes),
+    hardStopMinutes: validateHardStopMinutes(options.hardStopMinutes),
     completedBlocks: 0,
     attemptedKeys: [],
     newItemsIntroduced: 0,
@@ -72,10 +76,17 @@ function readStored(): SmartSessionRuntime | undefined {
     if (!value || value.schemaVersion !== 1 || typeof value.id !== 'string' || typeof value.focusDictionary !== 'string') return undefined
     if (value.ownerUserId !== undefined && typeof value.ownerUserId !== 'string') return undefined
     if (!Number.isFinite(value.startedAt) || !Number.isFinite(value.updatedAt)) return undefined
+    if (value.executionStartedAt !== undefined && !Number.isFinite(value.executionStartedAt)) return undefined
+    if (value.hardStopMinutes !== undefined && (!Number.isInteger(value.hardStopMinutes) || value.hardStopMinutes < 0 || value.hardStopMinutes > 240)) return undefined
     if (value.hardStopAt !== undefined && !Number.isFinite(value.hardStopAt)) return undefined
     if (!Number.isFinite(value.completedBlocks) || !Number.isFinite(value.newItemsIntroduced)) return undefined
     if (!Number.isFinite(value.estimatedActiveSeconds) || !Number.isFinite(value.estimatedActiveSecondsSinceBreak)) return undefined
     if (!Array.isArray(value.attemptedKeys)) return undefined
+    // Older persisted sessions had no executionStartedAt. If they have execution evidence,
+    // their historical startedAt is the safest available approximation.
+    if (value.executionStartedAt === undefined && (value.currentBlock || value.completedBlocks > 0 || value.attemptedKeys.length > 0)) {
+      value.executionStartedAt = value.startedAt
+    }
     return value
   } catch {
     return undefined
@@ -130,11 +141,14 @@ export async function loadSmartSessionRuntime(
     return state
   }
 
-  // A hard stop becomes part of the session runtime the first time it is seen.
-  // Expiring/cloud-unavailable Intent cannot silently remove that already-adopted ceiling.
-  if (state.hardStopAt === undefined && options.hardStopMinutes !== undefined) {
-    state = { ...state, hardStopAt: hardStopAt(state.startedAt, options.hardStopMinutes), updatedAt: now }
-    persist(state)
+  // Before the first real block starts, a newer live Intent may still replace the
+  // pending hard-stop minutes. Once execution starts, the deadline is immutable.
+  if (state.executionStartedAt === undefined) {
+    const nextHardStop = validateHardStopMinutes(options.hardStopMinutes)
+    if (state.hardStopMinutes !== nextHardStop) {
+      state = { ...state, hardStopMinutes: nextHardStop, updatedAt: now }
+      persist(state)
+    }
   }
 
   if (state.currentBlock) {
@@ -181,8 +195,14 @@ export function beginSmartBlock(
   now = Date.now(),
 ) {
   if (state.hardStopAt !== undefined && now >= state.hardStopAt) throw new Error('smart_session_hard_stop_reached')
+  const executionStartedAt = state.executionStartedAt ?? now
+  const hardStopAt = state.hardStopAt ?? (
+    state.hardStopMinutes === undefined ? undefined : executionStartedAt + state.hardStopMinutes * 60_000
+  )
   const next: SmartSessionRuntime = {
     ...state,
+    executionStartedAt,
+    hardStopAt,
     updatedAt: now,
     currentBlock: { ...block, id: createSmartSessionId(), startedAt: now },
   }
@@ -212,7 +232,7 @@ export function runtimeProgress(state: SmartSessionRuntime, now = Date.now()): S
     completedBlocks: state.completedBlocks,
     newItemsIntroduced: state.newItemsIntroduced,
     activeSeconds: state.estimatedActiveSeconds,
-    elapsedSeconds: Math.max(0, Math.floor((now - state.startedAt) / 1000)),
+    elapsedSeconds: state.executionStartedAt === undefined ? 0 : Math.max(0, Math.floor((now - state.executionStartedAt) / 1000)),
     activeSecondsSinceBreak: state.estimatedActiveSecondsSinceBreak,
     timingQuality: 'estimated',
   }
