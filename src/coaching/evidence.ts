@@ -102,13 +102,14 @@ function activeDayStreak(days: readonly number[]) {
  * motivation, fatigue, recall speed, readiness or causality.
  */
 export function buildLearningEvidenceV1(input: LearningEvidenceInput): LearningEvidenceV1 {
+  const facts = [...input.facts].sort((a, b) => a.occurredAt - b.occurredAt || compare(a.id, b.id))
   const currentFrom = input.today - 6
   const previousFrom = input.today - 13
   const previousThrough = input.today - 7
-  const current7 = summarizeWindow(input.facts, input.firstFactIds, input.calendarDay, currentFrom, input.today)
-  const previous7 = summarizeWindow(input.facts, input.firstFactIds, input.calendarDay, previousFrom, previousThrough)
+  const current7 = summarizeWindow(facts, input.firstFactIds, input.calendarDay, currentFrom, input.today)
+  const previous7 = summarizeWindow(facts, input.firstFactIds, input.calendarDay, previousFrom, previousThrough)
 
-  const recent14 = input.facts.filter((fact) => input.calendarDay(fact.occurredAt) >= previousFrom)
+  const recent14 = facts.filter((fact) => input.calendarDay(fact.occurredAt) >= previousFrom)
   const grouped = new Map<string, CoachingWordFact[]>()
   for (const fact of recent14) {
     const key = surface(fact.word)
@@ -117,15 +118,14 @@ export function buildLearningEvidenceV1(input: LearningEvidenceInput): LearningE
     grouped.set(key, group)
   }
 
-  const repeatedSpellingErrors14 = Array.from(grouped, ([key, facts]) => {
-    const errorFacts = facts.filter((fact) => fact.wrongCount > 0)
+  const repeatedSpellingErrors14 = Array.from(grouped, ([key, groupFacts]) => {
+    const errorFacts = groupFacts.filter((fact) => fact.wrongCount > 0)
     if (errorFacts.length < 2) return null
-    const ordered = [...facts].sort((a, b) => a.occurredAt - b.occurredAt || compare(a.id, b.id))
     return {
       surface: key,
       errorAttempts: errorFacts.length,
-      totalAttempts: facts.length,
-      lastObservedAt: ordered[ordered.length - 1].occurredAt,
+      totalAttempts: groupFacts.length,
+      lastObservedAt: groupFacts[groupFacts.length - 1].occurredAt,
       evidenceIds: errorFacts.slice(-4).map((fact) => fact.id),
     }
   })
@@ -133,9 +133,9 @@ export function buildLearningEvidenceV1(input: LearningEvidenceInput): LearningE
     .sort((a, b) => b.errorAttempts - a.errorAttempts || b.totalAttempts - a.totalAttempts || b.lastObservedAt - a.lastObservedAt || compare(a.surface, b.surface))
     .slice(0, 8)
 
-  const latestObservedAt = input.facts.length ? input.facts[input.facts.length - 1].occurredAt : null
-  const observedDays = input.facts.map((fact) => input.calendarDay(fact.occurredAt))
-  const comparability = input.facts.length === 0
+  const latestObservedAt = facts.length ? facts[facts.length - 1].occurredAt : null
+  const observedDays = facts.map((fact) => input.calendarDay(fact.occurredAt))
+  const comparability = facts.length === 0
     ? 'sparse'
     : input.completeVisibleHistory
       ? 'complete_visible_history'
