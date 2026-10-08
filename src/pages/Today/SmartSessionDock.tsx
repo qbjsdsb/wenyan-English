@@ -1,4 +1,4 @@
-import { type PreparedSmartSession, prepareSmartVocabularySession, startPreparedVocabularyBlock } from '@/smart-session/adapter'
+import { type PreparedSmartSession, assertPreparedVocabularyBlockStartable, prepareSmartVocabularySession, startPreparedVocabularyBlock } from '@/smart-session/adapter'
 import { type ResolvedSmartSessionIntent, bindResolvedSessionIntent, resolveSmartSessionLearningIntent } from '@/smart-session/learningIntent'
 import {
   acknowledgeSmartBreak,
@@ -44,7 +44,7 @@ function blockMeta(prepared: PreparedSmartSession | undefined, intent: ResolvedS
   const meta = block ? [`约 ${minutes} 分钟`, `${items} 个词`] : []
   if (intent?.source === 'cloud') meta.push('最近安排已应用')
   if (intent?.source === 'cached-cloud') meta.push('沿用最近有效安排')
-  if (prepared?.runtime.hardStopAt !== undefined) meta.push('到点按单词边界停止')
+  if (prepared?.runtime.hardStopMinutes !== undefined || prepared?.runtime.hardStopAt !== undefined) meta.push('到点按单词边界停止')
   return meta
 }
 
@@ -119,6 +119,7 @@ export default function SmartSessionDock() {
         return
       }
 
+      if (prepared.kind === 'draft') assertPreparedVocabularyBlockStartable(prepared)
       await bindResolvedSessionIntent(intent, prepared.runtime.id)
       const active = prepared.kind === 'resume' ? prepared : await startPreparedVocabularyBlock(prepared)
       const record = active.record
