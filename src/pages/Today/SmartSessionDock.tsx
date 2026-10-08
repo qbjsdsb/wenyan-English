@@ -193,7 +193,7 @@ export default function SmartSessionDock() {
   const hasBlock = prepared?.kind === 'resume' || (prepared?.kind === 'draft' && prepared.draft.blocks.length > 0)
   const isBreak = prepared?.kind === 'draft' && prepared.draft.disposition === 'break'
   const canSmartStart = Boolean(hasBlock || isBreak)
-  const showNote = Boolean(note && (!hasBlock || intent?.warnings.length))
+  const showNote = Boolean(note)
   const primaryLabel = busy
     ? '正在准备…'
     : isBreak
@@ -226,7 +226,7 @@ export default function SmartSessionDock() {
             </div>
           )}
 
-          {showNote && <p className="wenyan-muted mt-3 max-w-2xl text-xs leading-5">{note}</p>}
+          {showNote && <p className="wenyan-muted mt-3 max-w-2xl text-[11px] leading-5">{note}</p>}
           {error && <p role="alert" className="mt-3 text-xs leading-5 text-[var(--wenyan-danger)]">{error}</p>}
         </div>
 
