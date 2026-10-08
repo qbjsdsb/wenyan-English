@@ -1,9 +1,9 @@
 import { TypingContext, TypingStateActionType } from '../../store'
 import Tooltip from '@/components/Tooltip'
 import { randomConfigAtom } from '@/store'
-import { autoUpdate, offset, useFloating, useHover, useInteractions } from '@floating-ui/react'
+import { Pause, Play, RotateCcw } from 'lucide-react'
 import { useAtomValue } from 'jotai'
-import { useCallback, useContext, useState } from 'react'
+import { useCallback, useContext } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 
 export default function StartButton({ isLoading }: { isLoading: boolean }) {
@@ -21,55 +21,35 @@ export default function StartButton({ isLoading }: { isLoading: boolean }) {
 
   useHotkeys('enter', onToggleIsTyping, { enableOnFormTags: true, preventDefault: true }, [onToggleIsTyping])
 
-  const [isShowReStartButton, setIsShowReStartButton] = useState(false)
-  const { refs, context } = useFloating({
-    open: isShowReStartButton,
-    onOpenChange: setIsShowReStartButton,
-    whileElementsMounted: autoUpdate,
-    middleware: [offset(5)],
-  })
-  const hoverButton = useHover(context)
-  const { getReferenceProps, getFloatingProps } = useInteractions([hoverButton])
-
   return (
-    <Tooltip content={`${state.isTyping ? '暂停' : '开始'} （Enter）`} className="box-content h-7 w-8 px-6 py-1">
-      <div
-        ref={refs.setReference}
-        {...getReferenceProps()}
-        className={`${
-          state.isTyping
-            ? 'bg-gray-400 shadow-gray-200 dark:bg-gray-600  dark:shadow-none'
-            : 'bg-indigo-500 shadow-indigo-300 dark:shadow-indigo-500/60'
-        } ${
-          isShowReStartButton ? 'h-20' : 'h-auto'
-        } flex-column absolute left-0 top-0 w-20 rounded-lg shadow-lg transition-colors duration-200`}
-      >
+    <div className="flex items-center gap-1.5">
+      <Tooltip content={`${state.isTyping ? '暂停' : '开始'}（Enter）`}>
         <button
           className={`${
-            state.isTyping ? 'bg-gray-400  dark:bg-gray-700 dark:hover:bg-gray-500' : 'bg-indigo-500'
-          } my-btn-primary w-20 shadow`}
+            state.isTyping
+              ? 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
+              : 'border-gray-950 bg-gray-950 text-white hover:bg-gray-800 dark:border-gray-100 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white'
+          } inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-medium shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40`}
           type="button"
           disabled={isLoading}
           onClick={onToggleIsTyping}
           aria-label={state.isTyping ? '暂停' : '开始'}
         >
-          <span className="font-medium">{state.isTyping ? 'Pause' : 'Start'}</span>
+          {state.isTyping ? <Pause aria-hidden="true" size={15} /> : <Play aria-hidden="true" size={15} />}
+          <span>{state.isTyping ? '暂停' : '开始'}</span>
         </button>
-        {isShowReStartButton && (
-          <div className="absolute bottom-0 flex w-20 justify-center" ref={refs.setFloating} {...getFloatingProps()}>
-            <button
-              className={`${
-                state.isTyping ? 'bg-gray-500 dark:bg-gray-700 dark:hover:bg-gray-500 ' : 'bg-indigo-400 '
-              } my-btn-primary mb-1 mt-1 w-18  transition-colors duration-200`}
-              type="button"
-              onClick={onClickRestart}
-              aria-label={'重新开始'}
-            >
-              Restart
-            </button>
-          </div>
-        )}
-      </div>
-    </Tooltip>
+      </Tooltip>
+
+      <Tooltip content="重新开始当前章节">
+        <button
+          type="button"
+          onClick={onClickRestart}
+          aria-label="重新开始当前章节"
+          className="grid h-10 w-10 place-items-center rounded-xl border border-gray-200 bg-white/70 text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-800 dark:border-white/10 dark:bg-white/5 dark:text-gray-500 dark:hover:bg-white/10 dark:hover:text-gray-200"
+        >
+          <RotateCcw aria-hidden="true" size={15} />
+        </button>
+      </Tooltip>
+    </div>
   )
 }
