@@ -180,25 +180,17 @@ export default function WordPanel() {
 
   return (
     <div className="wenyan-word-stage flex h-full w-full flex-col items-center justify-center">
-      <div className="flex h-16 w-full shrink-0 grow-0 justify-between px-8 pt-6">
-        {isShowPrevAndNextWord && state.isTyping && (
-          <>
-            <PrevAndNextWord type="prev" />
-            <PrevAndNextWord type="next" />
-          </>
-        )}
-      </div>
-      <div className="flex flex-grow flex-col items-center justify-center">
+      {isShowPrevAndNextWord && state.isTyping && (
+        <div className="absolute inset-x-6 top-8 z-10 flex items-center justify-between">
+          <PrevAndNextWord type="prev" />
+          <PrevAndNextWord type="next" />
+        </div>
+      )}
+
+      <div className="flex w-full flex-grow flex-col items-center justify-center px-8 pt-8">
         {currentWord && (
           <div className="wenyan-fade-in relative flex w-full justify-center">
-            {!state.isTyping && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-transparent">
-                <p className="select-none text-center text-[13px] font-medium tracking-[0.01em] text-[var(--wenyan-accent)]">
-                  按任意键{state.timerData.time ? '继续' : '开始'}
-                </p>
-              </div>
-            )}
-            <div className={`relative transition-transform duration-200 ${state.isTyping ? '-translate-y-4' : '-translate-y-1'}`}>
+            <div className={`relative flex flex-col items-center transition-transform duration-200 ${state.isTyping ? '-translate-y-3' : '-translate-y-1'}`}>
               <WordComponent word={currentWord} onFinish={onFinish} key={wordComponentKey} />
               {phoneticConfig.isOpen && <Phonetic word={currentWord} />}
               <Translation
@@ -207,11 +199,16 @@ export default function WordPanel() {
                 onMouseEnter={() => handleShowTranslation(true)}
                 onMouseLeave={() => handleShowTranslation(false)}
               />
+              {!state.isTyping && (
+                <p className="mt-3 select-none text-center text-[11px] font-medium tracking-[0.02em] text-[var(--wenyan-accent)]">
+                  按任意键{state.timerData.time ? '继续' : '开始'}
+                </p>
+              )}
             </div>
           </div>
         )}
       </div>
-      <Progress className={`mb-8 mt-auto transition-opacity duration-200 ${state.isTyping ? 'opacity-100' : 'opacity-0'}`} />
+      <Progress className={`mb-7 mt-auto transition-opacity duration-200 ${state.isTyping ? 'opacity-65' : 'opacity-0'}`} />
     </div>
   )
 }
