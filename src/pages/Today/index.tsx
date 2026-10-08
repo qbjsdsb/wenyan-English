@@ -17,9 +17,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import SmartSessionDock from './SmartSessionDock'
 
-const secondary =
-  'rounded-lg border border-black/[0.1] px-3.5 py-2 text-sm text-gray-600 transition-colors hover:bg-black/[0.03] disabled:opacity-50 dark:border-white/[0.12] dark:text-gray-400 dark:hover:bg-white/[0.05]'
-const quietLink = 'text-sm text-gray-500 transition-colors hover:text-gray-950 dark:text-gray-500 dark:hover:text-gray-200'
+const secondary = 'wenyan-button-secondary'
+const quietLink = 'wenyan-link text-sm'
 
 function planSource(plan: StoredStudyPlan) {
   if (plan.origin === 'cloud') return '云端'
@@ -154,14 +153,14 @@ export default function TodayPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col text-gray-900 dark:text-gray-100">
+    <div className="flex min-h-screen flex-col text-[var(--wenyan-ink)]">
       <Header />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-12 pt-10">
-        <div className="mb-7 flex items-baseline justify-between gap-6">
-          <h1 className="text-[30px] font-semibold tracking-[-0.035em] text-gray-950 dark:text-gray-100">今天</h1>
-          <div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-600">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-12 pt-11">
+        <div className="mb-8 flex items-baseline justify-between gap-6">
+          <h1 className="wenyan-page-title">今天</h1>
+          <div className="wenyan-muted flex items-center gap-4 text-xs">
             <span>{today}</span>
-            <Link to="/sync" className="transition-colors hover:text-gray-700 dark:hover:text-gray-300">
+            <Link to="/sync" className="wenyan-link text-xs">
               {data ? (data.pending ? `${data.pending} 条待同步` : '已同步') : '同步中'}
             </Link>
           </div>
@@ -169,10 +168,10 @@ export default function TodayPage() {
 
         <SmartSessionDock />
 
-        <section aria-label="今日概况" className="mb-10 grid grid-cols-[minmax(0,1fr)_repeat(3,120px)] items-center gap-6 border-b border-black/[0.08] pb-8 dark:border-white/[0.09]">
+        <section aria-label="今日概况" className="wenyan-soft-surface mb-11 grid grid-cols-[minmax(0,1fr)_repeat(3,112px)] items-center gap-6 px-5 py-5">
           <div className="min-w-0">
-            <div className="text-sm font-medium text-gray-900 dark:text-gray-200">{dict.name}</div>
-            <div className="mt-1 text-xs text-gray-500 dark:text-gray-500">第 {chapter + 1} 章</div>
+            <div className="text-sm font-semibold text-[var(--wenyan-ink)]">{dict.name}</div>
+            <div className="wenyan-muted mt-1 text-xs">第 {chapter + 1} 章</div>
             <div className="mt-3 flex items-center gap-4">
               <Link to="/" className={quietLink}>打开</Link>
               <Link to="/gallery" className={quietLink}>切换词书</Link>
@@ -185,31 +184,31 @@ export default function TodayPage() {
             [data?.chapters ?? '—', '完成章节'],
           ].map(([value, label]) => (
             <div key={label} className="text-right">
-              <div className="text-xl font-semibold tabular-nums text-gray-950 dark:text-gray-100">{value}</div>
-              <div className="mt-1 text-[11px] text-gray-400 dark:text-gray-600">{label}</div>
+              <div className="text-[21px] font-semibold tabular-nums tracking-[-0.02em] text-[var(--wenyan-ink)]">{value}</div>
+              <div className="wenyan-muted mt-1 text-[11px]">{label}</div>
             </div>
           ))}
         </section>
 
-        <section aria-label="学习计划" className="mb-10">
+        <section aria-label="学习计划" className="mb-11">
           <div className="mb-4 flex items-center justify-between gap-6">
-            <h2 className="text-lg font-semibold tracking-[-0.02em] text-gray-950 dark:text-gray-100">计划</h2>
+            <h2 className="wenyan-section-title">计划</h2>
             <div className="flex items-center gap-4">
-              <button disabled={cloudBusy} onClick={() => void refreshCloudPlan(true)} className={`${quietLink} inline-flex items-center gap-1.5 disabled:opacity-50`}>
+              <button disabled={cloudBusy} onClick={() => void refreshCloudPlan(true)} className="wenyan-link inline-flex items-center gap-1.5 text-sm disabled:opacity-50">
                 <RefreshCw aria-hidden="true" size={13} className={cloudBusy ? 'animate-spin' : ''} />
                 {cloudBusy ? '同步中' : '刷新'}
               </button>
-              <button onClick={() => setShowImport(!showImport)} className={quietLink}>
+              <button onClick={() => setShowImport(!showImport)} className="wenyan-link text-sm">
                 {showImport ? '收起导入' : '导入计划'}
               </button>
             </div>
           </div>
 
-          {cloudMessage && <p role="status" className="mb-4 text-xs text-gray-500 dark:text-gray-500">{cloudMessage}</p>}
-          {message && <p role="status" className="mb-4 text-sm text-gray-700 dark:text-gray-300">{message}</p>}
+          {cloudMessage && <p role="status" className="wenyan-muted mb-4 text-xs">{cloudMessage}</p>}
+          {message && <p role="status" className="wenyan-body mb-4 text-sm">{message}</p>}
 
           {showImport && (
-            <div className="mb-5 border-y border-black/[0.08] py-5 dark:border-white/[0.09]">
+            <div className="wenyan-soft-surface mb-5 p-5">
               <label htmlFor="plan-json" className="text-sm font-medium">粘贴计划 JSON</label>
               <textarea
                 id="plan-json"
@@ -217,34 +216,34 @@ export default function TodayPage() {
                 onChange={(event) => setJson(event.target.value)}
                 rows={8}
                 spellCheck={false}
-                className="mt-3 w-full select-text rounded-lg border border-black/[0.1] bg-transparent p-3 font-mono text-xs dark:border-white/[0.12]"
+                className="wenyan-input mt-3 w-full select-text p-3 font-mono text-xs outline-none"
               />
               <div className="mt-3 flex items-center gap-3">
                 <button disabled={busy || !json.trim()} onClick={handleImport} className={secondary}>保存计划</button>
-                <a href="https://github.com/qbjsdsb/wenyan-English/blob/main/docs/PLAN_FORMAT.md" target="_blank" rel="noreferrer" className="text-xs text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">格式说明</a>
+                <a href="https://github.com/qbjsdsb/wenyan-English/blob/main/docs/PLAN_FORMAT.md" target="_blank" rel="noreferrer" className="wenyan-link text-xs">格式说明</a>
               </div>
             </div>
           )}
 
           {!data ? (
-            <p className="py-6 text-sm text-gray-500">正在读取计划…</p>
+            <p className="wenyan-muted py-6 text-sm">正在读取计划…</p>
           ) : data.plans.length === 0 ? (
-            <div className="flex items-center justify-between border-t border-black/[0.08] py-5 dark:border-white/[0.09]">
-              <span className="text-sm text-gray-500">还没有安排</span>
+            <div className="flex items-center justify-between py-5">
+              <span className="wenyan-muted text-sm">还没有安排</span>
               <button disabled={busy} onClick={createToday} className={secondary}>安排一章</button>
             </div>
           ) : (
-            <div className="border-t border-black/[0.08] dark:border-white/[0.09]">
-              {data.plans.map((plan) => (
-                <article key={plan.id} className="border-b border-black/[0.07] py-5 dark:border-white/[0.08]">
+            <div>
+              {data.plans.map((plan, planIndex) => (
+                <article key={plan.id} className={`${planIndex > 0 ? 'border-t border-[var(--wenyan-line-soft)]' : ''} py-5`}>
                   <div className="mb-3 flex items-center justify-between gap-4">
                     <div className="flex min-w-0 items-baseline gap-3">
-                      <h3 className="truncate text-sm font-medium text-gray-900 dark:text-gray-200">{plan.title}</h3>
-                      <span className="text-[11px] text-gray-400 dark:text-gray-600">{planSource(plan)}</span>
+                      <h3 className="truncate text-sm font-semibold text-[var(--wenyan-ink)]">{plan.title}</h3>
+                      <span className="wenyan-muted text-[11px]">{planSource(plan)}</span>
                     </div>
                     {plan.origin !== 'cloud' && (
                       <button
-                        className="text-xs text-gray-400 transition-colors hover:text-gray-800 dark:hover:text-gray-300"
+                        className="wenyan-link text-xs"
                         onClick={() => saveAs(new Blob([exportStudyPlan(plan)], { type: 'application/json' }), `wenyan-plan-${plan.id}.json`)}
                       >
                         导出
@@ -253,26 +252,26 @@ export default function TodayPage() {
                   </div>
 
                   {plan.tasks.length === 0 ? (
-                    <p className="text-xs text-gray-400">暂无可执行任务</p>
+                    <p className="wenyan-muted text-xs">暂无可执行任务</p>
                   ) : (
-                    <div className="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+                    <div>
                       {[...plan.tasks]
                         .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-                        .map((task) => {
+                        .map((task, taskIndex) => {
                           const runs = data.runs.filter((run) => run.planId === plan.id && run.taskId === task.id)
                           const complete = Boolean(plan.cloudCompletions?.[task.id]) || runs.some((run) => run.completionEventId)
                           const planToday = dateInTimezone(now, plan.timezone)
                           return (
-                            <div key={task.id} className="flex items-center justify-between gap-5 py-3.5" data-testid={`task-${task.id}`}>
+                            <div key={task.id} className={`${taskIndex > 0 ? 'border-t border-[var(--wenyan-line-soft)]' : ''} flex items-center justify-between gap-5 py-3.5`} data-testid={`task-${task.id}`}>
                               <div className="min-w-0">
-                                <h4 className="text-sm text-gray-800 dark:text-gray-300">{task.title}</h4>
-                                <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-600">
+                                <h4 className="text-sm text-[var(--wenyan-ink-secondary)]">{task.title}</h4>
+                                <p className="wenyan-muted mt-1 text-[11px]">
                                   {task.dueDate === planToday ? '今天' : !complete && task.dueDate < planToday ? `${task.dueDate} · 待补` : task.dueDate}
                                   {' · '}{idDictionaryMap[task.dictId]?.name} · 第 {task.chapterIndex + 1} 章 · 约 {task.estimatedMinutes} 分钟
                                 </p>
                               </div>
                               {complete ? (
-                                <span className="shrink-0 text-xs text-emerald-700 dark:text-emerald-400">已完成 ✓</span>
+                                <span className="shrink-0 text-xs text-[var(--wenyan-success)]">已完成 ✓</span>
                               ) : (
                                 <button disabled={busy} onClick={() => launch(plan, task)} className={`${secondary} shrink-0`}>
                                   {runs.length ? '重新开始' : '开始任务'}
@@ -289,7 +288,7 @@ export default function TodayPage() {
           )}
         </section>
 
-        <nav aria-label="学习入口" className="flex items-center gap-6 border-t border-black/[0.08] pt-5 text-sm dark:border-white/[0.09]">
+        <nav aria-label="学习入口" className="flex items-center gap-6 pt-2 text-sm">
           <Link to="/error-book" className={quietLink}>错词</Link>
           <Link to="/reading/wenyan-demo-reading-01" className={quietLink}>阅读</Link>
           <Link to="/gallery" className={quietLink}>词库</Link>
