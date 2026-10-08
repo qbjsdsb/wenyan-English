@@ -5,6 +5,17 @@ import * as ScrollArea from '@radix-ui/react-scroll-area'
 import { useAtom } from 'jotai'
 import { useCallback } from 'react'
 
+function SettingSwitch({ checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: string }) {
+  return (
+    <div className={styles.switchBlock}>
+      <Switch checked={checked} onChange={onChange} className="switch-root" aria-label={label}>
+        <span aria-hidden="true" className="switch-thumb" />
+      </Switch>
+      <span className="wenyan-setting-state">{checked ? '开启' : '关闭'}</span>
+    </div>
+  )
+}
+
 export default function AdvancedSetting() {
   const [randomConfig, setRandomConfig] = useAtom(randomConfigAtom)
   const [isShowPrevAndNextWord, setIsShowPrevAndNextWord] = useAtom(isShowPrevAndNextWordAtom)
@@ -12,110 +23,60 @@ export default function AdvancedSetting() {
   const [isTextSelectable, setIsTextSelectable] = useAtom(isTextSelectableAtom)
   const [isShowAnswerOnHover, setIsShowAnswerOnHover] = useAtom(isShowAnswerOnHoverAtom)
 
-  const onToggleRandom = useCallback(
-    (checked: boolean) => {
-      setRandomConfig((prev) => ({
-        ...prev,
-        isOpen: checked,
-      }))
-    },
-    [setRandomConfig],
-  )
+  const onToggleRandom = useCallback((checked: boolean) => setRandomConfig((prev) => ({ ...prev, isOpen: checked })), [setRandomConfig])
+  const onToggleLastAndNextWord = useCallback((checked: boolean) => setIsShowPrevAndNextWord(checked), [setIsShowPrevAndNextWord])
+  const onToggleIgnoreCase = useCallback((checked: boolean) => setIsIgnoreCase(checked), [setIsIgnoreCase])
+  const onToggleTextSelectable = useCallback((checked: boolean) => setIsTextSelectable(checked), [setIsTextSelectable])
+  const onToggleShowAnswerOnHover = useCallback((checked: boolean) => setIsShowAnswerOnHover(checked), [setIsShowAnswerOnHover])
 
-  const onToggleLastAndNextWord = useCallback(
-    (checked: boolean) => {
-      setIsShowPrevAndNextWord(checked)
+  const rows = [
+    {
+      title: '章节乱序',
+      description: '下一次进入章节时随机单词顺序，适合减少位置记忆。',
+      checked: randomConfig.isOpen,
+      onChange: onToggleRandom,
     },
-    [setIsShowPrevAndNextWord],
-  )
-
-  const onToggleIgnoreCase = useCallback(
-    (checked: boolean) => {
-      setIsIgnoreCase(checked)
+    {
+      title: '上下文单词',
+      description: '练习时显示上一个和下一个单词；默认会保持很低的视觉权重。',
+      checked: isShowPrevAndNextWord,
+      onChange: onToggleLastAndNextWord,
     },
-    [setIsIgnoreCase],
-  )
-
-  const onToggleTextSelectable = useCallback(
-    (checked: boolean) => {
-      setIsTextSelectable(checked)
+    {
+      title: '忽略大小写',
+      description: '开启后，hello 与 Hello 会被视为同一个正确答案。',
+      checked: isIgnoreCase,
+      onChange: onToggleIgnoreCase,
     },
-    [setIsTextSelectable],
-  )
-  const onToggleShowAnswerOnHover = useCallback(
-    (checked: boolean) => {
-      setIsShowAnswerOnHover(checked)
+    {
+      title: '允许选择文本',
+      description: '允许鼠标选中页面文字，方便复制或查阅。',
+      checked: isTextSelectable,
+      onChange: onToggleTextSelectable,
     },
-    [setIsShowAnswerOnHover],
-  )
+    {
+      title: '默写时悬停提示',
+      description: '在默写模式下，鼠标悬停单词区域时可查看正确答案。',
+      checked: isShowAnswerOnHover,
+      onChange: onToggleShowAnswerOnHover,
+    },
+  ]
 
   return (
-    <ScrollArea.Root className="flex-1 select-none overflow-y-auto ">
-      <ScrollArea.Viewport className="h-full w-full px-3">
+    <ScrollArea.Root className="flex-1 select-none overflow-y-auto">
+      <ScrollArea.Viewport className="h-full w-full">
         <div className={styles.tabContent}>
-          <div className={styles.section}>
-            <span className={styles.sectionLabel}>章节乱序</span>
-            <span className={styles.sectionDescription}>开启后，每次练习章节中单词会随机排序。下一章节生效</span>
-            <div className={styles.switchBlock}>
-              <Switch checked={randomConfig.isOpen} onChange={onToggleRandom} className="switch-root">
-                <span aria-hidden="true" className="switch-thumb" />
-              </Switch>
-              <span className="text-right text-xs font-normal leading-tight text-gray-600">{`随机已${
-                randomConfig.isOpen ? '开启' : '关闭'
-              }`}</span>
-            </div>
-          </div>
-          <div className={styles.section}>
-            <span className={styles.sectionLabel}>练习时展示上一个/下一个单词</span>
-            <span className={styles.sectionDescription}>开启后，练习中会在上方展示上一个/下一个单词</span>
-            <div className={styles.switchBlock}>
-              <Switch checked={isShowPrevAndNextWord} onChange={onToggleLastAndNextWord} className="switch-root">
-                <span aria-hidden="true" className="switch-thumb" />
-              </Switch>
-              <span className="text-right text-xs font-normal leading-tight text-gray-600">{`展示单词已${
-                isShowPrevAndNextWord ? '开启' : '关闭'
-              }`}</span>
-            </div>
-          </div>
-          <div className={styles.section}>
-            <span className={styles.sectionLabel}>是否忽略大小写</span>
-            <span className={styles.sectionDescription}>开启后，输入时不区分大小写，如输入“hello”和“Hello”都会被认为是正确的</span>
-            <div className={styles.switchBlock}>
-              <Switch checked={isIgnoreCase} onChange={onToggleIgnoreCase} className="switch-root">
-                <span aria-hidden="true" className="switch-thumb" />
-              </Switch>
-              <span className="text-right text-xs font-normal leading-tight text-gray-600">{`忽略大小写已${
-                isIgnoreCase ? '开启' : '关闭'
-              }`}</span>
-            </div>
-          </div>
-          <div className={styles.section}>
-            <span className={styles.sectionLabel}>是否允许选择文本</span>
-            <span className={styles.sectionDescription}>开启后，可以通过鼠标选择文本 </span>
-            <div className={styles.switchBlock}>
-              <Switch checked={isTextSelectable} onChange={onToggleTextSelectable} className="switch-root">
-                <span aria-hidden="true" className="switch-thumb" />
-              </Switch>
-              <span className="text-right text-xs font-normal leading-tight text-gray-600">{`选择文本已${
-                isTextSelectable ? '开启' : '关闭'
-              }`}</span>
-            </div>
-          </div>
-          <div className={styles.section}>
-            <span className={styles.sectionLabel}>是否允许默写模式下显示提示</span>
-            <span className={styles.sectionDescription}>开启后，可以通过鼠标 hover 单词显示正确答案 </span>
-            <div className={styles.switchBlock}>
-              <Switch checked={isShowAnswerOnHover} onChange={onToggleShowAnswerOnHover} className="switch-root">
-                <span aria-hidden="true" className="switch-thumb" />
-              </Switch>
-              <span className="text-right text-xs font-normal leading-tight text-gray-600">{`显示提示已${
-                isShowAnswerOnHover ? '开启' : '关闭'
-              }`}</span>
-            </div>
-          </div>
+          {rows.map((row) => (
+            <section key={row.title} className={styles.section}>
+              <div className="w-full">
+                <span className={styles.sectionLabel}>{row.title}</span>
+                <p className={`${styles.sectionDescription} mt-1`}>{row.description}</p>
+              </div>
+              <SettingSwitch checked={row.checked} onChange={row.onChange} label={row.title} />
+            </section>
+          ))}
         </div>
       </ScrollArea.Viewport>
-      <ScrollArea.Scrollbar className="flex touch-none select-none bg-transparent " orientation="vertical"></ScrollArea.Scrollbar>
     </ScrollArea.Root>
   )
 }

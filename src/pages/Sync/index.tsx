@@ -1,3 +1,4 @@
+import { LoadingUI } from '@/components/Loading'
 import Header from '@/components/Header'
 import { getWenyanRedirectUrl, supabase } from '@/supabase/client'
 import { type LearningQueueSummary, claimUnownedLearningEvents, getLearningQueueSummary } from '@/sync/learningQueue'
@@ -19,6 +20,7 @@ const emptySummary: LearningQueueSummary = { currentAccount: 0, unclaimed: 0, ot
 
 export default function SyncPage() {
   const [session, setSession] = useState<Session | null>(null)
+  const [authReady, setAuthReady] = useState(false)
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
   const [queue, setQueue] = useState<LearningQueueSummary>(emptySummary)
@@ -31,10 +33,12 @@ export default function SyncPage() {
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
+      setAuthReady(true)
       void refreshQueue(data.session?.user.id)
     })
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession)
+      setAuthReady(true)
       void refreshQueue(nextSession?.user.id)
     })
     return () => data.subscription.unsubscribe()
@@ -95,7 +99,14 @@ export default function SyncPage() {
           <p className="wenyan-muted mt-2 text-sm">学习记录在设备之间保持一致</p>
         </div>
 
-        {session ? (
+        {!authReady ? (
+          <section className="wenyan-surface flex min-h-[210px] items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <LoadingUI label="正在确认登录状态" />
+              <p className="wenyan-muted text-[11px]">正在确认登录状态</p>
+            </div>
+          </section>
+        ) : session ? (
           <section className={`wenyan-sync-surface ${busy ? 'is-busy' : ''} overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]`}>
             <div className="relative z-[1] flex items-center justify-between gap-5 border-b border-[var(--wenyan-line-soft)] px-5 py-5">
               <div>
@@ -146,7 +157,7 @@ export default function SyncPage() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
               />
-              <button className="wenyan-button-primary" disabled={busy || !email.trim()} onClick={sendMagicLink}>发送登录链接</button>
+              <button className="wenyan-button-primary" disabled={busy || !email.trim()} onClick={sendMagicLink}>{busy ? '发送中…' : '发送登录链接'}</button>
             </div>
             <p className="wenyan-muted mt-3 text-xs">仅登录已有账号，不会自动创建新用户。</p>
           </section>
