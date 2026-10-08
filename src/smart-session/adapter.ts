@@ -18,6 +18,7 @@ import { wordListFetcher } from '@/utils/wordListFetcher'
 const DAY = 86_400_000
 const SHANGHAI_OFFSET = 8 * 60 * 60 * 1000
 const DEFAULT_WORD_SECONDS = 15
+const HARD_STOP_RESERVE_MS = 60_000
 
 export function smartVocabularyKey(word: string) {
   return `spelling:${word.trim().toLocaleLowerCase()}`
@@ -65,7 +66,11 @@ export async function prepareSmartVocabularySession(
   const dictionary = idDictionaryMap[dictId]
   if (!dictionary || dictionary.language !== 'en') throw new Error('smart_session_requires_english_dictionary')
 
-  let runtime = await loadSmartSessionRuntime(dictId, now)
+  const ownerUserId = getLocalLearningOwnerId()
+  let runtime = await loadSmartSessionRuntime(dictId, now, {
+    ownerUserId,
+    hardStopMinutes: constraints.hardStopMinutes,
+  })
   if (runtime.currentBlock) {
     const record = await db.reviewRecords.get(runtime.currentBlock.reviewRecordId)
     if (record && !record.isFinished) return { kind: 'resume', runtime, record: record as ReviewRecord }
@@ -75,7 +80,6 @@ export async function prepareSmartVocabularySession(
     wordListFetcher(dictionary.url),
     db.learningEvents.where('eventType').equals('word_attempted').toArray(),
   ])
-  const ownerUserId = getLocalLearningOwnerId()
   const visibleEvents = rawEvents
     .filter((event) => visibleToCurrentOwner(ownerUserId, event.ownerUserId))
     .map((event) => ({ event, payload: wordAttemptPayload(event.payload) }))
@@ -146,10 +150,17 @@ export async function prepareSmartVocabularySession(
 
 export async function startPreparedVocabularyBlock(
   prepared: Extract<PreparedSmartSession, { kind: 'draft' }>,
+  now = Date.now(),
 ): Promise<{ runtime: SmartSessionRuntime; record: ReviewRecord }> {
   const block: SessionBlock | undefined = prepared.draft.blocks[0]
   if (!block || block.activity.kind !== 'vocabulary' || block.activity.items.length === 0) {
     throw new Error('smart_session_has_no_vocabulary_block')
+  }
+  if (prepared.runtime.hardStopAt !== undefined) {
+    if (now >= prepared.runtime.hardStopAt) throw new Error('smart_session_hard_stop_reached')
+    if (now + block.estimatedSeconds * 1000 + HARD_STOP_RESERVE_MS > prepared.runtime.hardStopAt) {
+      throw new Error('smart_session_hard_stop_would_be_exceeded')
+    }
   }
 
   const words = block.activity.items.map((item) => {
@@ -161,12 +172,16 @@ export async function startPreparedVocabularyBlock(
   const reviewRecordId = await db.reviewRecords.add(record)
   record.id = reviewRecordId
 
-  const runtime = beginSmartBlock(prepared.runtime, {
-    reviewRecordId,
-    purpose: block.purpose,
-    keys: block.activity.items.map((item) => item.key),
-    estimatedSeconds: block.estimatedSeconds,
-  })
+  const runtime = beginSmartBlock(
+    prepared.runtime,
+    {
+      reviewRecordId,
+      purpose: block.purpose,
+      keys: block.activity.items.map((item) => item.key),
+      estimatedSeconds: block.estimatedSeconds,
+    },
+    now,
+  )
 
   return { runtime, record }
 }
