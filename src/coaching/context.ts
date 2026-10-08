@@ -1,5 +1,5 @@
 import type { CoachingContextInput, CoachingWordFact, ReadingCandidateContext, ReadingCandidateInput, StageReminderPreference } from './types'
-import { buildCoachDecisionSupportV1 } from './decision'
+import { buildCoachDecisionSupportV1 } from './decision.js'
 
 const DAY = 86_400_000
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
