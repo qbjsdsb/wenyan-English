@@ -139,6 +139,8 @@ html.dark {
 
 /* A word closes with a gentle breath before the next one arrives. */
 .wenyan-word-complete {
+  position: relative;
+  isolation: isolate;
   animation: wenyan-word-complete 260ms ease-out both;
 }
 
@@ -173,11 +175,17 @@ html.dark {
     color-mix(in srgb, var(--wenyan-canvas) 42%, transparent);
 }
 
+.wenyan-completion-stage > * {
+  position: relative;
+  z-index: 1;
+}
+
 .wenyan-completion-stage::before,
 .wenyan-completion-stage::after {
   content: '';
   position: fixed;
   inset: 0;
+  z-index: 0;
   pointer-events: none;
 }
 
@@ -200,6 +208,12 @@ html.dark {
   opacity: 0;
   transform: scale(0.86);
   animation: wenyan-completion-aurora 900ms ease-out both;
+}
+
+.wenyan-completion-stage .wenyan-surface {
+  box-shadow:
+    0 26px 72px color-mix(in srgb, var(--wenyan-canvas) 24%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--wenyan-accent) 7%, transparent);
 }
 
 @keyframes wenyan-completion-stars {
