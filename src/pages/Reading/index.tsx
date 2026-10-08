@@ -92,10 +92,12 @@ export default function ReadingPage() {
   }
 
   const answeredCount = answers.filter((answer) => answer.selectedOptionId).length
+  const progress = passage.questions.length ? Math.round((answeredCount / passage.questions.length) * 100) : 0
 
   return (
-    <div className="min-h-screen text-[var(--wenyan-ink)]">
-      <header className="sticky top-0 z-40 border-b border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper)]">
+    <div className="wenyan-reading-shell min-h-screen text-[var(--wenyan-ink)]">
+      <div className="wenyan-reading-progress" style={{ width: `${summary ? 100 : progress}%` }} aria-hidden="true" />
+      <header className="sticky top-0 z-40 border-b border-[var(--wenyan-line-soft)] bg-[color-mix(in_srgb,var(--wenyan-paper)_90%,transparent)] backdrop-blur-xl">
         <div className="mx-auto flex h-[58px] max-w-6xl items-center justify-between px-6">
           <div className="flex min-w-0 items-center gap-4">
             <Link to="/today" className="wenyan-brand text-[20px] font-semibold no-underline">Wenyan</Link>
@@ -122,7 +124,11 @@ export default function ReadingPage() {
               const answer = answers.find((item) => item.questionId === question.id)
               const correct = summary ? answer?.selectedOptionId === question.correctOptionId : undefined
               return (
-                <article key={question.id} className={`${index > 0 ? 'border-t border-[var(--wenyan-line-soft)]' : ''} py-6 first:pt-0`}>
+                <article
+                  key={question.id}
+                  className={`wenyan-reading-question ${summary ? 'is-revealed' : ''} ${index > 0 ? 'border-t border-[var(--wenyan-line-soft)]' : ''} py-6 first:pt-0`}
+                  style={summary ? { animationDelay: `${index * 55}ms` } : undefined}
+                >
                   <div className="mb-2 flex items-baseline gap-3">
                     <span className="wenyan-muted text-[11px] tabular-nums">{String(index + 1).padStart(2, '0')}</span>
                     <h2 className="text-sm font-medium leading-7 text-[var(--wenyan-ink)]">{question.stem}</h2>
@@ -135,7 +141,7 @@ export default function ReadingPage() {
                       return (
                         <label
                           key={option.id}
-                          className={`${
+                          className={`wenyan-reading-option ${selected ? 'is-selected' : ''} ${showCorrect ? 'is-correct' : ''} ${showWrong ? 'is-wrong' : ''} ${
                             showCorrect
                               ? 'bg-[rgba(88,114,95,0.11)] text-[var(--wenyan-success)]'
                               : showWrong
@@ -143,7 +149,7 @@ export default function ReadingPage() {
                                 : selected
                                   ? 'bg-[var(--wenyan-accent-soft)] text-[var(--wenyan-ink)]'
                                   : 'text-[var(--wenyan-ink-secondary)] hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]'
-                          } flex cursor-pointer gap-3 rounded-[var(--wenyan-radius-sm)] px-3 py-2.5 text-sm leading-6 transition-colors`}
+                          } flex cursor-pointer gap-3 rounded-[var(--wenyan-radius-sm)] px-3 py-2.5 text-sm leading-6`}
                         >
                           <input
                             type="radio"
@@ -170,9 +176,9 @@ export default function ReadingPage() {
             })}
           </div>
 
-          <div className="sticky bottom-0 mt-4 border-t border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper)] py-4">
+          <div className="sticky bottom-0 mt-4 border-t border-[var(--wenyan-line-soft)] bg-[color-mix(in_srgb,var(--wenyan-paper)_90%,transparent)] py-4 backdrop-blur-xl">
             {summary ? (
-              <div className="flex items-center justify-between gap-5">
+              <div className="wenyan-reading-result flex items-center justify-between gap-5">
                 <div>
                   <p className="wenyan-muted text-xs">本次结果</p>
                   <p className="mt-1 text-lg font-semibold tabular-nums text-[var(--wenyan-ink)]">{summary.correctCount} / {summary.questionCount}</p>

@@ -69,11 +69,11 @@ export function ErrorBook() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col text-[var(--wenyan-ink)]">
-      <div className={currentRowDetail ? 'blur-[1px]' : undefined}>
+    <div className="wenyan-studio-shell flex min-h-screen flex-col text-[var(--wenyan-ink)]">
+      <div className={`transition-[filter] duration-150 ${currentRowDetail ? 'blur-[1px]' : ''}`}>
         <Header />
       </div>
-      <main className={`mx-auto w-full max-w-5xl flex-1 px-6 pb-14 pt-9 ${currentRowDetail ? 'blur-[1px]' : ''}`}>
+      <main className={`mx-auto w-full max-w-5xl flex-1 px-6 pb-14 pt-9 transition-[filter] duration-150 ${currentRowDetail ? 'blur-[1px]' : ''}`}>
         <div className="mb-7 flex items-end justify-between gap-6">
           <div>
             <h1 className="wenyan-page-title">错词</h1>

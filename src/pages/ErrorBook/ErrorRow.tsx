@@ -19,6 +19,7 @@ const ErrorRow: FC<IErrorRowProps> = ({ record, onDelete }) => {
   const setCurrentRowDetail = useSetAtom(currentRowDetailAtom)
   const dictInfo = idDictionaryMap[record.dict]
   const { word, isLoading, hasError } = useGetWord(record.word, dictInfo)
+  const emberLevel = record.wrongCount >= 5 ? '3' : record.wrongCount >= 3 ? '2' : '1'
 
   const onClick = useCallback(() => {
     setCurrentRowDetail(record)
@@ -27,7 +28,7 @@ const ErrorRow: FC<IErrorRowProps> = ({ record, onDelete }) => {
 
   return (
     <div
-      className="grid cursor-pointer grid-cols-[1.2fr_3fr_100px_140px_36px] items-center gap-4 px-4 py-3.5 text-sm transition-colors hover:bg-[var(--wenyan-paper-muted)]"
+      className="grid cursor-pointer grid-cols-[1.2fr_3fr_100px_140px_36px] items-center gap-4 px-4 py-3.5 text-sm transition-[background-color,transform] duration-150 hover:bg-[var(--wenyan-paper-muted)]"
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -39,7 +40,10 @@ const ErrorRow: FC<IErrorRowProps> = ({ record, onDelete }) => {
       <span className="truncate text-[var(--wenyan-ink-secondary)]">
         {word ? word.trans.join('；') : <LoadingWordUI isLoading={isLoading} hasError={hasError} />}
       </span>
-      <span className="tabular-nums text-[var(--wenyan-ink-secondary)]">{record.wrongCount}</span>
+      <span className="wenyan-ember-count tabular-nums text-[var(--wenyan-ink-secondary)]">
+        <span className="wenyan-ember-dot" data-level={emberLevel} aria-hidden="true" />
+        {record.wrongCount}
+      </span>
       <span className="wenyan-muted truncate text-xs">{dictInfo?.name}</span>
       <span
         onClick={(event) => {

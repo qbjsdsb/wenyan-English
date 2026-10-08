@@ -58,7 +58,7 @@ export default function PreferencesPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col text-[var(--wenyan-ink)]">
+    <div className="wenyan-studio-shell flex min-h-screen flex-col text-[var(--wenyan-ink)]">
       <Header />
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 pb-16 pt-9">
         <div className="mb-7">
@@ -71,13 +71,13 @@ export default function PreferencesPage() {
         {loading ? (
           <p className="wenyan-muted border-y border-[var(--wenyan-line-soft)] py-8 text-sm">正在读取…</p>
         ) : !snapshot ? (
-          <div className="rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)] p-5">
+          <div className="wenyan-surface p-5">
             <p className="text-sm font-medium">需要先登录 Wenyan Cloud</p>
             <Link className="wenyan-link-accent mt-3 inline-block text-sm" to="/sync">去同步页面</Link>
           </div>
         ) : (
           <>
-            <section className="mb-5 rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)] px-5 py-4">
+            <section className="wenyan-surface mb-5 px-5 py-5">
               <div className="flex items-center justify-between gap-6">
                 <div>
                   <p className="wenyan-muted text-[10px]">当前阶段</p>
@@ -86,6 +86,18 @@ export default function PreferencesPage() {
                   </p>
                 </div>
                 <span className="wenyan-muted text-xs">{sourceLabel(snapshot)}</span>
+              </div>
+
+              <div className="wenyan-stage-path mt-6" aria-label="学习路径">
+                {stages.map((stage) => {
+                  const active = snapshot.learningStage.current === stage.id
+                  return (
+                    <div key={stage.id} className={`wenyan-stage-node ${active ? 'is-active' : ''}`}>
+                      <div className="wenyan-stage-node-dot" aria-hidden="true" />
+                      <div className={`text-[11px] ${active ? 'font-medium text-[var(--wenyan-ink)]' : 'text-[var(--wenyan-ink-muted)]'}`}>{stage.title}</div>
+                    </div>
+                  )
+                })}
               </div>
             </section>
 
