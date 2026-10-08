@@ -453,3 +453,58 @@ html.dark .dark\:border-white\/12 {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Recall choices carry equal visual weight: the interface must not reward a rating. */
+.wenyan-recall-choice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 52px;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--wenyan-line);
+  border-radius: var(--wenyan-radius-md);
+  background: var(--wenyan-paper-raised);
+  color: var(--wenyan-ink-secondary);
+  font-size: 14px;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+.wenyan-recall-choice:hover:not(:disabled) {
+  border-color: var(--wenyan-accent);
+  background: var(--wenyan-accent-soft);
+}
+.wenyan-recall-choice:focus-visible {
+  outline: 2px solid var(--wenyan-accent);
+  outline-offset: 3px;
+}
+.wenyan-recall-choice:disabled { opacity: 0.5; cursor: wait; }
+.wenyan-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  padding: 0.125rem 0.375rem;
+  border: 1px solid currentColor;
+  border-radius: 5px;
+  font-size: 10px;
+  font-family: inherit;
+  line-height: 1.4;
+  opacity: 0.6;
+}
+.wenyan-recall-progress {
+  display: block;
+  width: 100%;
+  height: 3px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 3px;
+  appearance: none;
+  background: var(--wenyan-line-soft);
+  color: var(--wenyan-accent);
+}
+.wenyan-recall-progress::-webkit-progress-bar { background: var(--wenyan-line-soft); }
+.wenyan-recall-progress::-webkit-progress-value { background: var(--wenyan-accent); }
+.wenyan-recall-progress::-moz-progress-bar { background: var(--wenyan-accent); }
+@media (prefers-reduced-motion: reduce) {
+  .wenyan-recall-choice { transition: none; }
+}

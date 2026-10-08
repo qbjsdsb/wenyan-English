@@ -234,13 +234,13 @@ export default function SmartSessionDock() {
       data-intent-source={intent?.source ?? 'loading'}
       className="wenyan-focus-surface wenyan-fade-in mb-9 px-7 py-7"
     >
-      <div className="relative z-[1] flex items-center justify-between gap-10">
+      <div className="relative z-[1] flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center sm:gap-10">
         <div className="min-w-0 max-w-2xl">
           <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold tracking-[0.015em] text-[var(--wenyan-accent)]">
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--wenyan-accent)] shadow-[0_0_0_4px_var(--wenyan-accent-soft)]" />
-            <span>继续学习</span>
+            <span>{prepared?.kind === 'resume' || prepared?.kind === 'semantic-resume' ? '接着上次的位置' : isBreak ? '留一点间隔' : '现在适合做'}</span>
           </div>
-          <h2 className="text-[27px] font-semibold leading-[1.24] tracking-[-0.036em] text-[var(--wenyan-ink)]">{label}</h2>
+          <h2 className="text-[25px] font-semibold leading-[1.4] sm:text-[28px] tracking-[-0.036em] text-[var(--wenyan-ink)]">{label}</h2>
 
           {meta.length > 0 && (
             <div className="wenyan-mono mt-3 flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--wenyan-ink-secondary)]" aria-label="这一段概况">
@@ -253,11 +253,11 @@ export default function SmartSessionDock() {
             </div>
           )}
 
-          {showNote && <p className="wenyan-muted mt-3 max-w-2xl text-[11px] leading-[1.7]">{note}</p>}
+          {showNote && <p className="wenyan-muted mt-3 max-w-xl text-[13px] leading-[1.8]">{note}</p>}
           {error && <p role="alert" className="mt-3 text-xs leading-5 text-[var(--wenyan-danger)]">{error}</p>}
         </div>
 
-        <div className="flex shrink-0 flex-col items-end gap-2.5">
+        <div className="flex w-full shrink-0 flex-col items-start gap-2.5 sm:w-auto sm:items-end">
           {error && (
             <button
               type="button"
@@ -272,7 +272,7 @@ export default function SmartSessionDock() {
             type="button"
             disabled={busy || (!prepared && !error) || Boolean(error)}
             onClick={() => void (canSmartStart ? start() : refresh())}
-            className={`${canSmartStart ? 'wenyan-button-primary' : 'wenyan-button-secondary'} inline-flex h-10 items-center gap-2 px-5`}
+            className={`${canSmartStart ? 'wenyan-button-primary' : 'wenyan-button-secondary'} inline-flex min-h-[44px] w-full items-center justify-center gap-2 px-6 sm:w-auto`}
           >
             <span>{primaryLabel}</span>
             {canSmartStart && !busy && <ArrowRight aria-hidden="true" size={14} strokeWidth={1.8} />}

@@ -87,6 +87,7 @@ export default function TodayPage() {
       pending,
       attempts: attempts.length,
       correct,
+      semantic: events.filter((event) => event.eventType === 'semantic_recall_attempted').length,
       chapters: events.filter((event) => event.eventType === 'chapter_completed').length,
     }
   }, [today])
@@ -156,20 +157,23 @@ export default function TodayPage() {
       <Header />
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-14 pt-10">
         <div className="mb-7 flex items-end justify-between gap-6">
-          <h1 className="wenyan-page-title">今天</h1>
+          <div>
+            <h1 className="wenyan-page-title">今天</h1>
+            <p className="wenyan-muted mt-2 text-sm">从眼前这一小段开始。</p>
+          </div>
           <div className="wenyan-mono flex items-center gap-2 text-[10px] text-[var(--wenyan-ink-muted)]">
             <span>{today}</span>
             <span aria-hidden="true" className="opacity-45">·</span>
             <Link to="/sync" className="wenyan-link text-[10px]">
-              {data ? (data.pending ? `${data.pending} 条待同步` : '已同步') : '同步中'}
+              {data ? (data.pending ? `本机已保存 · ${data.pending} 条待同步` : '查看同步状态') : '正在读取本机记录…'}
             </Link>
           </div>
         </div>
 
         <SmartSessionDock />
 
-        <section aria-label="今日概况" className="wenyan-overview-surface mb-10 grid grid-cols-[minmax(0,1fr)_repeat(3,104px)] items-center gap-6 px-6 py-5">
-          <div className="min-w-0">
+        <section aria-label="今日概况" className="wenyan-overview-surface mb-10 grid grid-cols-2 items-center gap-6 px-6 py-5 sm:grid-cols-4 lg:grid-cols-[minmax(0,1fr)_repeat(4,88px)]">
+          <div className="col-span-2 min-w-0 sm:col-span-4 lg:col-span-1">
             <div className="mb-1 text-[10px] font-medium tracking-[0.02em] text-[var(--wenyan-ink-muted)]">当前词书</div>
             <div className="truncate text-[14px] font-semibold text-[var(--wenyan-ink)]">{dict.name}</div>
             <div className="wenyan-muted mt-1 text-[11px]">第 {chapter + 1} 章</div>
@@ -180,8 +184,9 @@ export default function TodayPage() {
           </div>
 
           {[
-            [data?.attempts ?? '—', '今日练习', 'text-[var(--wenyan-accent)]'],
-            [data && data.attempts ? `${Math.round((data.correct / data.attempts) * 100)}%` : '—', '首次无错', 'text-[var(--wenyan-success)]'],
+            [data?.attempts ?? '—', '拼写次数', 'text-[var(--wenyan-accent)]'],
+            [data && data.attempts ? `${Math.round((data.correct / data.attempts) * 100)}%` : '—', '拼写无错', 'text-[var(--wenyan-success)]'],
+            [data?.semantic ?? '—', '词义回想', 'text-[var(--wenyan-accent)]'],
             [data?.chapters ?? '—', '完成章节', 'text-[var(--wenyan-warm)]'],
           ].map(([value, label, tone], index) => (
             <div key={label} className="border-l border-[var(--wenyan-line-soft)] pl-5 text-right">
@@ -232,8 +237,11 @@ export default function TodayPage() {
           {!data ? (
             <p className="wenyan-muted py-5 text-sm">正在读取计划…</p>
           ) : data.plans.length === 0 ? (
-            <div className="wenyan-overview-surface flex items-center justify-between px-5 py-4">
-              <span className="wenyan-muted text-sm">还没有安排</span>
+            <div className="wenyan-overview-surface flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+              <div>
+                <p className="text-sm text-[var(--wenyan-ink-secondary)]">不用先做计划，也可以开始。</p>
+                <p className="wenyan-muted mt-1 text-xs">使用上方的学习安排，或给今天留下一章。</p>
+              </div>
               <button disabled={busy} onClick={createToday} className={secondary}>安排一章</button>
             </div>
           ) : (
@@ -292,7 +300,7 @@ export default function TodayPage() {
           )}
         </section>
 
-        <nav aria-label="学习入口" className="flex items-center gap-5 pt-1 text-[13px]">
+        <nav aria-label="学习入口" className="flex flex-wrap items-center gap-5 pt-1 text-[13px]">
           <Link to="/error-book" className={quietLink}>错词</Link>
           <Link to="/reading/wenyan-demo-reading-01" className={quietLink}>阅读</Link>
           <Link to="/gallery" className={quietLink}>词库</Link>

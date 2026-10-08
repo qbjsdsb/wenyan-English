@@ -84,37 +84,42 @@ export default function SemanticPage() {
 
   const item = run?.items[run.index]
   return (
-    <div className="min-h-screen text-[var(--wenyan-ink)]">
+    <div className="wenyan-studio-shell min-h-screen text-[var(--wenyan-ink)]">
       <header className="mx-auto flex h-20 max-w-4xl items-center justify-between px-8">
         <Link className="wenyan-brand text-xl no-underline" to="/today">Wenyan</Link>
-        <Link className="wenyan-link text-sm" to="/today">暂停，回到今天</Link>
+        <Link className="wenyan-link text-sm" to="/today">{completed ? '回到今天' : '暂停，回到今天'}</Link>
       </header>
-      <main className="mx-auto max-w-3xl px-8 py-12">
+      <main className="mx-auto max-w-3xl px-5 py-6 sm:px-8 sm:py-10">
         <p className="wenyan-kicker">词义回想</p>
         <p className="wenyan-muted mt-3 text-sm" role="status">{saved ? '自评已保存在本机，联网后可同步。' : '先回想，再查看释义。随时可以暂停。'}</p>
         {error && <div role="alert" className="mt-6"><p>{error}</p><button className="wenyan-button-secondary mt-3" onClick={() => void restore()}>重新读取进度</button></div>}
         {!run && !error && <p role="status" className="wenyan-muted mt-12">正在找回刚才的位置…</p>}
         {run && (completed || (stopped && !revealed)) ? (
-          <section className="wenyan-focus-surface mt-10 p-10">
+          <section className="wenyan-focus-surface mt-8 p-6 sm:p-10">
             <h1 ref={focus} tabIndex={-1} className="text-3xl outline-none">{completed ? '这一段，已经留下记录。' : '到时间了，今天先到这里。'}</h1>
             <p className="wenyan-muted mt-5">已保存 {run.index} 个词的自评。它们会帮助下一次安排，不代表已经完全掌握。</p>
             <button className="wenyan-button-primary mt-8" onClick={async () => { await endSemanticRun(run.id); navigate('/today') }}>回到今天</button>
           </section>
         ) : run && item && (
-          <section className="wenyan-focus-surface mt-10 p-10">
-            <div className="wenyan-mono wenyan-muted text-xs">{run.index + 1} / {run.items.length}</div>
-            <h1 ref={focus} tabIndex={-1} className="mt-10 break-words text-5xl font-medium tracking-tight outline-none">{item.word}</h1>
+          <section className="wenyan-focus-surface mt-8 p-6 sm:p-10">
+            <div className="flex items-center justify-between gap-4">
+              <span className="wenyan-kicker">{revealed ? '核对与自评' : '先试着回想'}</span>
+              <span className="wenyan-mono wenyan-muted text-xs">{run.index + 1} / {run.items.length}</span>
+            </div>
+            <progress className="wenyan-recall-progress mt-4" value={run.index} max={run.items.length} aria-label="本段已保存的自评" />
+            <h1 ref={focus} tabIndex={-1} className="mt-10 break-words text-4xl font-medium tracking-tight sm:text-5xl outline-none">{item.word}</h1>
             {!revealed ? <>
               <p className="wenyan-muted mb-10 mt-6">这个词是什么意思？先在心里说出，再核对。</p>
-              <button disabled={busy || stopped} className="wenyan-button-primary" onClick={() => void reveal()}>查看释义 <span className="ml-3 opacity-60">Space</span></button>
+              <button disabled={busy || stopped} className="wenyan-button-primary" onClick={() => void reveal()}>查看释义 <kbd aria-hidden="true" className="wenyan-key ml-3">Space</kbd></button>
             </> : <>
-              <div className="my-8 space-y-3 text-xl leading-relaxed">{item.meanings.map((meaning, i) => <p key={i}>{meaning}</p>)}</div>
+              <div className="my-8 space-y-3 border-l-2 border-[var(--wenyan-line)] pl-5 text-lg leading-relaxed sm:text-xl">{item.meanings.map((meaning, i) => <p key={i}>{meaning}</p>)}</div>
               <p className="wenyan-muted mb-5 text-sm">{resumedAfterReveal ? '恢复时释义已揭示；请按刚才的真实回想情况自评。' : '对照释义，你刚才回想到了多少？这是自评，不是系统判分。'}</p>
-              <div className="flex flex-wrap gap-3">
-                <button className="wenyan-button-secondary" disabled={busy} onClick={() => void rate('not_recalled')}>1 没想起</button>
-                <button className="wenyan-button-secondary" disabled={busy} onClick={() => void rate('partial')}>2 想起部分</button>
-                <button className="wenyan-button-primary" disabled={busy} onClick={() => void rate('recalled')}>3 想起了</button>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <button className="wenyan-recall-choice" aria-label="1 没想起" aria-keyshortcuts="1" disabled={busy} onClick={() => void rate('not_recalled')}><kbd aria-hidden="true" className="wenyan-key">1</kbd><span>没想起</span></button>
+                <button className="wenyan-recall-choice" aria-label="2 想起部分" aria-keyshortcuts="2" disabled={busy} onClick={() => void rate('partial')}><kbd aria-hidden="true" className="wenyan-key">2</kbd><span>想起部分</span></button>
+                <button className="wenyan-recall-choice" aria-label="3 想起了" aria-keyshortcuts="3" disabled={busy} onClick={() => void rate('recalled')}><kbd aria-hidden="true" className="wenyan-key">3</kbd><span>想起了</span></button>
               </div>
+              <p className="wenyan-muted mt-4 text-xs">{busy ? '正在保存这次自评…' : '选择后保存并继续。不确定时，如实选择即可。'}</p>
             </>}
           </section>
         )}
