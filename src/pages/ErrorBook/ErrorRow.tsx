@@ -46,6 +46,7 @@ const ErrorRow: FC<IErrorRowProps> = ({ record, onDelete }) => {
           event.stopPropagation()
           onDelete()
         }}
+        onKeyDown={(event) => event.stopPropagation()}
       >
         <TooltipProvider>
           <Tooltip>
