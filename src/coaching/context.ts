@@ -1,3 +1,4 @@
+import { buildLearningEvidenceV1 } from './evidence'
 import type { CoachingContextInput, CoachingWordFact, ReadingCandidateContext, ReadingCandidateInput, StageReminderPreference } from './types'
 
 const DAY = 86_400_000
@@ -142,6 +143,14 @@ export function buildCoachingContext(input: CoachingContextInput) {
   const complete = coverage.historyCompleteness === 'complete' && !coverage.wordHistoryTruncated && !coverage.localOnlyPossible
   if (!complete) warnings.push('visible_history_is_not_all_learning')
   if (!facts.length) warnings.push('evidence_sparse')
+  const learningEvidence = buildLearningEvidenceV1({
+    now: input.now,
+    today,
+    calendarDay,
+    facts,
+    firstFactIds: firstIds,
+    completeVisibleHistory: complete,
+  })
   const intents = [...input.intents].filter((intent) => intent.effectiveFrom <= input.now && (intent.expiresAt === null || input.now < intent.expiresAt))
     .sort((a, b) => ['ongoing', 'day', 'session'].indexOf(a.scope) - ['ongoing', 'day', 'session'].indexOf(b.scope))
   if (intents.some((i) => i.scope !== 'ongoing' && i.expiresAt === null) || new Set(intents.map((i) => i.scope)).size !== intents.length) {
@@ -170,6 +179,7 @@ export function buildCoachingContext(input: CoachingContextInput) {
         repeatedExposureAttempts7: recent7.filter((f) => !firstIds.has(f.id)).length,
         recentSpellingErrorWordCount: errorWords.length, interruptions: null,
       },
+      learningEvidence,
       reviewPressure: { scheduledDueCount: null, basis: 'not_measured' },
       readingCandidates: reading,
     },
