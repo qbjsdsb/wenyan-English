@@ -16,8 +16,8 @@ export default function Speed() {
   return (
     <div
       aria-label="本次学习数据"
-      className={`mb-7 flex items-center justify-center gap-7 border-t border-[var(--wenyan-line-soft)] pt-4 transition-opacity duration-200 ${
-        state.isTyping ? 'opacity-80' : 'opacity-55'
+      className={`wenyan-focus-metrics mb-7 flex items-center justify-center gap-8 rounded-[var(--wenyan-radius-md)] bg-[color-mix(in_srgb,var(--wenyan-paper-raised)_72%,transparent)] px-5 py-3 transition-all duration-200 ${
+        state.isTyping ? 'opacity-90' : 'opacity-60'
       }`}
     >
       <InfoBox info={`${minutesString}:${secondsString}`} description="时间" />

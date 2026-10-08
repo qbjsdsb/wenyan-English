@@ -153,19 +153,21 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <main className="flex min-h-screen w-full flex-col bg-[var(--wenyan-paper)]">
+      <main className={`wenyan-focus-shell ${state.isTyping ? 'is-active' : ''} flex min-h-screen w-full flex-col`}>
         {state.isTyping ? (
-          <div className="mx-auto flex h-12 w-full max-w-5xl items-center justify-between px-6 text-[11px] text-[var(--wenyan-ink-muted)]">
-            <Link to="/today" aria-label="今日学习" className="wenyan-brand text-[13px] font-semibold no-underline opacity-70 transition-opacity hover:opacity-100">
-              Wenyan
-            </Link>
-            <div className="flex items-center gap-3">
-              <span>{idDictionaryMap[currentDictId]?.name} · 第 {currentChapter + 1} 章</span>
-              {state.chapterData.words.length > 0 && (
-                <span className="tabular-nums">{Math.min(state.chapterData.index + 1, state.chapterData.words.length)} / {state.chapterData.words.length}</span>
-              )}
-              <StartButton isLoading={isLoading || Boolean(wordListError)} />
-              {skipButton}
+          <div className="wenyan-focus-bar">
+            <div className="mx-auto flex h-12 w-full max-w-5xl items-center justify-between px-6 text-[11px] text-[var(--wenyan-ink-muted)]">
+              <Link to="/today" aria-label="今日学习" className="wenyan-brand text-[14px] font-semibold no-underline opacity-80 transition-opacity hover:opacity-100">
+                Wenyan
+              </Link>
+              <div className="flex items-center gap-3">
+                <span>{idDictionaryMap[currentDictId]?.name} · 第 {currentChapter + 1} 章</span>
+                {state.chapterData.words.length > 0 && (
+                  <span className="wenyan-mono text-[10px] text-[var(--wenyan-ink-secondary)]">{Math.min(state.chapterData.index + 1, state.chapterData.words.length)} / {state.chapterData.words.length}</span>
+                )}
+                <StartButton isLoading={isLoading || Boolean(wordListError)} />
+                {skipButton}
+              </div>
             </div>
           </div>
         ) : (
@@ -174,7 +176,7 @@ const App: React.FC = () => {
 
         <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-6">
           {!state.isTyping && (
-            <div className="flex items-center justify-between gap-6 border-b border-[var(--wenyan-line-soft)] py-4">
+            <div className="wenyan-setup-bar my-4 flex items-center justify-between gap-6 px-4 py-3">
               <DictChapterButton />
               <div className="flex items-center gap-2">
                 <Switcher />
@@ -185,7 +187,7 @@ const App: React.FC = () => {
           )}
 
           <div className="relative flex flex-1 flex-col items-center">
-            <div className="flex min-h-[420px] w-full flex-1 items-center justify-center">
+            <div className="flex min-h-[430px] w-full flex-1 items-center justify-center">
               {wordListError ? (
                 <div role="alert" className="flex max-w-md flex-col items-center gap-4 text-center">
                   <h2 className="text-lg font-medium text-[var(--wenyan-ink)]">词库暂时无法加载</h2>

@@ -10,6 +10,7 @@ import {
 import { currentChapterAtom, currentDictIdAtom, currentDictInfoAtom, reviewModeInfoAtom } from '@/store'
 import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
 import { useAtomValue, useSetAtom } from 'jotai'
+import { ArrowRight } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
@@ -210,29 +211,32 @@ export default function SmartSessionDock() {
     <section
       aria-label="智能学习"
       data-intent-source={intent?.source ?? 'loading'}
-      className="wenyan-surface wenyan-fade-in mb-8 px-5 py-5"
+      className="wenyan-focus-surface wenyan-fade-in mb-9 px-7 py-7"
     >
-      <div className="flex items-center justify-between gap-8">
+      <div className="relative z-[1] flex items-center justify-between gap-10">
         <div className="min-w-0 max-w-2xl">
-          <p className="mb-1.5 text-[11px] font-medium tracking-[0.01em] text-[var(--wenyan-accent)]">继续学习</p>
-          <h2 className="text-[23px] font-semibold leading-[1.28] tracking-[-0.028em] text-[var(--wenyan-ink)]">{label}</h2>
+          <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold tracking-[0.015em] text-[var(--wenyan-accent)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--wenyan-accent)] shadow-[0_0_0_4px_var(--wenyan-accent-soft)]" />
+            <span>继续学习</span>
+          </div>
+          <h2 className="text-[27px] font-semibold leading-[1.24] tracking-[-0.036em] text-[var(--wenyan-ink)]">{label}</h2>
 
           {meta.length > 0 && (
-            <div className="wenyan-muted mt-2.5 flex flex-wrap items-center gap-1.5 text-[11px]" aria-label="这一段概况">
+            <div className="wenyan-mono mt-3 flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--wenyan-ink-secondary)]" aria-label="这一段概况">
               {meta.map((item, index) => (
                 <span key={item} className="contents">
-                  {index > 0 && <span aria-hidden="true" className="opacity-55">·</span>}
+                  {index > 0 && <span aria-hidden="true" className="text-[var(--wenyan-ink-muted)] opacity-65">·</span>}
                   <span>{item}</span>
                 </span>
               ))}
             </div>
           )}
 
-          {showNote && <p className="wenyan-muted mt-2 max-w-2xl text-[11px] leading-[1.65]">{note}</p>}
-          {error && <p role="alert" className="mt-2.5 text-xs leading-5 text-[var(--wenyan-danger)]">{error}</p>}
+          {showNote && <p className="wenyan-muted mt-3 max-w-2xl text-[11px] leading-[1.7]">{note}</p>}
+          {error && <p role="alert" className="mt-3 text-xs leading-5 text-[var(--wenyan-danger)]">{error}</p>}
         </div>
 
-        <div className="flex shrink-0 flex-col items-end gap-2">
+        <div className="flex shrink-0 flex-col items-end gap-2.5">
           {error && (
             <button
               type="button"
@@ -247,9 +251,10 @@ export default function SmartSessionDock() {
             type="button"
             disabled={busy || (!prepared && !error) || Boolean(error)}
             onClick={() => void (canSmartStart ? start() : refresh())}
-            className={`${canSmartStart ? 'wenyan-button-primary' : 'wenyan-button-secondary'} px-4`}
+            className={`${canSmartStart ? 'wenyan-button-primary' : 'wenyan-button-secondary'} inline-flex h-10 items-center gap-2 px-5`}
           >
-            {primaryLabel}
+            <span>{primaryLabel}</span>
+            {canSmartStart && !busy && <ArrowRight aria-hidden="true" size={14} strokeWidth={1.8} />}
           </button>
           {!canSmartStart && prepared && !busy && (
             <Link

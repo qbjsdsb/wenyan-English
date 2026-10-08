@@ -152,15 +152,15 @@ export default function TodayPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col text-[var(--wenyan-ink)]">
+    <div className="wenyan-studio-shell flex min-h-screen flex-col text-[var(--wenyan-ink)]">
       <Header />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-12 pt-9">
-        <div className="mb-6 flex items-center justify-between gap-6">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-14 pt-10">
+        <div className="mb-7 flex items-end justify-between gap-6">
           <h1 className="wenyan-page-title">今天</h1>
-          <div className="wenyan-muted flex items-center gap-2 text-[11px]">
+          <div className="wenyan-mono flex items-center gap-2 text-[10px] text-[var(--wenyan-ink-muted)]">
             <span>{today}</span>
-            <span aria-hidden="true" className="opacity-55">·</span>
-            <Link to="/sync" className="wenyan-link text-[11px]">
+            <span aria-hidden="true" className="opacity-45">·</span>
+            <Link to="/sync" className="wenyan-link text-[10px]">
               {data ? (data.pending ? `${data.pending} 条待同步` : '已同步') : '同步中'}
             </Link>
           </div>
@@ -168,31 +168,35 @@ export default function TodayPage() {
 
         <SmartSessionDock />
 
-        <section aria-label="今日概况" className="wenyan-soft-surface mb-9 grid grid-cols-[minmax(0,1fr)_repeat(3,96px)] items-center gap-5 border border-[var(--wenyan-line-soft)] px-5 py-[18px]">
+        <section aria-label="今日概况" className="wenyan-overview-surface mb-10 grid grid-cols-[minmax(0,1fr)_repeat(3,104px)] items-center gap-6 px-6 py-5">
           <div className="min-w-0">
-            <div className="text-[13px] font-semibold text-[var(--wenyan-ink)]">{dict.name}</div>
+            <div className="mb-1 text-[10px] font-medium tracking-[0.02em] text-[var(--wenyan-ink-muted)]">当前词书</div>
+            <div className="truncate text-[14px] font-semibold text-[var(--wenyan-ink)]">{dict.name}</div>
             <div className="wenyan-muted mt-1 text-[11px]">第 {chapter + 1} 章</div>
-            <div className="mt-2.5 flex items-center gap-4">
+            <div className="mt-3 flex items-center gap-4">
               <Link to="/" className={quietLink}>打开</Link>
               <Link to="/gallery" className={quietLink}>切换词书</Link>
             </div>
           </div>
 
           {[
-            [data?.attempts ?? '—', '今日练习'],
-            [data && data.attempts ? `${Math.round((data.correct / data.attempts) * 100)}%` : '—', '首次无错'],
-            [data?.chapters ?? '—', '完成章节'],
-          ].map(([value, label]) => (
-            <div key={label} className="text-right">
-              <div className="text-[20px] font-semibold tabular-nums tracking-[-0.02em] text-[var(--wenyan-ink)]">{value}</div>
-              <div className="wenyan-muted mt-0.5 text-[11px]">{label}</div>
+            [data?.attempts ?? '—', '今日练习', 'text-[var(--wenyan-accent)]'],
+            [data && data.attempts ? `${Math.round((data.correct / data.attempts) * 100)}%` : '—', '首次无错', 'text-[var(--wenyan-success)]'],
+            [data?.chapters ?? '—', '完成章节', 'text-[var(--wenyan-warm)]'],
+          ].map(([value, label, tone]) => (
+            <div key={label} className="border-l border-[var(--wenyan-line-soft)] pl-5 text-right">
+              <div className={`wenyan-mono text-[22px] font-semibold tracking-[-0.035em] ${tone}`}>{value}</div>
+              <div className="wenyan-muted mt-1 text-[10px]">{label}</div>
             </div>
           ))}
         </section>
 
-        <section aria-label="学习计划" className="mb-9">
-          <div className="mb-3.5 flex items-center justify-between gap-6">
-            <h2 className="wenyan-section-title">计划</h2>
+        <section aria-label="学习计划" className="mb-10">
+          <div className="mb-4 flex items-center justify-between gap-6">
+            <div className="flex items-center gap-2.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--wenyan-warm)]" aria-hidden="true" />
+              <h2 className="wenyan-section-title">计划</h2>
+            </div>
             <div className="flex items-center gap-4">
               <button disabled={cloudBusy} onClick={() => void refreshCloudPlan(true)} className="wenyan-link inline-flex items-center gap-1.5 text-[13px] disabled:opacity-50">
                 <RefreshCw aria-hidden="true" size={12} className={cloudBusy ? 'animate-spin' : ''} />
@@ -208,7 +212,7 @@ export default function TodayPage() {
           {message && <p role="status" className="wenyan-body mb-3.5 text-sm">{message}</p>}
 
           {showImport && (
-            <div className="wenyan-soft-surface mb-5 p-5">
+            <div className="wenyan-surface mb-5 p-5">
               <label htmlFor="plan-json" className="text-sm font-medium">粘贴计划 JSON</label>
               <textarea
                 id="plan-json"
@@ -228,14 +232,14 @@ export default function TodayPage() {
           {!data ? (
             <p className="wenyan-muted py-5 text-sm">正在读取计划…</p>
           ) : data.plans.length === 0 ? (
-            <div className="flex items-center justify-between py-4">
+            <div className="wenyan-overview-surface flex items-center justify-between px-5 py-4">
               <span className="wenyan-muted text-sm">还没有安排</span>
               <button disabled={busy} onClick={createToday} className={secondary}>安排一章</button>
             </div>
           ) : (
-            <div>
+            <div className="overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]">
               {data.plans.map((plan, planIndex) => (
-                <article key={plan.id} className={`${planIndex > 0 ? 'border-t border-[var(--wenyan-line-soft)]' : ''} py-4`}>
+                <article key={plan.id} className={`${planIndex > 0 ? 'border-t border-[var(--wenyan-line-soft)]' : ''} px-5 py-4`}>
                   <div className="mb-2.5 flex items-center justify-between gap-4">
                     <div className="flex min-w-0 items-baseline gap-3">
                       <h3 className="truncate text-sm font-semibold text-[var(--wenyan-ink)]">{plan.title}</h3>
