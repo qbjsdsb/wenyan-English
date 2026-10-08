@@ -3,7 +3,14 @@
 }
 
 .section {
-  @apply wenyan-setting-section flex w-full flex-col items-start gap-3.5;
+  @apply flex w-full flex-col items-start gap-3.5;
+  border-bottom: 1px solid var(--wenyan-line-soft);
+  padding-bottom: 24px;
+}
+
+.section:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 
 .section-label {
@@ -24,5 +31,7 @@
 
 .switch-block {
   composes: block;
-  @apply flex-row items-center justify-between rounded-[var(--wenyan-radius-sm)] bg-[color-mix(in_srgb,var(--wenyan-paper-muted)_56%,transparent)] px-3.5 py-2.5;
+  @apply flex-row items-center justify-between px-3.5 py-2.5;
+  border-radius: var(--wenyan-radius-sm);
+  background: color-mix(in srgb, var(--wenyan-paper-muted) 56%, transparent);
 }
