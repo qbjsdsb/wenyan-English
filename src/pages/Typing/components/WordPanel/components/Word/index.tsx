@@ -3,7 +3,6 @@ import InputHandler from '../InputHandler'
 import Letter from './Letter'
 import Notation from './Notation'
 import { TipAlert } from './TipAlert'
-import style from './index.module.css'
 import { initialWordState } from './type'
 import type { WordState } from './type'
 import Tooltip from '@/components/Tooltip'
@@ -41,7 +40,6 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
   const isIgnoreCase = useAtomValue(isIgnoreCaseAtom)
   const isShowAnswerOnHover = useAtomValue(isShowAnswerOnHoverAtom)
   const saveWordRecord = useSaveWordRecord()
-  // const wordLogUploader = useMixPanelWordLogUploader(state)
   const [playKeySound, playBeepSound, playHintSound] = useKeySounds()
   const pronunciationIsOpen = useAtomValue(pronunciationIsOpenAtom)
   const [isHoveringWord, setIsHoveringWord] = useState(false)
@@ -53,7 +51,6 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
   const wordPronunciationIconRef = useRef<WordPronunciationIconRef>(null)
 
   useEffect(() => {
-    // run only when word changes
     let headword = ''
     try {
       headword = word.name.replace(new RegExp(' ', 'g'), EXPLICIT_SPACE)
@@ -167,12 +164,6 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
 
   useEffect(() => {
     const inputLength = wordState.inputWord.length
-    /**
-     * TODO: 当用户输入错误时，会报错
-     * Cannot update a component (`App`) while rendering a different component (`WordComponent`). To locate the bad setState() call inside `WordComponent`, follow the stack trace as described in https://reactjs.org/link/setstate-in-render
-     * 目前不影响生产环境，猜测是因为开发环境下 react 会两次调用 useEffect 从而展示了这个 warning
-     * 但这终究是一个 bug，需要修复
-     */
     if (wordState.hasWrong || inputLength === 0 || wordState.displayWord.length === 0) {
       return
     }
@@ -185,14 +176,12 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
     }
 
     if (isEqual) {
-      // 输入正确时
       setWordState((state) => {
         state.letterTimeArray.push(Date.now())
         state.correctCount += 1
       })
 
       if (inputLength >= wordState.displayWord.length) {
-        // 完成输入时
         setWordState((state) => {
           state.letterStates[inputLength - 1] = 'correct'
           state.isFinished = true
@@ -208,7 +197,6 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
 
       dispatch({ type: TypingStateActionType.REPORT_CORRECT_WORD })
     } else {
-      // 出错时
       playBeepSound()
       setWordState((state) => {
         state.letterStates[inputLength - 1] = 'wrong'
@@ -251,26 +239,18 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
   }, [wordState.hasWrong, setWordState])
 
   useEffect(() => {
-    if (wordState.isFinished) {
-      dispatch({ type: TypingStateActionType.SET_IS_SAVING_RECORD, payload: true })
+    if (!wordState.isFinished) return
 
-      // wordLogUploader({
-      //   headword: word.name,
-      //   timeStart: wordState.startTime,
-      //   timeEnd: wordState.endTime,
-      //   countInput: wordState.correctCount + wordState.wrongCount,
-      //   countCorrect: wordState.correctCount,
-      //   countTypo: wordState.wrongCount,
-      // })
-      saveWordRecord({
-        word: word.name,
-        wrongCount: wordState.wrongCount,
-        letterTimeArray: wordState.letterTimeArray,
-        letterMistake: wordState.letterMistake,
-      })
+    dispatch({ type: TypingStateActionType.SET_IS_SAVING_RECORD, payload: true })
+    saveWordRecord({
+      word: word.name,
+      wrongCount: wordState.wrongCount,
+      letterTimeArray: wordState.letterTimeArray,
+      letterMistake: wordState.letterMistake,
+    })
 
-      onFinish()
-    }
+    const completionTimer = window.setTimeout(onFinish, 260)
+    return () => window.clearTimeout(completionTimer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wordState.isFinished])
 
@@ -297,14 +277,16 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
           <div
             onMouseEnter={() => handleHoverWord(true)}
             onMouseLeave={() => handleHoverWord(false)}
-            className={`flex items-center ${isTextSelectable && 'select-all'} justify-center ${wordState.hasWrong ? style.wrong : ''}`}
+            className={`relative flex items-center justify-center ${isTextSelectable && 'select-all'} ${
+              wordState.isFinished ? 'wenyan-word-complete' : ''
+            }`}
           >
             {wordState.displayWord.split('').map((t, index) => {
               return <Letter key={`${index}-${t}`} letter={t} visible={getLetterVisible(index)} state={wordState.letterStates[index]} />
             })}
           </div>
           {pronunciationIsOpen && (
-            <div className="absolute -right-12 top-1/2 h-9 w-9 -translate-y-1/2 transform ">
+            <div className="absolute -right-12 top-1/2 h-9 w-9 -translate-y-1/2 transform">
               <Tooltip content={`快捷键${CTRL} + J`}>
                 <WordPronunciationIcon word={word} lang={currentLanguage} ref={wordPronunciationIconRef} className="h-full w-full" />
               </Tooltip>
