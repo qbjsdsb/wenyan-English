@@ -1,5 +1,5 @@
 export interface CoachDecisionSupportInput {
-  comparability: 'sparse' | 'complete_visible_history' | 'partial_visible_history'
+  comparability: string
   coverageComplete: boolean
   current7: {
     activeDays: number
@@ -12,6 +12,8 @@ export interface CoachDecisionSupportInput {
   repeatedSpellingErrorCount14: number
 }
 
+const COMPARABILITY = new Set(['sparse', 'complete_visible_history', 'partial_visible_history'])
+
 /**
  * Product-policy guardrails for ChatGPT reasoning.
  *
@@ -20,6 +22,15 @@ export interface CoachDecisionSupportInput {
  * future changes are reversible versus user-confirmed.
  */
 export function buildCoachDecisionSupportV1(input: CoachDecisionSupportInput) {
+  if (!COMPARABILITY.has(input.comparability)) throw new Error('invalid_decision_comparability')
+  if (
+    !Number.isInteger(input.current7.activeDays) || input.current7.activeDays < 0 ||
+    !Number.isInteger(input.current7.wordAttempts) || input.current7.wordAttempts < 0 ||
+    !Number.isInteger(input.previous7.activeDays) || input.previous7.activeDays < 0 ||
+    !Number.isInteger(input.previous7.wordAttempts) || input.previous7.wordAttempts < 0 ||
+    !Number.isInteger(input.repeatedSpellingErrorCount14) || input.repeatedSpellingErrorCount14 < 0
+  ) throw new Error('invalid_decision_evidence')
+
   const currentObserved = input.current7.wordAttempts > 0
   const previousObserved = input.previous7.wordAttempts > 0
   const bothWindowsObserved = currentObserved && previousObserved
