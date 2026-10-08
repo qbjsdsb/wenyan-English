@@ -193,6 +193,7 @@ export default function SmartSessionDock() {
   const hasBlock = prepared?.kind === 'resume' || (prepared?.kind === 'draft' && prepared.draft.blocks.length > 0)
   const isBreak = prepared?.kind === 'draft' && prepared.draft.disposition === 'break'
   const canSmartStart = Boolean(hasBlock || isBreak)
+  const showNote = Boolean(note && (!hasBlock || intent?.warnings.length))
   const primaryLabel = busy
     ? '正在准备…'
     : isBreak
@@ -207,15 +208,15 @@ export default function SmartSessionDock() {
     <section
       aria-label="智能学习"
       data-intent-source={intent?.source ?? 'loading'}
-      className="mb-10 border-y border-black/[0.08] py-8 dark:border-white/[0.09]"
+      className="wenyan-surface wenyan-fade-in mb-10 px-6 py-6"
     >
       <div className="flex items-end justify-between gap-10">
         <div className="min-w-0 max-w-2xl">
-          <p className="mb-2 text-xs text-gray-500 dark:text-gray-500">继续学习</p>
-          <h2 className="text-[26px] font-semibold leading-tight tracking-[-0.025em] text-gray-950 dark:text-gray-100">{label}</h2>
+          <p className="mb-2 text-[12px] font-medium text-[var(--wenyan-accent)]">继续学习</p>
+          <h2 className="text-[27px] font-semibold leading-[1.22] tracking-[-0.032em] text-[var(--wenyan-ink)]">{label}</h2>
 
           {meta.length > 0 && (
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-500" aria-label="这一段概况">
+            <div className="wenyan-muted mt-3 flex flex-wrap items-center gap-2 text-xs" aria-label="这一段概况">
               {meta.map((item, index) => (
                 <span key={item} className="contents">
                   {index > 0 && <span aria-hidden="true">·</span>}
@@ -225,8 +226,8 @@ export default function SmartSessionDock() {
             </div>
           )}
 
-          {note && <p className="mt-3 max-w-2xl text-xs leading-5 text-gray-500 dark:text-gray-500">{note}</p>}
-          {error && <p role="alert" className="mt-3 text-xs leading-5 text-red-600 dark:text-red-400">{error}</p>}
+          {showNote && <p className="wenyan-muted mt-3 max-w-2xl text-xs leading-5">{note}</p>}
+          {error && <p role="alert" className="mt-3 text-xs leading-5 text-[var(--wenyan-danger)]">{error}</p>}
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-2">
@@ -235,7 +236,7 @@ export default function SmartSessionDock() {
               type="button"
               aria-label="重新安排"
               onClick={() => void refresh()}
-              className="rounded-lg border border-black/[0.1] px-4 py-2.5 text-sm text-gray-600 transition-colors hover:bg-black/[0.03] dark:border-white/[0.12] dark:text-gray-400 dark:hover:bg-white/[0.05]"
+              className="wenyan-button-secondary"
             >
               重试
             </button>
@@ -244,7 +245,7 @@ export default function SmartSessionDock() {
             type="button"
             disabled={busy || (!prepared && !error) || Boolean(error)}
             onClick={() => void (canSmartStart ? start() : refresh())}
-            className="rounded-lg bg-[#1d1d1b] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-40 dark:bg-[#eeeeea] dark:text-[#111210] dark:hover:bg-white"
+            className="wenyan-button-primary px-5"
           >
             {primaryLabel}
           </button>
@@ -252,7 +253,7 @@ export default function SmartSessionDock() {
             <Link
               to="/"
               aria-label="手动继续当前章节（不按这条智能安排）"
-              className="text-xs text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-600 dark:hover:text-gray-300"
+              className="wenyan-link text-xs"
             >
               手动继续
             </Link>
