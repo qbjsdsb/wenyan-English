@@ -2,6 +2,14 @@
 
 更新：2026-10-08。续接前仍须核对远端 `main`、开放 PR、CI、GitHub Pages 与 Supabase 实际部署版本；本页只记录已经核实的持久状态，不把聊天记忆当事实，也不保存用户真实学习明细。
 
+## 2026-10-09 quiet-study UI follow-up
+
+- **Baseline / merged**：重新 fetch main，确认 PR #49 已合并，真实 main 为 `48090e3c8cad7529d1794c35e8ff187480a355b1`。下方“#49 尚未合并”为当时历史状态。
+- **Implemented**：Today 主行动适配窄窗口、状态标题区分恢复/新安排/休息、说明字号改善；首次使用无需先建计划；当日统计增加真实 semantic facts 计数并明确拼写指标；队列为空不再虚称云端“已同步”。词义页统一 Studio 表面、已保存进度、分步提示、同等权重自评按钮和可见键帽。
+- **Tested**：本地 TypeScript 检查通过；改动页面 targeted ESLint 无错误（SmartSessionDock 原有 effect cleanup ref warning）。现有 CI 负责浏览器回归，尚未取得本次运行结果。保持原有自评按钮 accessible name。
+- **Not changed**：事实/评分/调度/数据库/同步算法、Typing engine、MCP 与 Supabase 部署。
+- **Not yet verified**：本次 UI 尚未合并/部署；未做人工浏览器视觉验收或真实用户验收。未新增测试或反复运行全量检查。
+
 ## 2026-10-09 next-generation 续接（优先于下方旧里程碑）
 
 - **Baseline**：开始时 main `2807972`（PR #48）；专用分支 `astra/wenyan-next-generation`，Draft PR #49。

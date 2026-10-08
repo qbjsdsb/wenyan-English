@@ -106,3 +106,12 @@ Production v14: unauthenticated POST and invalid-token POST both HTTP 401; disco
 - **Next concrete work:** merge/release the tested frontend when continuing this PR; then user does one real semantic block, allow normal sync, read context semanticEvidence and confirm only actual self-ratings. Keep unknown executor capability until a fresh new-client report. If tool enum metadata is cached, refresh connection metadata; do not grant extra write capability.
 
 All high-value decisions, runnable source, SQL, targeted verification and limitations are in this branch and PR. Literature, objective scoring, FSRS and a broad content system were intentionally not implemented. No private history, tokens, secrets or new copyrighted corpus were committed.
+
+
+## Quick UI continuation — 2026-10-09
+
+User requested fast visible UI improvements with limited quota. Fresh main `48090e3` contains merged PR #49; branch `astra/quiet-study-experience` starts there. Scope deliberately stays at Today and semantic runner presentation, preserving the mature Typing engine.
+
+Decisions implemented: (1) a newly prepared block is “现在适合做”, recovery is “接着上次的位置”; (2) no-plan first use explains that the main activity is already usable; (3) Today includes semantic attempt facts alongside explicitly labeled spelling metrics, so the new activity leaves a visible trace; (4) an empty upload queue does not prove cloud synchronization; (5) self-rating options have equal visual weight to avoid a design-induced preference for positive ratings; (6) progress reflects committed ratings, not mastery. Larger quiet explanations, responsive primary action, visible keyboard hints and native accessible progress reuse existing theme tokens; no animation on the progress and reduced-motion support for button feedback.
+
+Validation: local typecheck passed; targeted ESLint has no errors, one existing effect ref cleanup warning. Existing semantic accessible button names preserved for browser regression. CI pending at checkpoint; no visual/real-user or deployment claim. No backend or measurement contract change. Ordinary continuation: review CI, inspect Today and semantic screen in both themes, merge when satisfied.
