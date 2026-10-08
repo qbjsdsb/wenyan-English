@@ -73,6 +73,17 @@ export interface SessionBlock {
   activity: { kind: 'vocabulary' | 'reading'; items: SelectedItem[] }
   estimatedSeconds: number
 }
+/** Ephemeral planner state. These counts describe what can execute now; they are not learning evidence or mastery. */
+export interface ExecutionAvailability {
+  status: 'evaluated' | 'not_evaluated'
+  reviewEligibleCount: number
+  weakEligibleCount: number
+  correctionEligibleCount: number
+  correctionCooldownCount: number
+  newEligibleCount: number
+  newWordCapacity: number
+  readingEligibleCount: number
+}
 export interface SmartSessionDraft {
   algorithmVersion: 'elastic-v2'
   snapshotId: string
@@ -84,4 +95,6 @@ export interface SmartSessionDraft {
   retryAt?: number
   deferred: { key: string; reason: string }[]
   warnings: string[]
+  /** Deterministic executor visibility only; never reinterpret these counts as mastery. */
+  availability: ExecutionAvailability
 }
