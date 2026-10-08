@@ -69,6 +69,7 @@ export default function SyncPage() {
 
   const syncNow = async () => {
     setBusy(true)
+    setMessage('')
     const result = await syncLearningData()
     await refreshQueue(session?.user.id)
     setMessage(describeResult(result))
@@ -83,8 +84,10 @@ export default function SyncPage() {
     setBusy(false)
   }
 
+  const settled = Boolean(message && !message.includes('失败') && !message.includes('登录后'))
+
   return (
-    <div className="flex min-h-screen flex-col text-[var(--wenyan-ink)]">
+    <div className="wenyan-studio-shell flex min-h-screen flex-col text-[var(--wenyan-ink)]">
       <Header />
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 pb-16 pt-9">
         <div className="mb-7">
@@ -93,8 +96,8 @@ export default function SyncPage() {
         </div>
 
         {session ? (
-          <section className="overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]">
-            <div className="flex items-center justify-between gap-5 border-b border-[var(--wenyan-line-soft)] px-5 py-5">
+          <section className={`wenyan-sync-surface ${busy ? 'is-busy' : ''} overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]`}>
+            <div className="relative z-[1] flex items-center justify-between gap-5 border-b border-[var(--wenyan-line-soft)] px-5 py-5">
               <div>
                 <p className="wenyan-muted text-[10px]">当前账号</p>
                 <p className="mt-1 text-sm font-medium text-[var(--wenyan-ink)]">{session.user.email ?? '已登录'}</p>
@@ -102,27 +105,27 @@ export default function SyncPage() {
               <button className="wenyan-button-secondary" disabled={busy} onClick={signOut}>退出</button>
             </div>
 
-            <div className="grid grid-cols-3 divide-x divide-[var(--wenyan-line-soft)] px-5 py-6">
+            <div className="relative z-[1] grid grid-cols-3 divide-x divide-[var(--wenyan-line-soft)] px-5 py-6">
               {[
                 ['待上传', queue.currentAccount],
                 ['未归属', queue.unclaimed],
                 ['其他账号', queue.otherAccount],
-              ].map(([label, value]) => (
+              ].map(([label, value], index) => (
                 <div key={label} className="px-5 first:pl-0 last:pr-0">
                   <p className="wenyan-muted text-[10px]">{label}</p>
-                  <p className="mt-2 text-xl font-semibold tabular-nums text-[var(--wenyan-ink)]">{value}</p>
+                  <p className="wenyan-metric-value mt-2 text-xl font-semibold tabular-nums text-[var(--wenyan-ink)]" style={{ animationDelay: `${index * 45}ms` }}>{value}</p>
                 </div>
               ))}
             </div>
 
             {queue.unclaimed > 0 && (
-              <div className="border-t border-[color-mix(in_srgb,var(--wenyan-danger)_20%,var(--wenyan-line-soft))] px-5 py-5 text-sm">
+              <div className="relative z-[1] border-t border-[color-mix(in_srgb,var(--wenyan-danger)_20%,var(--wenyan-line-soft))] px-5 py-5 text-sm">
                 <p className="text-[var(--wenyan-danger)]">有 {queue.unclaimed} 条本机记录还没有账号归属。</p>
                 <button className="wenyan-button-secondary mt-3" disabled={busy} onClick={claimLocalHistory}>认领到当前账号</button>
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-5 border-t border-[var(--wenyan-line-soft)] px-5 py-5">
+            <div className="relative z-[1] flex items-center justify-between gap-5 border-t border-[var(--wenyan-line-soft)] px-5 py-5">
               <div>
                 <p className="text-sm font-medium text-[var(--wenyan-ink)]">云端学习记录</p>
                 <p className="wenyan-muted mt-1 text-xs">上传本机新记录，并恢复云端缺失记录</p>
@@ -131,7 +134,7 @@ export default function SyncPage() {
             </div>
           </section>
         ) : (
-          <section className="rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)] p-5">
+          <section className="wenyan-surface p-5">
             <label className="mb-2 block text-sm font-medium" htmlFor="wenyan-sync-email">邮箱</label>
             <div className="flex gap-3">
               <input
@@ -149,7 +152,7 @@ export default function SyncPage() {
           </section>
         )}
 
-        {message && <p role="status" className="wenyan-body mt-5 text-sm">{message}</p>}
+        {message && <p role="status" className={`wenyan-sync-status ${settled ? 'is-settled' : ''} wenyan-body mt-5 text-sm`}>{message}</p>}
 
         <details className="wenyan-muted mt-9 border-t border-[var(--wenyan-line-soft)] pt-4 text-xs">
           <summary className="wenyan-link cursor-pointer select-none text-xs">同步说明</summary>
