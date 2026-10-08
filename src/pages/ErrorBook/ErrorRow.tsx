@@ -6,9 +6,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { idDictionaryMap } from '@/resources/dictionary'
 import { recordErrorBookAction } from '@/utils'
 import { useSetAtom } from 'jotai'
+import { Trash2 } from 'lucide-react'
 import type { FC } from 'react'
 import { useCallback } from 'react'
-import DeleteIcon from '~icons/weui/delete-filled'
 
 type IErrorRowProps = {
   record: groupedWordRecords
@@ -26,35 +26,43 @@ const ErrorRow: FC<IErrorRowProps> = ({ record, onDelete }) => {
   }, [record, setCurrentRowDetail])
 
   return (
-    <li
-      className="opacity-85 flex w-full cursor-pointer items-center justify-between rounded-lg bg-white px-6 py-3 text-black shadow-md dark:bg-gray-800 dark:text-white"
+    <div
+      className="grid cursor-pointer grid-cols-[1.2fr_3fr_100px_140px_36px] items-center gap-4 px-4 py-3.5 text-sm transition-colors hover:bg-black/[0.025] dark:hover:bg-white/[0.035]"
       onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') onClick()
+      }}
     >
-      <span className="basis-2/12 break-normal">{record.word}</span>
-      <span className="basis-6/12 break-normal">
+      <span className="font-medium text-gray-900 dark:text-gray-200">{record.word}</span>
+      <span className="truncate text-gray-500 dark:text-gray-500">
         {word ? word.trans.join('；') : <LoadingWordUI isLoading={isLoading} hasError={hasError} />}
       </span>
-      <span className="basis-1/12 break-normal pl-8">{record.wrongCount}</span>
-      <span className="basis-1/12 break-normal">{dictInfo?.name}</span>
+      <span className="tabular-nums text-gray-500 dark:text-gray-500">{record.wrongCount}</span>
+      <span className="truncate text-xs text-gray-400 dark:text-gray-600">{dictInfo?.name}</span>
       <span
-        className="basis-1/12 break-normal"
-        onClick={(e) => {
-          e.stopPropagation()
+        onClick={(event) => {
+          event.stopPropagation()
           onDelete()
         }}
       >
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <DeleteIcon />
+              <button
+                type="button"
+                aria-label={`删除 ${record.word} 的错词记录`}
+                className="grid h-8 w-8 place-items-center rounded-md text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-gray-700 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+              >
+                <Trash2 aria-hidden="true" size={14} strokeWidth={1.7} />
+              </button>
             </TooltipTrigger>
-            <TooltipContent>
-              <p>Delete Records</p>
-            </TooltipContent>
+            <TooltipContent><p>删除记录</p></TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </span>
-    </li>
+    </div>
   )
 }
 
