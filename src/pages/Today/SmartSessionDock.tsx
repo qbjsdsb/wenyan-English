@@ -66,7 +66,7 @@ function intentNote(intent: ResolvedSmartSessionIntent | undefined, prepared: Pr
   if (intent?.source === 'cached-cloud') return '云端暂时不可用，已沿用这个账号最近一次仍有效的学习安排。'
   if (intent?.warnings.includes('cloud_intent_unavailable')) return '云端安排暂时不可用，已按本机记录继续。'
   if (prepared?.kind === 'draft' && prepared.draft.blocks[0]?.activity.kind === 'semantic_recall') return '先在心里回想，再查看释义并如实自评。只练有过学习记录的词，不增加新词，也不把自评当作已经掌握。'
-  if (intent?.source === 'cloud') return '已按你最近的学习安排调整，开始后会保留这段学习的进度。'
+  if (intent?.source === 'cloud') return '已按你最近的学习安排自动调整，开始后会保留这段学习的进度。'
   if (prepared?.kind === 'draft' && prepared.draft.warnings.length > 0) {
     return '只依据当前可见学习记录安排；缺失记录不会被当成不会。'
   }

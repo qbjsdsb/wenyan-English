@@ -24,6 +24,7 @@ test('Today selects semantic recall, preserves reveal on reload, and writes only
   await expect(page.getByText('阿尔法，开端')).toHaveCount(0)
   await page.getByRole('button', { name: /查看释义/ }).click()
   await expect(page.getByText('阿尔法，开端')).toBeVisible()
+  await page.screenshot({ path: test.info().outputPath('semantic-reveal.png') })
   await page.reload()
   await expect(page.getByText(/恢复时释义已揭示/)).toBeVisible()
   await page.getByRole('button', { name: '2 想起部分' }).click()

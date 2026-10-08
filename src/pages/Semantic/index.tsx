@@ -100,9 +100,9 @@ export default function SemanticPage() {
             <p className="wenyan-muted mt-5">已保存 {run.index} 个词的自评。它们会帮助下一次安排，不代表已经完全掌握。</p>
             <button className="wenyan-button-primary mt-8" onClick={async () => { await endSemanticRun(run.id); navigate('/today') }}>回到今天</button>
           </section>
-        ) : item && (
+        ) : run && item && (
           <section className="wenyan-focus-surface mt-10 p-10">
-            <div className="wenyan-mono wenyan-muted text-xs">{run!.index + 1} / {run!.items.length}</div>
+            <div className="wenyan-mono wenyan-muted text-xs">{run.index + 1} / {run.items.length}</div>
             <h1 ref={focus} tabIndex={-1} className="mt-10 break-words text-5xl font-medium tracking-tight outline-none">{item.word}</h1>
             {!revealed ? <>
               <p className="wenyan-muted mb-10 mt-6">这个词是什么意思？先在心里说出，再核对。</p>
