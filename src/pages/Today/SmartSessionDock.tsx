@@ -47,11 +47,11 @@ function intentNote(intent: ResolvedSmartSessionIntent | undefined, prepared: Pr
     const { reason, retryAt } = prepared.draft
     if (reason === 'review_only_waiting_for_correction_cooldown' || reason === 'waiting_for_correction_cooldown') {
       const retry = retryLabel(retryAt)
-      return `今天仍按复习优先。刚练过的错词先留一点间隔${retry ? `，${retry}` : '，稍后再检查'}，然后会进入纠错。`
+      return `今天仍按复习优先。刚练过的错词先留一点间隔${retry ? `，${retry}` : '，稍后再检查'}；到点后页面会自动重新计算。`
     }
     if (reason === 'new_word_ceiling_no_review') {
       if (intent?.constraints.newWordCeiling === 0) {
-        return '今天的新词上限是 0，当前也没有到期复习。这不是故障；可以稍后回来，也可以手动继续当前章节。'
+        return '今天的新词上限是 0，当前也没有到期复习。这不是故障；可以稍后回来，也可以明确选择手动继续当前章节。'
       }
       return '今天的新词额度已经用完，当前也没有到期复习。稍后再检查即可。'
     }
@@ -143,6 +143,13 @@ export default function SmartSessionDock() {
     void refresh()
   }, [refresh])
 
+  useEffect(() => {
+    if (prepared?.kind !== 'draft' || prepared.draft.retryAt === undefined) return
+    const delay = Math.max(250, prepared.draft.retryAt - Date.now() + 250)
+    const id = window.setTimeout(() => void refresh(), delay)
+    return () => window.clearTimeout(id)
+  }, [prepared, refresh])
+
   const label = useMemo(
     () => error && !prepared ? '暂时无法安排下一段学习。' : purposeLabel(prepared),
     [error, prepared],
@@ -230,7 +237,7 @@ export default function SmartSessionDock() {
           </button>
           {!canSmartStart && prepared && !busy && (
             <Link to="/" className="text-center text-xs text-gray-500 underline-offset-4 hover:text-indigo-600 hover:underline dark:text-gray-400 dark:hover:text-indigo-300">
-              仍要手动继续当前章节
+              手动继续当前章节（不按这条智能安排）
             </Link>
           )}
         </div>
