@@ -9,6 +9,9 @@ export default function Speed() {
   const secondsString = seconds < 10 ? '0' + seconds : seconds + ''
   const minutesString = minutes < 10 ? '0' + minutes : minutes + ''
   const inputNumber = state.chapterData.correctCount + state.chapterData.wrongCount
+  const hasActivity = state.isTyping || state.timerData.time > 0 || inputNumber > 0
+
+  if (!hasActivity) return null
 
   return (
     <div
