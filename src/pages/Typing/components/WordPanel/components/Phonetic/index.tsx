@@ -12,12 +12,12 @@ function Phonetic({ word }: PhoneticProps) {
 
   return (
     <div
-      className={`space-x-5 text-center text-sm font-normal text-gray-600 transition-colors duration-300 dark:text-gray-400 ${
+      className={`mt-1 space-x-5 text-center text-[13px] font-normal tracking-[0.01em] text-[var(--wenyan-ink-muted)] transition-colors duration-200 ${
         isTextSelectable && 'select-text'
       }`}
     >
-      {phoneticConfig.type === 'us' && word.usphone && word.usphone.length > 1 && <span>{`AmE: [${word.usphone}]`}</span>}
-      {phoneticConfig.type === 'uk' && word.ukphone && word.ukphone.length > 1 && <span>{`BrE: [${word.ukphone}]`}</span>}
+      {phoneticConfig.type === 'us' && word.usphone && word.usphone.length > 1 && <span>{`AmE · /${word.usphone}/`}</span>}
+      {phoneticConfig.type === 'uk' && word.ukphone && word.ukphone.length > 1 && <span>{`BrE · /${word.ukphone}/`}</span>}
     </div>
   )
 }

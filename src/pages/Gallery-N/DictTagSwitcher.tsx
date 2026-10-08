@@ -17,18 +17,20 @@ export default function DictTagSwitcher({ tagList, currentTag, onChangeCurrentTa
 
   return (
     <RadioGroup value={currentTag} onChange={onChangeTag}>
-      <div className="flex items-center space-x-4">
+      <div className="flex flex-wrap items-center gap-2">
         {tagList.map((option) => (
           <RadioGroup.Option
             key={option}
             value={option}
             className={({ checked }) =>
-              `cursor-pointer whitespace-nowrap rounded-[3rem] px-4 py-2 ${
-                checked ? 'bg-indigo-400 text-white' : 'bg-white text-gray-600 dark:bg-gray-800 dark:text-gray-200'
-              } ${!checked && 'hover:bg-indigo-100 dark:hover:bg-gray-600'}`
+              `cursor-pointer whitespace-nowrap rounded-[var(--wenyan-radius-sm)] px-3 py-1.5 text-xs transition-colors ${
+                checked
+                  ? 'bg-[var(--wenyan-accent-soft)] font-medium text-[var(--wenyan-accent)]'
+                  : 'text-[var(--wenyan-ink-secondary)] hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]'
+              }`
             }
           >
-            <p className={`font-normal `}>{option}</p>
+            {option}
           </RadioGroup.Option>
         ))}
       </div>

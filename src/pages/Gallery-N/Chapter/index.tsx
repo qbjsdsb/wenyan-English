@@ -1,7 +1,6 @@
 import { useChapterStats } from '../hooks/useChapterStats'
 import useIntersectionObserver from '@/hooks/useIntersectionObserver'
 import { useEffect, useRef } from 'react'
-import IconCheckCircle from '~icons/heroicons/check-circle-solid'
 
 export default function Chapter({
   index,
@@ -14,7 +13,7 @@ export default function Chapter({
   dictID: string
   onChange: (index: number) => void
 }) {
-  const ref = useRef<HTMLTableRowElement>(null)
+  const ref = useRef<HTMLButtonElement>(null)
 
   const entry = useIntersectionObserver(ref, {})
   const isVisible = !!entry?.isIntersecting
@@ -32,18 +31,20 @@ export default function Chapter({
   }, [checked])
 
   return (
-    <div
+    <button
       ref={ref}
-      className="relative flex h-16 w-40 cursor-pointer  flex-col items-start justify-center overflow-hidden rounded-xl bg-slate-100 px-3 py-2 dark:bg-slate-800"
+      type="button"
+      className={`relative flex h-16 w-40 cursor-pointer flex-col items-start justify-center rounded-[var(--wenyan-radius-sm)] border px-3 py-2 text-left transition-colors ${
+        checked
+          ? 'border-[color-mix(in_srgb,var(--wenyan-accent)_38%,var(--wenyan-line))] bg-[var(--wenyan-accent-soft)]'
+          : 'border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper)] hover:border-[var(--wenyan-line)] hover:bg-[var(--wenyan-paper-muted)]'
+      }`}
       onClick={() => onChange(index)}
     >
-      <h1>第 {index + 1} 章</h1>
-      <p className="pt-[2px] text-xs text-slate-600">
-        {chapterStatus ? (chapterStatus.exerciseCount > 0 ? `练习 ${chapterStatus.exerciseCount} 次` : '未练习') : '加载中...'}
-      </p>
-      {checked && (
-        <IconCheckCircle className="absolute -bottom-4 -right-4 h-18 w-18 text-6xl text-green-500 opacity-40 dark:text-green-300" />
-      )}
-    </div>
+      <span className={`text-sm font-medium ${checked ? 'text-[var(--wenyan-accent)]' : 'text-[var(--wenyan-ink)]'}`}>第 {index + 1} 章</span>
+      <span className="wenyan-muted pt-[2px] text-[11px]">
+        {chapterStatus ? (chapterStatus.exerciseCount > 0 ? `练习 ${chapterStatus.exerciseCount} 次` : '未练习') : '加载中…'}
+      </span>
+    </button>
   )
 }

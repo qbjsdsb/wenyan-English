@@ -13,15 +13,15 @@ import range from '@/utils/range'
 import { useAtom, useSetAtom } from 'jotai'
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import IcOutlineCollectionsBookmark from '~icons/ic/outline-collections-bookmark'
-import MajesticonsPaperFoldTextLine from '~icons/majesticons/paper-fold-text-line'
-import PajamasReviewList from '~icons/pajamas/review-list'
 
 enum Tab {
   Chapters = 'chapters',
   Errors = 'errors',
   Review = 'review',
 }
+
+const tabClass =
+  'h-8 rounded-[var(--wenyan-radius-sm)] px-3 text-xs font-medium text-[var(--wenyan-ink-secondary)] transition-colors hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)] data-[state=on]:bg-[var(--wenyan-accent-soft)] data-[state=on]:text-[var(--wenyan-accent)] disabled:opacity-100'
 
 export default function DictDetail({ dictionary: dict }: { dictionary: Dictionary }) {
   const [currentChapter, setCurrentChapter] = useAtom(currentChapterAtom)
@@ -59,7 +59,7 @@ export default function DictDetail({ dictionary: dict }: { dictionary: Dictionar
 
   const handleTabChange = useCallback(
     (value: Tab) => {
-      if (value !== curTab) {
+      if (value && value !== curTab) {
         setCurTab(value)
       }
     },
@@ -67,70 +67,54 @@ export default function DictDetail({ dictionary: dict }: { dictionary: Dictionar
   )
 
   return (
-    <div className="flex flex-col rounded-[4rem] px-4 py-3 pl-5 text-gray-800 dark:text-gray-300">
-      <div className="text relative flex h-40 flex-col gap-2">
-        <h3 className="text-2xl font-semibold">{dict.name}</h3>
-        <p className="mt-1">{dict.chapterCount} 章节</p>
-        <p>共 {dict.length} 词</p>
-        <p>{dict.description}</p>
-        <div className="absolute bottom-5 right-4">
-          <ToggleGroup type="single" value={curTab} onValueChange={handleTabChange}>
-            <ToggleGroupItem
-              value={Tab.Chapters}
-              disabled={curTab === Tab.Chapters}
-              className={`${curTab === Tab.Chapters ? 'text-primary-foreground bg-primary' : ''} disabled:opacity-100`}
-            >
-              <MajesticonsPaperFoldTextLine className="mr-1.5 text-gray-500" />
-              章节选择
-            </ToggleGroupItem>
-            {errorWordData.length > 0 && (
-              <>
-                <ToggleGroupItem
-                  value={Tab.Errors}
-                  disabled={curTab === Tab.Errors}
-                  className={`${curTab === Tab.Errors ? 'text-primary-foreground bg-primary' : ''} disabled:opacity-100`}
-                >
-                  <IcOutlineCollectionsBookmark className="mr-1.5 text-gray-500" />
-                  查看错题
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value={Tab.Review}
-                  disabled={curTab === Tab.Review}
-                  className={`${curTab === Tab.Review ? 'text-primary-foreground bg-primary' : ''} disabled:opacity-100`}
-                >
-                  <PajamasReviewList className="mr-1.5 text-gray-500" />
-                  错题回顾
-                </ToggleGroupItem>
-              </>
-            )}
-          </ToggleGroup>
+    <div className="flex flex-col px-2 pb-2 pt-1 text-[var(--wenyan-ink)]">
+      <div className="mb-6 flex items-end justify-between gap-8 border-b border-[var(--wenyan-line-soft)] pb-5">
+        <div className="min-w-0">
+          <h3 className="text-[24px] font-semibold tracking-[-0.03em] text-[var(--wenyan-ink)]">{dict.name}</h3>
+          <p className="wenyan-muted mt-2 text-xs">{dict.chapterCount} 章节 · {dict.length} 词</p>
+          <p className="wenyan-body mt-3 max-w-2xl text-sm leading-6">{dict.description}</p>
         </div>
+
+        <ToggleGroup type="single" value={curTab} onValueChange={handleTabChange} className="shrink-0 gap-1">
+          <ToggleGroupItem value={Tab.Chapters} disabled={curTab === Tab.Chapters} className={tabClass}>
+            章节
+          </ToggleGroupItem>
+          {errorWordData.length > 0 && (
+            <>
+              <ToggleGroupItem value={Tab.Errors} disabled={curTab === Tab.Errors} className={tabClass}>
+                错词
+              </ToggleGroupItem>
+              <ToggleGroupItem value={Tab.Review} disabled={curTab === Tab.Review} className={tabClass}>
+                回顾
+              </ToggleGroupItem>
+            </>
+          )}
+        </ToggleGroup>
       </div>
-      <div className="flex pl-0">
-        <Tabs value={curTab} className="h-[30rem] w-full ">
-          <TabsContent value={Tab.Chapters} className="h-full ">
-            <ScrollArea className="h-[30rem] ">
-              <div className="flex w-full flex-wrap gap-3">
-                {range(0, dict.chapterCount, 1).map((index) => (
-                  <Chapter
-                    key={`${dict.id}-${index}`}
-                    index={index}
-                    checked={chapter === index}
-                    dictID={dict.id}
-                    onChange={onChangeChapter}
-                  />
-                ))}
-              </div>
-            </ScrollArea>
-          </TabsContent>
-          <TabsContent value={Tab.Errors} className="h-full">
-            <ErrorTable data={tableData} isLoading={isLoading} error={error} onDelete={onDelete} />
-          </TabsContent>
-          <TabsContent value={Tab.Review} className="h-full">
-            <ReviewDetail errorData={errorWordData} dict={dict} />
-          </TabsContent>
-        </Tabs>
-      </div>
+
+      <Tabs value={curTab} className="h-[30rem] w-full">
+        <TabsContent value={Tab.Chapters} className="h-full">
+          <ScrollArea className="h-[30rem] pr-3">
+            <div className="flex w-full flex-wrap gap-3">
+              {range(0, dict.chapterCount, 1).map((index) => (
+                <Chapter
+                  key={`${dict.id}-${index}`}
+                  index={index}
+                  checked={chapter === index}
+                  dictID={dict.id}
+                  onChange={onChangeChapter}
+                />
+              ))}
+            </div>
+          </ScrollArea>
+        </TabsContent>
+        <TabsContent value={Tab.Errors} className="h-full">
+          <ErrorTable data={tableData} isLoading={isLoading} error={error} onDelete={onDelete} />
+        </TabsContent>
+        <TabsContent value={Tab.Review} className="h-full">
+          <ReviewDetail errorData={errorWordData} dict={dict} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

@@ -12,21 +12,25 @@ const navigation = [
 ] as const
 
 const utilityClass = (active = false) =>
-  `${active ? 'bg-black/[0.045] text-gray-800 dark:bg-white/[0.07] dark:text-gray-200' : 'text-gray-400 hover:bg-black/[0.04] hover:text-gray-800 dark:text-gray-500 dark:hover:bg-white/[0.06] dark:hover:text-gray-200'} grid h-8 w-8 place-items-center rounded-md transition-colors`
+  `${
+    active
+      ? 'bg-[var(--wenyan-accent-soft)] text-[var(--wenyan-accent)]'
+      : 'text-[var(--wenyan-ink-muted)] hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]'
+  } grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors`
 
 export default function Header({ children }: PropsWithChildren) {
   const [dark, setDark] = useAtom(isOpenDarkModeAtom)
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-black/[0.07] bg-[#f6f6f3]/95 backdrop-blur-md dark:border-white/[0.08] dark:bg-[#111210]/95">
+    <header className="sticky top-0 z-40 w-full border-b border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper)]">
       <div className="mx-auto w-full max-w-5xl px-6">
-        <div className="flex min-h-[56px] items-center justify-between gap-6">
-          <NavLink className="shrink-0 font-serif text-[19px] font-semibold tracking-[-0.02em] text-gray-950 no-underline dark:text-gray-100" to="/today">
+        <div className="flex min-h-[58px] items-center justify-between gap-6">
+          <NavLink className="wenyan-brand shrink-0 text-[20px] font-semibold no-underline" to="/today">
             Wenyan
           </NavLink>
 
           <div className="flex min-w-0 items-center gap-4">
-            <nav aria-label="主导航" className="flex min-w-0 items-center gap-1">
+            <nav aria-label="主导航" className="flex min-w-0 items-center gap-0.5">
               {navigation.map(([path, label]) => (
                 <NavLink
                   key={path}
@@ -36,9 +40,9 @@ export default function Header({ children }: PropsWithChildren) {
                   className={({ isActive }) =>
                     `${
                       isActive
-                        ? 'text-gray-950 dark:text-gray-100'
-                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-500 dark:hover:text-gray-200'
-                    } rounded-md px-2.5 py-1.5 text-[13px] no-underline transition-colors`
+                        ? 'text-[var(--wenyan-ink)] after:absolute after:-bottom-[18px] after:left-1/2 after:h-[2px] after:w-4 after:-translate-x-1/2 after:rounded-full after:bg-[var(--wenyan-accent)]'
+                        : 'text-[var(--wenyan-ink-secondary)] hover:text-[var(--wenyan-ink)]'
+                    } relative rounded-md px-2.5 py-1.5 text-[13px] font-medium no-underline transition-colors`
                   }
                 >
                   {label}
@@ -46,12 +50,12 @@ export default function Header({ children }: PropsWithChildren) {
               ))}
             </nav>
 
-            <div className="flex items-center gap-0.5 border-l border-black/[0.07] pl-3 dark:border-white/[0.08]">
+            <div className="flex items-center gap-0.5 border-l border-[var(--wenyan-line-soft)] pl-3">
               <NavLink to="/sync" aria-label="同步" title="同步" className={({ isActive }) => utilityClass(isActive)}>
-                <Cloud aria-hidden="true" size={15} strokeWidth={1.7} />
+                <Cloud aria-hidden="true" size={15} strokeWidth={1.65} />
               </NavLink>
               <NavLink to="/preferences" aria-label="设置" title="设置" className={({ isActive }) => utilityClass(isActive)}>
-                <Settings aria-hidden="true" size={15} strokeWidth={1.7} />
+                <Settings aria-hidden="true" size={15} strokeWidth={1.65} />
               </NavLink>
               <button
                 type="button"
@@ -60,14 +64,14 @@ export default function Header({ children }: PropsWithChildren) {
                 title={dark ? '浅色模式' : '深色模式'}
                 className={utilityClass()}
               >
-                {dark ? <Sun aria-hidden="true" size={15} strokeWidth={1.7} /> : <Moon aria-hidden="true" size={15} strokeWidth={1.7} />}
+                {dark ? <Sun aria-hidden="true" size={15} strokeWidth={1.65} /> : <Moon aria-hidden="true" size={15} strokeWidth={1.65} />}
               </button>
             </div>
           </div>
         </div>
 
         {children && (
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-black/[0.06] py-2.5 dark:border-white/[0.07]">
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--wenyan-line-soft)] py-2.5">
             {children}
           </div>
         )}

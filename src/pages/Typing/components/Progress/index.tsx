@@ -5,30 +5,20 @@ export default function Progress({ className }: { className?: string }) {
   // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
   const { state } = useContext(TypingContext)!
   const [progress, setProgress] = useState(0)
-  const [phase, setPhase] = useState(0)
-
-  const colorSwitcher: { [key: number]: string } = {
-    0: 'bg-indigo-200 dark:bg-indigo-300',
-    1: 'bg-indigo-300 dark:bg-indigo-400',
-    2: 'bg-indigo-400 dark:bg-indigo-500',
-  }
 
   useEffect(() => {
-    const newProgress = Math.floor((state.chapterData.index / state.chapterData.words.length) * 100)
+    const total = state.chapterData.words.length
+    const newProgress = total > 0 ? Math.floor((state.chapterData.index / total) * 100) : 0
     setProgress(newProgress)
-    const colorPhase = Math.floor(newProgress / 33.4)
-    setPhase(colorPhase)
   }, [state.chapterData.index, state.chapterData.words.length])
 
   return (
-    <div className={`relative w-1/4 pt-1 ${className}`}>
-      <div className="mb-4 flex h-2 overflow-hidden rounded-xl bg-indigo-100 text-xs transition-all duration-300 dark:bg-indigo-200">
+    <div className={`relative w-[220px] pt-1 ${className}`}>
+      <div className="mb-4 h-[3px] overflow-hidden rounded-full bg-[var(--wenyan-paper-muted)]">
         <div
           style={{ width: `${progress}%` }}
-          className={`flex flex-col justify-center whitespace-nowrap rounded-xl text-center text-white shadow-none transition-all duration-300 ${
-            colorSwitcher[phase] ?? 'bg-indigo-200 dark:bg-indigo-300'
-          }`}
-        ></div>
+          className="h-full rounded-full bg-[var(--wenyan-accent)] transition-[width] duration-300 ease-out"
+        />
       </div>
     </div>
   )

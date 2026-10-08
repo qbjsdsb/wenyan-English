@@ -1,6 +1,5 @@
 import DictDetail from './DictDetail'
 import { useDictStats } from './hooks/useDictStats'
-import bookCover from '@/assets/book-cover.png'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import useIntersectionObserver from '@/hooks/useIntersectionObserver'
@@ -34,57 +33,50 @@ export default function DictionaryComponent({ dictionary }: Props) {
       <DialogTrigger asChild>
         <div
           ref={divRef}
-          className={`group flex  h-36 w-80 cursor-pointer items-center justify-center overflow-hidden rounded-lg p-4 text-left shadow-lg focus:outline-none ${
-            isSelected ? 'bg-indigo-400' : 'bg-zinc-50 hover:bg-white dark:bg-gray-800 dark:hover:bg-gray-700'
+          className={`group flex min-h-[126px] w-full cursor-pointer flex-col justify-between rounded-[var(--wenyan-radius-md)] border p-4 text-left transition-colors focus:outline-none ${
+            isSelected
+              ? 'border-[color-mix(in_srgb,var(--wenyan-accent)_45%,var(--wenyan-line))] bg-[var(--wenyan-accent-soft)]'
+              : 'border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)] hover:border-[var(--wenyan-line)] hover:bg-[var(--wenyan-paper-muted)]'
           }`}
           role="button"
-          // onClick={onClick}
+          tabIndex={0}
         >
-          <div className="relative ml-1 mt-2 flex h-full w-full flex-col items-start justify-start">
-            <h1
-              className={`mb-1.5 text-xl font-normal  ${
-                isSelected ? 'text-white' : 'text-gray-800 group-hover:text-indigo-400 dark:text-gray-200'
-              }`}
-            >
-              {dictionary.name}
-            </h1>
+          <div className="min-w-0">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className={`truncate text-[15px] font-semibold ${isSelected ? 'text-[var(--wenyan-accent)]' : 'text-[var(--wenyan-ink)]'}`}>
+                {dictionary.name}
+              </h3>
+              {isSelected && <span className="shrink-0 text-[10px] font-medium text-[var(--wenyan-accent)]">当前</span>}
+            </div>
             <TooltipProvider>
               <Tooltip delayDuration={400}>
                 <TooltipTrigger asChild>
-                  <p
-                    className={`mb-1 max-w-full truncate ${
-                      isSelected ? 'text-white' : 'textdelayDuration-gray-600 dark:text-gray-200'
-                    } whitespace-nowrap`}
-                  >
-                    {dictionary.description}
-                  </p>
+                  <p className="wenyan-muted mt-2 max-w-full truncate text-xs leading-5">{dictionary.description}</p>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{`${dictionary.description}`}</p>
+                  <p>{dictionary.description}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+          </div>
 
-            <p className={`mb-0.5 font-bold  ${isSelected ? 'text-white' : 'text-gray-600 dark:text-gray-200'}`}>{dictionary.length} 词</p>
-            <div className=" flex w-full items-center pt-2">
-              {progress > 0 && (
-                <Progress.Root
-                  value={progress}
-                  max={100}
-                  className={`mr-4 h-2 w-full rounded-full border  bg-white ${isSelected ? 'border-indigo-600' : 'border-indigo-400'}`}
-                >
-                  <Progress.Indicator
-                    className={`h-full rounded-full pl-0 ${isSelected ? 'bg-indigo-600' : 'bg-indigo-400'}`}
-                    style={{ width: `calc(${progress}% )` }}
-                  />
-                </Progress.Root>
-              )}
-              <img src={bookCover} className={`absolute right-3 top-3 w-16 ${isSelected ? 'opacity-50' : 'opacity-20'}`} />
+          <div className="mt-4">
+            <div className="wenyan-muted flex items-center justify-between text-[11px]">
+              <span>{dictionary.length} 词</span>
+              {progress > 0 && <span>{progress}%</span>}
             </div>
+            {progress > 0 && (
+              <Progress.Root value={progress} max={100} className="mt-2 h-[2px] w-full overflow-hidden rounded-full bg-[var(--wenyan-line-soft)]">
+                <Progress.Indicator
+                  className="h-full rounded-full bg-[var(--wenyan-accent)] transition-[width] duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </Progress.Root>
+            )}
           </div>
         </div>
       </DialogTrigger>
-      <DialogContent className="w-[60rem] max-w-none !rounded-[20px]">
+      <DialogContent className="w-[60rem] max-w-none !rounded-[var(--wenyan-radius-lg)] border-[var(--wenyan-line)] bg-[var(--wenyan-paper-raised)] text-[var(--wenyan-ink)] shadow-[var(--wenyan-shadow)]">
         <DictDetail dictionary={dictionary} />
       </DialogContent>
     </Dialog>
