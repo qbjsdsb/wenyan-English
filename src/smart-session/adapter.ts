@@ -62,6 +62,7 @@ export async function prepareSmartVocabularySession(
   dictId: string,
   constraints: SessionConstraints = {},
   now = Date.now(),
+  runtimeSessionId?: string,
 ): Promise<PreparedSmartSession> {
   const dictionary = idDictionaryMap[dictId]
   if (!dictionary || dictionary.language !== 'en') throw new Error('smart_session_requires_english_dictionary')
@@ -70,6 +71,7 @@ export async function prepareSmartVocabularySession(
   let runtime = await loadSmartSessionRuntime(dictId, now, {
     ownerUserId,
     hardStopMinutes: constraints.hardStopMinutes,
+    sessionId: runtimeSessionId,
   })
   if (runtime.currentBlock) {
     const record = await db.reviewRecords.get(runtime.currentBlock.reviewRecordId)
