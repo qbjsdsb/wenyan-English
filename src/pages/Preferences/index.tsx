@@ -1,3 +1,4 @@
+import { LoadingUI } from '@/components/Loading'
 import Header from '@/components/Header'
 import { type LearningPreferencesSnapshot, confirmLearningStage, getLearningPreferences } from '@/coaching/preferences'
 import type { LearningStage } from '@/coaching/types'
@@ -69,7 +70,12 @@ export default function PreferencesPage() {
         {message && <p role="status" className="wenyan-body mb-5 text-sm">{message}</p>}
 
         {loading ? (
-          <p className="wenyan-muted border-y border-[var(--wenyan-line-soft)] py-8 text-sm">正在读取…</p>
+          <section className="wenyan-surface flex min-h-[220px] items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <LoadingUI label="正在读取学习阶段" />
+              <p className="wenyan-muted text-[11px]">正在读取学习阶段</p>
+            </div>
+          </section>
         ) : !snapshot ? (
           <div className="wenyan-surface p-5">
             <p className="text-sm font-medium">需要先登录 Wenyan Cloud</p>
