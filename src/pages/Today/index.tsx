@@ -183,9 +183,9 @@ export default function TodayPage() {
             [data?.attempts ?? '—', '今日练习', 'text-[var(--wenyan-accent)]'],
             [data && data.attempts ? `${Math.round((data.correct / data.attempts) * 100)}%` : '—', '首次无错', 'text-[var(--wenyan-success)]'],
             [data?.chapters ?? '—', '完成章节', 'text-[var(--wenyan-warm)]'],
-          ].map(([value, label, tone]) => (
+          ].map(([value, label, tone], index) => (
             <div key={label} className="border-l border-[var(--wenyan-line-soft)] pl-5 text-right">
-              <div className={`wenyan-mono text-[22px] font-semibold tracking-[-0.035em] ${tone}`}>{value}</div>
+              <div className={`wenyan-metric-value wenyan-mono text-[22px] font-semibold tracking-[-0.035em] ${tone}`} style={{ animationDelay: `${index * 45}ms` }}>{value}</div>
               <div className="wenyan-muted mt-1 text-[10px]">{label}</div>
             </div>
           ))}
@@ -266,7 +266,7 @@ export default function TodayPage() {
                           const complete = Boolean(plan.cloudCompletions?.[task.id]) || runs.some((run) => run.completionEventId)
                           const planToday = dateInTimezone(now, plan.timezone)
                           return (
-                            <div key={task.id} className={`${taskIndex > 0 ? 'border-t border-[var(--wenyan-line-soft)]' : ''} flex items-center justify-between gap-5 py-3`} data-testid={`task-${task.id}`}>
+                            <div key={task.id} className={`${complete ? 'wenyan-task-complete ' : ''}${taskIndex > 0 ? 'border-t border-[var(--wenyan-line-soft)] ' : ''}flex items-center justify-between gap-5 py-3`} data-testid={`task-${task.id}`}>
                               <div className="min-w-0">
                                 <h4 className="text-sm text-[var(--wenyan-ink-secondary)]">{task.title}</h4>
                                 <p className="wenyan-muted mt-1 text-[11px]">
