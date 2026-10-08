@@ -17,7 +17,7 @@ export default function Header({ children }: PropsWithChildren) {
   const [dark, setDark] = useAtom(isOpenDarkModeAtom)
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-gray-200/60 bg-[#f7f8fa]/90 backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/88">
+    <header className="sticky top-0 z-40 w-full border-b border-gray-200/60 bg-[#f7f8fa]/90 backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/90">
       <div className="mx-auto w-full max-w-6xl px-6 lg:px-10">
         <div className="flex min-h-[68px] items-center justify-between gap-6">
           <NavLink className="group flex shrink-0 items-center gap-3 no-underline" to="/today">
@@ -36,6 +36,7 @@ export default function Header({ children }: PropsWithChildren) {
                   key={path}
                   end
                   to={path}
+                  aria-label={path === '/today' ? '今日学习' : label}
                   className={({ isActive }) =>
                     `${
                       isActive
