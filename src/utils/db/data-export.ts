@@ -24,7 +24,10 @@ function importStageName() {
 }
 
 async function validateBackupBlob(blob: Blob) {
-  const { importDB, peakImportFile } = await import('dexie-export-import')
+  const [{ default: Dexie }, { peakImportFile }] = await Promise.all([
+    import('dexie'),
+    import('dexie-export-import'),
+  ])
   const metadata = await peakImportFile(blob)
 
   if (metadata.formatName !== 'dexie' || metadata.formatVersion !== 1) {
@@ -54,12 +57,26 @@ async function validateBackupBlob(blob: Blob) {
     throw new Error('备份缺少 Wenyan 的基础学习记录表，未修改现有数据。')
   }
 
-  // Import once into an isolated temporary IndexedDB. This verifies the complete
-  // stream and every row before the real RecordDB is allowed to be cleared.
+  // Import once into a real, isolated IndexedDB before the user's RecordDB is
+  // touched. `importDB({ name })` is not supported by the installed exporter,
+  // so construct a temporary Dexie with the exported schema and explicitly
+  // allow only the database-name difference.
   const stageName = importStageName()
-  let staging: Awaited<ReturnType<typeof importDB>> | undefined
+  const staging = new Dexie(stageName)
+  staging.version(metadata.data.databaseVersion).stores(
+    Object.fromEntries(metadata.data.tables.map((table) => [table.name, table.schema])),
+  )
+
   try {
-    staging = await importDB(blob, { name: stageName })
+    await staging.import(blob, {
+      acceptVersionDiff: false,
+      acceptMissingTables: false,
+      acceptNameDiff: true,
+      acceptChangedPrimaryKey: false,
+      overwriteValues: true,
+      clearTablesBeforeImport: true,
+    })
+
     let stagedRows = 0
     for (const table of metadata.data.tables) {
       const count = await staging.table(table.name).count()
@@ -68,10 +85,8 @@ async function validateBackupBlob(blob: Blob) {
     }
     if (stagedRows !== declaredRows) throw new Error('备份数据没有完整通过校验，未修改现有数据。')
   } finally {
-    if (staging) {
-      staging.close()
-      await staging.delete()
-    }
+    staging.close()
+    await staging.delete()
   }
 }
 
