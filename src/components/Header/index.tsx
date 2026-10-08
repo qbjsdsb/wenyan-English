@@ -36,7 +36,7 @@ export default function Header({ children }: PropsWithChildren) {
                   key={path}
                   end
                   to={path}
-                  aria-label={path === '/today' ? '今日学习' : label}
+                  aria-label={path === '/today' ? '今日学习' : path === '/' ? '练习' : label}
                   className={({ isActive }) =>
                     `${
                       isActive
