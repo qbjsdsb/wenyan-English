@@ -233,9 +233,9 @@ export default function SmartSessionDock() {
           {error && (
             <button
               type="button"
-              disabled={busy}
+              aria-label="重新安排"
               onClick={() => void refresh()}
-              className="rounded-lg border border-black/[0.1] px-4 py-2.5 text-sm text-gray-600 transition-colors hover:bg-black/[0.03] disabled:opacity-50 dark:border-white/[0.12] dark:text-gray-400 dark:hover:bg-white/[0.05]"
+              className="rounded-lg border border-black/[0.1] px-4 py-2.5 text-sm text-gray-600 transition-colors hover:bg-black/[0.03] dark:border-white/[0.12] dark:text-gray-400 dark:hover:bg-white/[0.05]"
             >
               重试
             </button>
