@@ -113,7 +113,8 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
 
     const recent = item.attempts.filter((a) => input.now - a.occurredAt <= 14 * DAY).slice(-3)
     const errors = recent.filter((a) => a.wrongCount > 0).length
-    const needsCorrectionAfterCooldown = last.wrongCount > 0 || errors >= 2
+    const latestErrorNeedsCorrection = last.wrongCount > 0 && input.now - last.occurredAt < DAY
+    const needsCorrectionAfterCooldown = latestErrorNeedsCorrection || errors >= 2
     if (input.now - last.occurredAt < RECENT_PRACTICE_COOLDOWN) {
       deferred.set(item.key, 'recent_practice_cooldown')
       if (needsCorrectionAfterCooldown) {
@@ -126,7 +127,7 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
     const due = item.schedule?.dueAt ?? last.occurredAt + (last.wrongCount > 0 ? DAY : 3 * DAY)
     const purpose: Purpose | undefined = errors >= 2
       ? 'weak'
-      : last.wrongCount > 0
+      : latestErrorNeedsCorrection
         ? 'correction'
         : due <= input.now
           ? 'review'
