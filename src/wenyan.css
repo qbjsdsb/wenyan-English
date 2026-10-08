@@ -230,6 +230,83 @@ html.dark .wenyan-button-primary {
   animation: wenyan-fade-in var(--wenyan-motion) ease-out both;
 }
 
+/* Legacy neutral compatibility: older Qwerty-era screens inherit Wenyan's warm palette. */
+.text-gray-950,
+.text-gray-900,
+.text-gray-800,
+.text-gray-700,
+.text-zinc-900,
+.text-slate-900 {
+  color: var(--wenyan-ink) !important;
+}
+
+.text-gray-600,
+.text-gray-500,
+.text-zinc-600,
+.text-zinc-500,
+.text-slate-600,
+.text-slate-500 {
+  color: var(--wenyan-ink-secondary) !important;
+}
+
+.text-gray-400,
+.text-zinc-400,
+.text-slate-400 {
+  color: var(--wenyan-ink-muted) !important;
+}
+
+.bg-white,
+.bg-zinc-50 {
+  background-color: var(--wenyan-paper-raised) !important;
+}
+
+.bg-gray-50,
+.bg-gray-100,
+.bg-slate-100,
+.bg-zinc-100 {
+  background-color: var(--wenyan-paper-muted) !important;
+}
+
+.border-gray-200,
+.border-gray-300,
+.border-zinc-200,
+.border-slate-200 {
+  border-color: var(--wenyan-line) !important;
+}
+
+html.dark .dark\:text-gray-100,
+html.dark .dark\:text-gray-200,
+html.dark .dark\:text-gray-300,
+html.dark .dark\:text-gray-50,
+html.dark .dark\:text-white {
+  color: var(--wenyan-ink) !important;
+}
+
+html.dark .dark\:text-gray-400,
+html.dark .dark\:text-gray-500,
+html.dark .dark\:text-gray-600 {
+  color: var(--wenyan-ink-secondary) !important;
+}
+
+html.dark .dark\:bg-gray-700,
+html.dark .dark\:bg-gray-800,
+html.dark .dark\:bg-zinc-800,
+html.dark .dark\:bg-slate-800 {
+  background-color: var(--wenyan-paper-raised) !important;
+}
+
+html.dark .dark\:bg-gray-900,
+html.dark .dark\:bg-slate-900 {
+  background-color: var(--wenyan-paper) !important;
+}
+
+html.dark .dark\:border-gray-600,
+html.dark .dark\:border-gray-700,
+html.dark .dark\:border-white\/10,
+html.dark .dark\:border-white\/12 {
+  border-color: var(--wenyan-line) !important;
+}
+
 @keyframes wenyan-fade-in {
   from {
     opacity: 0;
