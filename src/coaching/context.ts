@@ -1,4 +1,3 @@
-import { buildLearningEvidenceV1 } from './evidence.ts'
 import type { CoachingContextInput, CoachingWordFact, ReadingCandidateContext, ReadingCandidateInput, StageReminderPreference } from './types'
 
 const DAY = 86_400_000
@@ -6,6 +5,143 @@ const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 const surface = (word: string) => word.trim().toLowerCase()
 const finiteTime = (value: number) => Number.isFinite(value) && value >= 0 && value <= 8.64e15
 const unique = (items: readonly string[]) => Array.from(new Set(items)).sort(compare)
+
+interface LearningEvidenceWindow {
+  calendarDays: 7
+  activeDays: number
+  wordAttempts: number
+  zeroErrorAttempts: number
+  spellingErrorAttempts: number
+  uniqueObservedWords: number
+  firstObservedWords: number
+  repeatedExposureAttempts: number
+  distinctSpellingErrorWords: number
+}
+
+interface RepeatedSpellingErrorEvidence {
+  surface: string
+  errorAttempts: number
+  totalAttempts: number
+  lastObservedAt: number
+  evidenceIds: string[]
+}
+
+function summarizeLearningWindow(
+  facts: readonly CoachingWordFact[],
+  firstFactIds: ReadonlySet<string>,
+  calendarDay: (time: number) => number,
+  fromDay: number,
+  throughDay: number,
+): LearningEvidenceWindow {
+  const selected = facts.filter((fact) => {
+    const day = calendarDay(fact.occurredAt)
+    return day >= fromDay && day <= throughDay
+  })
+  const errorFacts = selected.filter((fact) => fact.wrongCount > 0)
+  return {
+    calendarDays: 7,
+    activeDays: new Set(selected.map((fact) => calendarDay(fact.occurredAt))).size,
+    wordAttempts: selected.length,
+    zeroErrorAttempts: selected.filter((fact) => fact.wrongCount === 0).length,
+    spellingErrorAttempts: errorFacts.length,
+    uniqueObservedWords: new Set(selected.map((fact) => surface(fact.word))).size,
+    firstObservedWords: selected.filter((fact) => firstFactIds.has(fact.id)).length,
+    repeatedExposureAttempts: selected.filter((fact) => !firstFactIds.has(fact.id)).length,
+    distinctSpellingErrorWords: new Set(errorFacts.map((fact) => surface(fact.word))).size,
+  }
+}
+
+function activeDayStreak(days: readonly number[]) {
+  if (!days.length) return 0
+  const uniqueDays = Array.from(new Set(days)).sort((a, b) => a - b)
+  let streak = 1
+  for (let i = uniqueDays.length - 1; i > 0; i -= 1) {
+    if (uniqueDays[i] - uniqueDays[i - 1] !== 1) break
+    streak += 1
+  }
+  return streak
+}
+
+/** Deterministic descriptive evidence only; never mastery/readiness/fatigue inference. */
+function buildLearningEvidenceV1(input: {
+  today: number
+  calendarDay: (time: number) => number
+  facts: readonly CoachingWordFact[]
+  firstFactIds: ReadonlySet<string>
+  completeVisibleHistory: boolean
+}) {
+  const facts = [...input.facts].sort((a, b) => a.occurredAt - b.occurredAt || compare(a.id, b.id))
+  const currentFrom = input.today - 6
+  const previousFrom = input.today - 13
+  const previousThrough = input.today - 7
+  const current7 = summarizeLearningWindow(facts, input.firstFactIds, input.calendarDay, currentFrom, input.today)
+  const previous7 = summarizeLearningWindow(facts, input.firstFactIds, input.calendarDay, previousFrom, previousThrough)
+
+  const recent14 = facts.filter((fact) => input.calendarDay(fact.occurredAt) >= previousFrom)
+  const grouped = new Map<string, CoachingWordFact[]>()
+  for (const fact of recent14) {
+    const key = surface(fact.word)
+    const group = grouped.get(key) ?? []
+    group.push(fact)
+    grouped.set(key, group)
+  }
+
+  const repeatedSpellingErrors14 = Array.from(grouped, ([key, groupFacts]) => {
+    const errorFacts = groupFacts.filter((fact) => fact.wrongCount > 0)
+    if (errorFacts.length < 2) return null
+    return {
+      surface: key,
+      errorAttempts: errorFacts.length,
+      totalAttempts: groupFacts.length,
+      lastObservedAt: groupFacts[groupFacts.length - 1].occurredAt,
+      evidenceIds: errorFacts.slice(-4).map((fact) => fact.id),
+    }
+  })
+    .filter((item): item is RepeatedSpellingErrorEvidence => item !== null)
+    .sort((a, b) => b.errorAttempts - a.errorAttempts || b.totalAttempts - a.totalAttempts || b.lastObservedAt - a.lastObservedAt || compare(a.surface, b.surface))
+    .slice(0, 8)
+
+  const latestObservedAt = facts.length ? facts[facts.length - 1].occurredAt : null
+  const observedDays = facts.map((fact) => input.calendarDay(fact.occurredAt))
+  const comparability = facts.length === 0
+    ? 'sparse'
+    : input.completeVisibleHistory
+      ? 'complete_visible_history'
+      : 'partial_visible_history'
+
+  return {
+    algorithmVersion: 'learning-evidence-v1' as const,
+    basis: 'word_attempted' as const,
+    windows: {
+      current7,
+      previous7,
+      delta: {
+        activeDays: current7.activeDays - previous7.activeDays,
+        wordAttempts: current7.wordAttempts - previous7.wordAttempts,
+        zeroErrorAttempts: current7.zeroErrorAttempts - previous7.zeroErrorAttempts,
+        spellingErrorAttempts: current7.spellingErrorAttempts - previous7.spellingErrorAttempts,
+        distinctSpellingErrorWords: current7.distinctSpellingErrorWords - previous7.distinctSpellingErrorWords,
+      },
+    },
+    continuity: {
+      latestObservedAt,
+      calendarDaysSinceLatest: latestObservedAt === null ? null : Math.max(0, input.today - input.calendarDay(latestObservedAt)),
+      recentActiveDayStreak: activeDayStreak(observedDays),
+    },
+    repeatedSpellingErrors14,
+    comparability,
+    interpretation: {
+      zeroErrorAttempts: 'attempts_with_no_recorded_spelling_error' as const,
+      spellingErrorAttempts: 'attempts_with_one_or_more_recorded_spelling_errors' as const,
+      repeatedSpellingErrors14: 'same_surface_with_at_least_two_error_attempts_in_calendar_14d' as const,
+    },
+    uncertainties: [
+      'spelling_evidence_is_not_semantic_mastery',
+      'window_deltas_are_descriptive_not_causal',
+      ...(input.completeVisibleHistory ? [] : ['visible_history_may_exclude_unsynced_learning']),
+    ],
+  }
+}
 
 /** No readiness score. Catalog validity is independent from permission to execute now. */
 export function buildReadingCandidates(input: ReadingCandidateInput) {
@@ -22,7 +158,6 @@ export function buildReadingCandidates(input: ReadingCandidateInput) {
     const p = entry.passage
     if (ids.has(p.id)) throw new Error('duplicate_catalog_content')
     ids.add(p.id)
-    // Structural checks supplement (never replace) authenticated provider validation.
     if (!p.id || !p.version || p.version !== entry.currentVersion || !entry.providerRef || !entry.loadable || !entry.contentComplete ||
       !entry.answersVerified || !p.recommendationEligible || !Number.isFinite(p.estimatedMinutes) || p.estimatedMinutes <= 0 ||
       !p.paragraphs.length || p.paragraphs.some((text) => !text.trim()) || !p.questions.length ||
@@ -99,7 +234,6 @@ export function stageReminderStatus(preference: StageReminderPreference | null, 
 export function buildCoachingContext(input: CoachingContextInput) {
   if (!finiteTime(input.now) || !input.snapshotId) throw new Error('invalid_snapshot')
   const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: input.timezone, year: 'numeric', month: '2-digit', day: '2-digit' })
-  // Convert local calendar labels to day ordinals: DST changes do not alter the definition of an active day.
   const calendarDay = (time: number) => {
     const parts = formatter.formatToParts(time)
     const part = (name: string) => Number(parts.find((p) => p.type === name)?.value)
@@ -131,7 +265,6 @@ export function buildCoachingContext(input: CoachingContextInput) {
   const errorWords = unique(recent14.filter((fact) => fact.wrongCount > 0).map((fact) => surface(fact.word)))
   const errorSet = new Set(errorWords)
   const words = Array.from(groups, ([key, group]) => ({ surface: key, lastObservedAt: group[group.length - 1].occurredAt, recentError: errorSet.has(key) }))
-  // Candidate recency is checked against calendar membership, including DST, using a conservative boundary search.
   let recentSince = input.now
   let low = Math.max(0, input.now - 15 * DAY)
   while (low < recentSince) {
@@ -144,7 +277,6 @@ export function buildCoachingContext(input: CoachingContextInput) {
   if (!complete) warnings.push('visible_history_is_not_all_learning')
   if (!facts.length) warnings.push('evidence_sparse')
   const learningEvidence = buildLearningEvidenceV1({
-    now: input.now,
     today,
     calendarDay,
     facts,
