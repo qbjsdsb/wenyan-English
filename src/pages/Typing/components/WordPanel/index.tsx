@@ -79,15 +79,12 @@ export default function WordPanel() {
     const isLastExercise = currentWordExerciseCount >= loopWordTimes - 1
     const genuinelyFinished = isLastWord && isLastExercise
 
-    // A hard stop never fabricates FINISH_CHAPTER. Finish the current word,
-    // persist the next review index, then return to Today with the block unfinished.
     if (!genuinelyFinished) {
       const nextReviewIndex = isLastExercise ? state.chapterData.index + 1 : state.chapterData.index
       if (stopAtHardBoundary(nextReviewIndex)) return
     }
 
     if (!genuinelyFinished) {
-      // 用户完成当前单词
       if (!isLastExercise) {
         setCurrentWordExerciseCount((old) => old + 1)
         dispatch({ type: TypingStateActionType.LOOP_CURRENT_WORD })
@@ -106,7 +103,6 @@ export default function WordPanel() {
         }
       }
     } else {
-      // 用户真实完成当前章节/复习段
       dispatch({ type: TypingStateActionType.FINISH_CHAPTER })
       if (isReviewMode) {
         setReviewModeInfo((old) => ({ ...old, reviewRecord: old.reviewRecord ? { ...old.reviewRecord, isFinished: true } : undefined }))
@@ -184,8 +180,8 @@ export default function WordPanel() {
   }, [isShowTranslation, state.isTransVisible])
 
   return (
-    <div className="container flex h-full w-full flex-col items-center justify-center">
-      <div className="container flex h-24 w-full shrink-0 grow-0 justify-between px-12 pt-10">
+    <div className="flex h-full w-full flex-col items-center justify-center">
+      <div className="flex h-16 w-full shrink-0 grow-0 justify-between px-8 pt-6">
         {isShowPrevAndNextWord && state.isTyping && (
           <>
             <PrevAndNextWord type="prev" />
@@ -193,19 +189,17 @@ export default function WordPanel() {
           </>
         )}
       </div>
-      <div className="container flex flex-grow flex-col items-center justify-center">
+      <div className="flex flex-grow flex-col items-center justify-center">
         {currentWord && (
-          <div className="relative flex w-full justify-center">
+          <div className="wenyan-fade-in relative flex w-full justify-center">
             {!state.isTyping && (
-              <div className="absolute flex h-full w-full justify-center">
-                <div className="z-10 flex w-full items-center backdrop-blur-sm">
-                  <p className="w-full select-none text-center text-xl text-gray-600 dark:text-gray-50">
-                    按任意键{state.timerData.time ? '继续' : '开始'}
-                  </p>
-                </div>
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--wenyan-paper)]">
+                <p className="select-none text-center text-[13px] font-medium text-[var(--wenyan-accent)]">
+                  按任意键{state.timerData.time ? '继续' : '开始'}
+                </p>
               </div>
             )}
-            <div className="relative">
+            <div className="relative -translate-y-2">
               <WordComponent word={currentWord} onFinish={onFinish} key={wordComponentKey} />
               {phoneticConfig.isOpen && <Phonetic word={currentWord} />}
               <Translation
@@ -218,7 +212,7 @@ export default function WordPanel() {
           </div>
         )}
       </div>
-      <Progress className={`mb-10 mt-auto ${state.isTyping ? 'opacity-100' : 'opacity-0'}`} />
+      <Progress className={`mb-8 mt-auto transition-opacity duration-200 ${state.isTyping ? 'opacity-100' : 'opacity-0'}`} />
     </div>
   )
 }
