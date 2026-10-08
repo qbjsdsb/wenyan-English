@@ -6,6 +6,7 @@ import Pagination, { ITEM_PER_PAGE } from './Pagination'
 import RowDetail from './RowDetail'
 import { currentRowDetailAtom } from './store'
 import type { groupedWordRecords } from './type'
+import { LoadingUI } from '@/components/Loading'
 import Header from '@/components/Header'
 import { db, useDeleteWordRecord } from '@/utils/db'
 import type { WordRecord } from '@/utils/db/record'
@@ -14,6 +15,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 export function ErrorBook() {
   const [groupedRecords, setGroupedRecords] = useState<groupedWordRecords[]>([])
+  const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const totalPages = useMemo(() => Math.max(1, Math.ceil(groupedRecords.length / ITEM_PER_PAGE)), [groupedRecords.length])
   const [sortType, setSortType] = useState<ISortType>('asc')
@@ -42,6 +44,7 @@ export function ErrorBook() {
   }, [currentPage, sortedRecords])
 
   useEffect(() => {
+    setLoading(true)
     db.wordRecords
       .where('wrongCount')
       .above(0)
@@ -61,6 +64,7 @@ export function ErrorBook() {
         })
         setGroupedRecords(groups)
       })
+      .finally(() => setLoading(false))
   }, [reload])
 
   const handleDelete = async (word: string, dict: string) => {
@@ -77,12 +81,16 @@ export function ErrorBook() {
         <div className="mb-7 flex items-end justify-between gap-6">
           <div>
             <h1 className="wenyan-page-title">错词</h1>
-            <p className="wenyan-muted mt-2 text-sm">{groupedRecords.length} 个词</p>
+            <p className="wenyan-muted mt-2 text-sm">{loading ? '正在整理…' : `${groupedRecords.length} 个词`}</p>
           </div>
-          <DropdownExport renderRecords={sortedRecords} />
+          {!loading && <DropdownExport renderRecords={sortedRecords} />}
         </div>
 
-        {groupedRecords.length === 0 ? (
+        {loading ? (
+          <section className="wenyan-surface flex min-h-[260px] items-center justify-center">
+            <LoadingUI label="正在整理错词" />
+          </section>
+        ) : groupedRecords.length === 0 ? (
           <div className="wenyan-muted flex min-h-[280px] items-center justify-center border-y border-[var(--wenyan-line-soft)] text-sm">
             还没有错词记录
           </div>
@@ -97,17 +105,13 @@ export function ErrorBook() {
             </div>
             <div className="divide-y divide-[var(--wenyan-line-soft)]">
               {renderRecords.map((record) => (
-                <ErrorRow
-                  key={`${record.dict}-${record.word}`}
-                  record={record}
-                  onDelete={() => handleDelete(record.word, record.dict)}
-                />
+                <ErrorRow key={`${record.dict}-${record.word}`} record={record} onDelete={() => handleDelete(record.word, record.dict)} />
               ))}
             </div>
           </div>
         )}
 
-        {groupedRecords.length > ITEM_PER_PAGE && (
+        {!loading && groupedRecords.length > ITEM_PER_PAGE && (
           <Pagination className="mt-5" page={currentPage} setPage={setPage} totalPages={totalPages} />
         )}
       </main>
