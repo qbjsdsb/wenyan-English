@@ -4,12 +4,11 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',
-    'Helvetica Neue', sans-serif;
+  font-family: var(--wenyan-font-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--wenyan-paper, #f7f6f2);
-  @apply transition-colors duration-300;
+  transition: background-color 160ms ease-out, color 160ms ease-out;
   user-select: none;
 }
 
@@ -27,28 +26,14 @@ body,
   height: 100%;
 }
 
-.my-card {
-  box-shadow: 0px 100px 80px rgba(50, 46, 129, 0.07), 0px 41.7776px 33.4221px rgba(50, 46, 129, 0.0503198),
-    0px 22.3363px 17.869px rgba(50, 46, 129, 0.0417275), 0px 12.5216px 10.0172px rgba(50, 46, 129, 0.035),
-    0px 6.6501px 5.32008px rgba(50, 46, 129, 0.0282725), 0px 2.76726px 2.21381px rgba(50, 46, 129, 0.0196802);
-}
-
-/* Well, TailwindCSS does’t have `text-shadow` classes. */
-.text-shadow {
-  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.16), 0 2px 4px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
-}
-
-.shadow-upper {
-  box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.1);
-}
-
 .customized-scrollbar::-webkit-scrollbar {
   width: 6px;
-  background: inherit;
+  background: transparent;
 }
 
 .customized-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.25);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--wenyan-ink-muted) 45%, transparent);
 }
 
 .customized-scrollbar::-webkit-scrollbar-track {
@@ -57,156 +42,281 @@ body,
 
 @layer components {
   .icon {
-    @apply h-5.5 w-5.5 focus:outline-none;
+    width: 1.125rem;
+    height: 1.125rem;
+    outline: none;
   }
 
   .word-chip {
-    @apply flex h-10 w-auto cursor-pointer
-      flex-row items-center
-    justify-center rounded-md border-2
-      border-solid border-indigo-400 bg-white px-2 py-0.5 transition-colors duration-100 hover:bg-indigo-100 dark:border-slate-800
-      dark:bg-slate-700 dark:hover:bg-slate-600 md:h-12
-      md:px-5 md:py-1;
+    display: flex;
+    min-height: 2.5rem;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--wenyan-line);
+    border-radius: var(--wenyan-radius-sm);
+    background: var(--wenyan-paper-raised);
+    padding: 0.25rem 0.65rem;
+    transition: background-color var(--wenyan-motion-fast) ease-out, border-color var(--wenyan-motion-fast) ease-out;
+  }
+
+  .word-chip:hover {
+    border-color: color-mix(in srgb, var(--wenyan-accent) 28%, var(--wenyan-line));
+    background: var(--wenyan-paper-muted);
   }
 
   .word-chip > span {
-    @apply font-mono text-2xl font-light text-gray-600 dark:text-gray-300 md:text-3xl;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 1.35rem;
+    font-weight: 450;
+    color: var(--wenyan-ink-secondary);
   }
 
-  .word-chip-tooltip {
-    @apply pointer-events-none flex items-center justify-center whitespace-nowrap rounded-lg
-      bg-white px-2 py-1 text-xs text-gray-500
-      shadow-md dark:bg-gray-800 dark:text-gray-300;
-  }
-
-  .my-btn-primary {
-    @apply flex items-center justify-center rounded-lg bg-indigo-400 px-6 py-1 text-lg text-white hover:opacity-90 focus:outline-none dark:text-opacity-80;
-  }
-
-  .my-btn-info-panel {
-    @apply mt-3 inline-flex w-full justify-center rounded-md px-3 py-2 text-sm
-      font-semibold text-white shadow-sm transition-colors focus:outline-none
-      dark:bg-opacity-70 dark:text-opacity-80 sm:ml-3 sm:mt-0 sm:w-auto
-      sm:text-sm;
-  }
-
+  .word-chip-tooltip,
   .tooltip {
-    @apply whitespace-nowrap rounded-lg bg-white px-2 py-1 text-xs text-gray-500 shadow-md dark:bg-gray-700 dark:text-gray-300;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    border: 1px solid var(--wenyan-line-soft);
+    border-radius: var(--wenyan-radius-sm);
+    background: var(--wenyan-paper-raised);
+    padding: 0.3rem 0.5rem;
+    font-size: 0.7rem;
+    color: var(--wenyan-ink-secondary);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  }
+
+  .my-btn-primary,
+  .my-btn-info-panel {
+    display: inline-flex;
+    min-height: var(--wenyan-control-height);
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--wenyan-accent);
+    border-radius: var(--wenyan-radius-sm);
+    background: var(--wenyan-accent);
+    padding: 0 0.9rem;
+    font-size: 0.8rem;
+    font-weight: 560;
+    line-height: 1;
+    color: white;
+    box-shadow: none;
+    transition: background-color var(--wenyan-motion-fast) ease-out, border-color var(--wenyan-motion-fast) ease-out;
+  }
+
+  .my-btn-primary:hover,
+  .my-btn-info-panel:hover {
+    border-color: var(--wenyan-accent-hover);
+    background: var(--wenyan-accent-hover);
+  }
+
+  html.dark .my-btn-primary,
+  html.dark .my-btn-info-panel {
+    color: #111310;
   }
 
   .switch-root {
-    @apply relative inline-flex h-6 w-12 shrink-0 cursor-pointer items-center rounded-full border-3 border-transparent bg-gray-300 transition-colors duration-200 ease-in-out focus:outline-none;
+    position: relative;
+    display: inline-flex;
+    width: 2.35rem;
+    height: 1.25rem;
+    flex-shrink: 0;
+    cursor: pointer;
+    align-items: center;
+    border: 1px solid var(--wenyan-line);
+    border-radius: 999px;
+    background: var(--wenyan-paper-muted);
+    outline: none;
+    transition: background-color var(--wenyan-motion-fast) ease-out, border-color var(--wenyan-motion-fast) ease-out;
   }
-  .switch-root[data-headlessui-state='checked'] {
-    @apply bg-indigo-400;
+
+  .switch-root[data-headlessui-state~='checked'] {
+    border-color: var(--wenyan-accent);
+    background: var(--wenyan-accent);
   }
+
   .switch-thumb {
-    @apply pointer-events-none inline-block h-4 w-4 translate-x-0 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out;
+    pointer-events: none;
+    display: block;
+    width: 0.9rem;
+    height: 0.9rem;
+    transform: translateX(0.16rem);
+    border-radius: 999px;
+    background: var(--wenyan-paper-raised);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+    transition: transform var(--wenyan-motion-fast) ease-out;
   }
-  [data-headlessui-state='checked'] .switch-thumb {
-    @apply translate-x-[25px];
+
+  [data-headlessui-state~='checked'] .switch-thumb {
+    transform: translateX(1.18rem);
   }
 
   .listbox-button {
-    @apply relative w-40 cursor-pointer rounded-lg bg-white py-2 pl-3 pr-10 text-left shadow-md focus:outline-none dark:bg-gray-600;
+    position: relative;
+    min-width: 8.5rem;
+    cursor: pointer;
+    border: 1px solid var(--wenyan-line);
+    border-radius: var(--wenyan-radius-sm);
+    background: var(--wenyan-paper-raised);
+    padding: 0.55rem 2rem 0.55rem 0.75rem;
+    text-align: left;
+    font-size: 0.78rem;
+    color: var(--wenyan-ink-secondary);
+    box-shadow: none;
+    outline: none;
   }
+
+  .listbox-button:hover {
+    background: var(--wenyan-paper-muted);
+    color: var(--wenyan-ink);
+  }
+
   .listbox-button span:nth-of-type(1) {
-    @apply block truncate text-gray-900 dark:text-white dark:text-opacity-60;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
+
   .listbox-button span:nth-of-type(2) {
-    @apply pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 focus:outline-none;
+    pointer-events: none;
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    padding-right: 0.6rem;
   }
+
   .listbox-options {
-    @apply absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg  focus:outline-none dark:bg-gray-600;
+    position: absolute;
+    z-index: 50;
+    margin-top: 0.35rem;
+    max-height: 15rem;
+    min-width: 100%;
+    overflow: auto;
+    border: 1px solid var(--wenyan-line-soft);
+    border-radius: var(--wenyan-radius-md);
+    background: var(--wenyan-paper-raised);
+    padding: 0.3rem;
+    font-size: 0.78rem;
+    color: var(--wenyan-ink-secondary);
+    box-shadow: var(--wenyan-shadow);
+    outline: none;
   }
+
   .listbox-options > li {
-    @apply relative cursor-pointer select-none py-2 pl-10 pr-4 text-gray-900 ui-active:bg-indigo-100 ui-active:text-indigo-900 dark:text-white dark:text-opacity-60 dark:ui-active:bg-gray-500 dark:ui-active:text-indigo-300;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    border-radius: var(--wenyan-radius-sm);
+    padding: 0.5rem 0.7rem 0.5rem 2rem;
   }
+
+  .listbox-options > li:hover,
+  .listbox-options > li[data-headlessui-state~='active'] {
+    background: var(--wenyan-paper-muted);
+    color: var(--wenyan-ink);
+  }
+
   .listbox-options > li > span:first-child {
-    @apply block truncate font-normal  ui-selected:font-medium;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
+
   .listbox-options-icon {
-    @apply absolute inset-y-0 left-0 flex items-center pl-3 text-indigo-600 dark:text-indigo-400;
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    padding-left: 0.65rem;
+    color: var(--wenyan-accent);
   }
 
   .slider {
-    @apply relative flex h-10 w-full cursor-pointer select-none items-center;
+    position: relative;
+    display: flex;
+    width: 100%;
+    height: 2rem;
+    cursor: pointer;
+    user-select: none;
+    align-items: center;
   }
+
   .slider [data-disabled] {
-    @apply pointer-events-none opacity-50;
+    pointer-events: none;
+    opacity: 0.5;
   }
+
   .slider > span:nth-child(1) {
-    @apply relative h-[5px] flex-grow rounded-full bg-gray-200;
+    position: relative;
+    height: 3px;
+    flex-grow: 1;
+    border-radius: 999px;
+    background: var(--wenyan-line);
   }
+
   .slider > span:nth-child(1) > span:nth-child(1) {
-    @apply absolute h-full rounded-full bg-indigo-400;
+    position: absolute;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--wenyan-accent);
   }
+
   .slider > span:nth-child(2) {
-    @apply block h-4 w-4 cursor-pointer rounded-full border border-gray-200 bg-white drop-shadow-md;
+    display: block;
+    width: 0.85rem;
+    height: 0.85rem;
+    cursor: pointer;
+    border: 1px solid var(--wenyan-line);
+    border-radius: 999px;
+    background: var(--wenyan-paper-raised);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
   }
 }
 
 .gradient-text {
   background-image: linear-gradient(90deg, #f66, #f90);
   background-clip: text;
-
   color: transparent;
   animation: gradient-text-hue 5s linear infinite;
 }
 
 @keyframes gradient-text-hue {
-  from {
-    filter: hue-rotate(0);
-  }
-  to {
-    filter: hue-rotate(-1turn);
-  }
+  from { filter: hue-rotate(0); }
+  to { filter: hue-rotate(-1turn); }
 }
 
 @keyframes typing {
-  from {
-    width: 0;
-  }
-  to {
-    width: 30em;
-  } /* 调整为字符总数的一半 */
+  from { width: 0; }
+  to { width: 30em; }
 }
 
 @keyframes blink-caret {
-  from,
-  to {
-    border-color: transparent;
-  }
-  50% {
-    border-color: #f0f0f0;
-  }
+  from, to { border-color: transparent; }
+  50% { border-color: #f0f0f0; }
 }
 
 .typewriter {
   width: 30em;
   margin: 0 auto;
 }
+
 @keyframes hideCaret {
-  to {
-    border-right-color: transparent;
-  }
+  to { border-right-color: transparent; }
 }
 
 @keyframes gradientBG {
-  0% {
-    background-position: 0% 50%;
-  }
-
-  50% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: 0% 50%;
-  }
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
-/* Keep keyboard navigation visible throughout the personal workspace. */
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,

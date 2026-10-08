@@ -8,7 +8,7 @@ import { NavLink } from 'react-router-dom'
 import IconCheck from '~icons/tabler/check'
 
 const controlClass =
-  'rounded-xl border border-gray-200/70 bg-white/60 px-3 py-2 text-sm text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:bg-white hover:text-gray-950 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white'
+  'wenyan-button-secondary inline-flex items-center whitespace-nowrap !px-3.5 text-[13px] font-medium'
 
 export const DictChapterButton = () => {
   const currentDictInfo = useAtomValue(currentDictInfoAtom)
@@ -17,13 +17,11 @@ export const DictChapterButton = () => {
   const isReviewMode = useAtomValue(isReviewModeAtom)
 
   const handleKeyDown: React.KeyboardEventHandler<HTMLButtonElement> = (event) => {
-    if (event.key === ' ') {
-      event.preventDefault()
-    }
+    if (event.key === ' ') event.preventDefault()
   }
 
   return (
-    <>
+    <div className="flex items-center gap-2">
       <Tooltip content="切换词库">
         <NavLink className={controlClass} to="/gallery">
           {currentDictInfo.name}{isReviewMode ? ' · 错词复习' : ''}
@@ -37,7 +35,7 @@ export const DictChapterButton = () => {
                 第 {currentChapter + 1} 章
               </Listbox.Button>
               <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
-                <Listbox.Options className="listbox-options z-20 mt-2 w-32">
+                <Listbox.Options className="listbox-options z-30 mt-2 w-32">
                   {range(0, chapterCount, 1).map((index) => (
                     <Listbox.Option key={index} value={index}>
                       {({ selected }) => (
@@ -58,6 +56,6 @@ export const DictChapterButton = () => {
           </Listbox>
         </Tooltip>
       )}
-    </>
+    </div>
   )
 }

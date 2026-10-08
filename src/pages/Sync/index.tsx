@@ -17,8 +17,6 @@ function describeResult(result: LearningDataSyncResult) {
 }
 
 const emptySummary: LearningQueueSummary = { currentAccount: 0, unclaimed: 0, otherAccount: 0, readyNow: 0 }
-const secondaryButton = 'rounded-lg border border-black/[0.09] px-4 py-2.5 text-sm text-gray-600 transition-colors hover:bg-black/[0.03] disabled:opacity-50 dark:border-white/[0.1] dark:text-gray-400 dark:hover:bg-white/[0.04]'
-const primaryButton = 'rounded-lg bg-[#1d1d1b] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-black disabled:opacity-50 dark:bg-[#eeeeea] dark:text-[#111210] dark:hover:bg-white'
 
 export default function SyncPage() {
   const [session, setSession] = useState<Session | null>(null)
@@ -87,75 +85,75 @@ export default function SyncPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col text-gray-900 dark:text-gray-100">
+    <div className="flex min-h-screen flex-col text-[var(--wenyan-ink)]">
       <Header />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-[30px] font-semibold tracking-[-0.035em] text-gray-950 dark:text-gray-100">同步</h1>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">学习记录在设备之间保持一致</p>
+      <main className="mx-auto w-full max-w-3xl flex-1 px-6 pb-14 pt-9">
+        <div className="mb-7">
+          <h1 className="wenyan-page-title">同步</h1>
+          <p className="wenyan-muted mt-2 text-sm">学习记录在设备之间保持一致</p>
         </div>
 
         {session ? (
-          <section className="border-y border-black/[0.08] dark:border-white/[0.09]">
-            <div className="flex items-center justify-between gap-5 border-b border-black/[0.06] py-5 dark:border-white/[0.07]">
+          <section className="overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]">
+            <div className="flex items-center justify-between gap-5 border-b border-[var(--wenyan-line-soft)] px-5 py-5">
               <div>
-                <p className="text-xs text-gray-400 dark:text-gray-600">当前账号</p>
-                <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-200">{session.user.email ?? '已登录'}</p>
+                <p className="wenyan-muted text-[10px]">当前账号</p>
+                <p className="mt-1 text-sm font-medium text-[var(--wenyan-ink)]">{session.user.email ?? '已登录'}</p>
               </div>
-              <button className={secondaryButton} disabled={busy} onClick={signOut}>退出</button>
+              <button className="wenyan-button-secondary" disabled={busy} onClick={signOut}>退出</button>
             </div>
 
-            <div className="grid grid-cols-3 divide-x divide-black/[0.06] py-6 dark:divide-white/[0.07]">
+            <div className="grid grid-cols-3 divide-x divide-[var(--wenyan-line-soft)] px-5 py-6">
               {[
                 ['待上传', queue.currentAccount],
                 ['未归属', queue.unclaimed],
                 ['其他账号', queue.otherAccount],
               ].map(([label, value]) => (
                 <div key={label} className="px-5 first:pl-0 last:pr-0">
-                  <p className="text-xs text-gray-400 dark:text-gray-600">{label}</p>
-                  <p className="mt-2 text-2xl font-semibold tabular-nums text-gray-950 dark:text-gray-100">{value}</p>
+                  <p className="wenyan-muted text-[10px]">{label}</p>
+                  <p className="mt-2 text-xl font-semibold tabular-nums text-[var(--wenyan-ink)]">{value}</p>
                 </div>
               ))}
             </div>
 
             {queue.unclaimed > 0 && (
-              <div className="border-t border-amber-200/70 py-5 text-sm dark:border-amber-900/50">
-                <p className="text-amber-800 dark:text-amber-300">有 {queue.unclaimed} 条本机记录还没有账号归属。</p>
-                <button className={`${secondaryButton} mt-3`} disabled={busy} onClick={claimLocalHistory}>认领到当前账号</button>
+              <div className="border-t border-[color-mix(in_srgb,var(--wenyan-danger)_20%,var(--wenyan-line-soft))] px-5 py-5 text-sm">
+                <p className="text-[var(--wenyan-danger)]">有 {queue.unclaimed} 条本机记录还没有账号归属。</p>
+                <button className="wenyan-button-secondary mt-3" disabled={busy} onClick={claimLocalHistory}>认领到当前账号</button>
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-5 border-t border-black/[0.06] py-5 dark:border-white/[0.07]">
+            <div className="flex items-center justify-between gap-5 border-t border-[var(--wenyan-line-soft)] px-5 py-5">
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-200">云端学习记录</p>
-                <p className="mt-1 text-xs text-gray-400 dark:text-gray-600">上传本机新记录，并恢复云端缺失记录</p>
+                <p className="text-sm font-medium text-[var(--wenyan-ink)]">云端学习记录</p>
+                <p className="wenyan-muted mt-1 text-xs">上传本机新记录，并恢复云端缺失记录</p>
               </div>
-              <button className={primaryButton} disabled={busy} onClick={syncNow}>{busy ? '同步中…' : '立即同步'}</button>
+              <button className="wenyan-button-primary" disabled={busy} onClick={syncNow}>{busy ? '同步中…' : '立即同步'}</button>
             </div>
           </section>
         ) : (
-          <section className="border-y border-black/[0.08] py-6 dark:border-white/[0.09]">
+          <section className="rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)] p-5">
             <label className="mb-2 block text-sm font-medium" htmlFor="wenyan-sync-email">邮箱</label>
             <div className="flex gap-3">
               <input
                 id="wenyan-sync-email"
-                className="min-w-0 flex-1 rounded-lg border border-black/[0.1] bg-transparent px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-gray-500 dark:border-white/[0.12] dark:focus:border-gray-500"
+                className="wenyan-input min-w-0 flex-1 px-3.5 text-sm outline-none"
                 inputMode="email"
                 autoComplete="email"
                 placeholder="you@example.com"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
               />
-              <button className={primaryButton} disabled={busy || !email.trim()} onClick={sendMagicLink}>发送登录链接</button>
+              <button className="wenyan-button-primary" disabled={busy || !email.trim()} onClick={sendMagicLink}>发送登录链接</button>
             </div>
-            <p className="mt-3 text-xs text-gray-400 dark:text-gray-600">仅登录已有账号，不会自动创建新用户。</p>
+            <p className="wenyan-muted mt-3 text-xs">仅登录已有账号，不会自动创建新用户。</p>
           </section>
         )}
 
-        {message && <p role="status" className="mt-5 text-sm text-gray-600 dark:text-gray-400">{message}</p>}
+        {message && <p role="status" className="wenyan-body mt-5 text-sm">{message}</p>}
 
-        <details className="mt-10 border-t border-black/[0.06] pt-4 text-xs text-gray-400 dark:border-white/[0.07] dark:text-gray-600">
-          <summary className="cursor-pointer select-none text-gray-500 dark:text-gray-500">同步说明</summary>
+        <details className="wenyan-muted mt-9 border-t border-[var(--wenyan-line-soft)] pt-4 text-xs">
+          <summary className="wenyan-link cursor-pointer select-none text-xs">同步说明</summary>
           <div className="mt-3 space-y-2 leading-6">
             <p>学习事件先保存在本机；登录后只上传明确归属于当前账号的记录。未归属记录需要你手动认领。</p>
             <p>云端恢复使用独立游标，重复同步不会复制同一事件。旧 Qwerty 设置、当前词书位置和 legacy 错词表暂不跨设备恢复。</p>

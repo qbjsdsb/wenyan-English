@@ -15,8 +15,9 @@ const ErrorBookButton = () => {
     <button
       type="button"
       onClick={toErrorBook}
-      className={`flex items-center justify-center rounded p-[2px] text-lg text-indigo-500 outline-none transition-colors duration-300 ease-in-out hover:bg-indigo-400 hover:text-white`}
+      className="grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] text-[var(--wenyan-ink-muted)] transition-colors hover:bg-[var(--wenyan-paper-raised)] hover:text-[var(--wenyan-ink)]"
       title="查看错题本"
+      aria-label="查看错题本"
     >
       <IconBook className="icon" />
     </button>

@@ -17,19 +17,19 @@ export default function DictionaryGroup({ groupedDictsByTag }: { groupedDictsByT
 
   useEffect(() => {
     const commonTags = findCommonValues(tagList, currentDictInfo.tags)
-    if (commonTags.length > 0) {
-      setCurrentTag(commonTags[0])
-    }
+    if (commonTags.length > 0) setCurrentTag(commonTags[0])
   }, [currentDictInfo.tags, tagList])
 
   return (
     <div>
       {tagList.length > 1 && <DictTagSwitcher tagList={tagList} currentTag={currentTag} onChangeCurrentTag={onChangeCurrentTag} />}
-      <div className={`${tagList.length > 1 ? 'mt-5' : ''} grid grid-cols-2 gap-4 lg:grid-cols-3`}>
+      <div className={`${tagList.length > 1 ? 'mt-4' : ''} overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]`}>
         {currentTag && groupedDictsByTag[currentTag] ? (
-          groupedDictsByTag[currentTag].map((dict) => <DictionaryComponent key={dict.id} dictionary={dict} />)
+          groupedDictsByTag[currentTag].map((dict, index) => (
+            <DictionaryComponent key={dict.id} dictionary={dict} withTopBorder={index > 0} />
+          ))
         ) : (
-          <div className="wenyan-muted col-span-full py-8 text-center text-sm">当前分类下没有可用的词典</div>
+          <div className="wenyan-muted py-8 text-center text-sm">当前分类下没有可用的词典</div>
         )}
       </div>
     </div>
