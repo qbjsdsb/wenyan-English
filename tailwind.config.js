@@ -5,7 +5,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: '#6366f1',
+        primary: '#465d74',
       },
       keyframes: {
         'accordion-down': {
