@@ -1,5 +1,5 @@
 import type { RecallRating, SemanticRun } from '@/semantic/core'
-import { loadSemanticRun, revealSemanticItem, saveSemanticRating } from '@/semantic/runtime'
+import { endSemanticRun, loadSemanticRun, revealSemanticItem, saveSemanticRating } from '@/semantic/runtime'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
@@ -58,7 +58,7 @@ export default function SemanticPage() {
   }, [run, resumedAfterReveal])
 
   const revealed = run?.revealedIndex === run?.index && Boolean(run)
-  const completed = run?.completedAt !== undefined
+  const completed = run?.completedAt !== undefined || run?.endedAt !== undefined
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return
@@ -91,7 +91,7 @@ export default function SemanticPage() {
           <section className="wenyan-focus-surface mt-10 p-10">
             <h1 ref={focus} tabIndex={-1} className="text-3xl outline-none">{completed ? '这一段，已经留下记录。' : '到时间了，今天先到这里。'}</h1>
             <p className="wenyan-muted mt-5">已保存 {run.index} 个词的自评。它们会帮助下一次安排，不代表已经完全掌握。</p>
-            <Link to="/today" className="wenyan-button-primary mt-8 inline-flex">回到今天</Link>
+            <button className="wenyan-button-primary mt-8" onClick={async () => { await endSemanticRun(run.id); navigate('/today') }}>回到今天</button>
           </section>
         ) : item && (
           <section className="wenyan-focus-surface mt-10 p-10">

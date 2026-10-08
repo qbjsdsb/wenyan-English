@@ -304,7 +304,7 @@ export function buildCoachingContext(input: CoachingContextInput) {
     snapshot: { id: input.snapshotId, generatedAt: input.now, timezone: input.timezone, algorithmVersion: 'coaching-v1' as const,
       coverageQuality: facts.length === 0 ? 'sparse' : complete ? 'complete_visible_history' : 'partial', warnings: unique(warnings) },
     preferences: {
-      exam: { type: '考研英语一', targetYear: 2027, date: null },
+      exam: { type: '考研英语一', targetYear: null, date: null },
       learningStage: input.stage,
       stageReminder: { preference: input.reminder, status: stageReminderStatus(input.reminder, input.now, extraDays, complete) },
       vocabularyRoute: { desiredSource: '红宝书', providerStatus: input.vocabularyProvider.status, providerRef: input.vocabularyProvider.ref, observedProgress: null },

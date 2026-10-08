@@ -83,7 +83,7 @@ export async function prepareSmartVocabularySession(
   if (runtime.currentBlock) {
     if (runtime.currentBlock.semanticRunId) {
       const run = await db.semanticRuns.get(runtime.currentBlock.semanticRunId)
-      if (run && run.ownerUserId === ownerUserId && run.completedAt === undefined) return { kind: 'semantic-resume', runtime, run }
+      if (run && run.ownerUserId === ownerUserId && run.completedAt === undefined && run.endedAt === undefined) return { kind: 'semantic-resume', runtime, run }
     }
     const record = runtime.currentBlock.reviewRecordId === undefined ? undefined : await db.reviewRecords.get(runtime.currentBlock.reviewRecordId)
     if (record && !record.isFinished) return { kind: 'resume', runtime, record: record as ReviewRecord }
@@ -191,6 +191,7 @@ export async function prepareSmartVocabularySession(
     coverage: visibleEvents.length > 0 ? 'partial' : 'unknown',
   })
 
+  if (ownerUserId !== getLocalLearningOwnerId()) throw new Error('账号已经改变，请重新安排。')
   return { kind: 'draft', runtime, draft, wordsByContentId, semanticItems }
 }
 
@@ -226,8 +227,10 @@ export async function startPreparedVocabularyBlock(
   prepared: Extract<PreparedSmartSession, { kind: 'draft' }>,
   now = Date.now(),
 ): Promise<{ runtime: SmartSessionRuntime; record: ReviewRecord }> {
+  if (prepared.runtime.ownerUserId !== getLocalLearningOwnerId()) throw new Error('账号已经改变，请重新安排。')
   const block = assertPreparedVocabularyBlockStartable(prepared, now)
 
+  if (block.activity.kind !== 'vocabulary') throw new Error('vocabulary_block_required')
   const words = block.activity.items.map((item) => {
     const word = prepared.wordsByContentId.get(item.contentId)
     if (!word || smartVocabularyKey(word.name) !== item.key) throw new Error('smart_session_content_mismatch')
@@ -253,6 +256,7 @@ export async function startPreparedVocabularyBlock(
 
 /** Separate activity storage: semantic attempts cannot complete a spelling chapter or Cloud Plan chapter task. */
 export async function startPreparedSemanticBlock(prepared: Extract<PreparedSmartSession, { kind: 'draft' }>, now = Date.now()) {
+  if (prepared.runtime.ownerUserId !== getLocalLearningOwnerId()) throw new Error('账号已经改变，请重新安排。')
   const block = assertPreparedVocabularyBlockStartable(prepared, now)
   if (block.activity.kind !== 'semantic_recall') throw new Error('semantic_block_required')
   if (prepared.runtime.ownerUserId !== getLocalLearningOwnerId()) throw new Error('账号已经改变，请重新安排。')

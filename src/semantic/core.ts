@@ -31,6 +31,7 @@ export interface SemanticRun {
   index: number
   revealedIndex?: number
   completedAt?: number
+  endedAt?: number
 }
 export const semanticKey = (dictionaryId: string, word: string) => `semantic:${dictionaryId}:${word.normalize('NFKC').trim().toLowerCase()}`
 
@@ -64,7 +65,7 @@ export function buildSemanticEvidence(facts: readonly SemanticFact[], now: numbe
       unique.set(fact.id, { ...fact, payload })
     } catch { excluded++ }
   }
-  const recent = [...unique.values()].filter((f) => f.occurredAt >= now - 14 * 86400000)
+  const recent = Array.from(unique.values()).filter((f) => f.occurredAt >= now - 14 * 86400000)
     .sort((a, b) => b.occurredAt - a.occurredAt || a.id.localeCompare(b.id))
   const latest = new Map<string, SemanticFact>()
   for (const f of recent) {
@@ -78,7 +79,7 @@ export function buildSemanticEvidence(facts: readonly SemanticFact[], now: numbe
       partial: recent.filter((f) => f.payload.rating === 'partial').length,
       notRecalled: recent.filter((f) => f.payload.rating === 'not_recalled').length },
     resumedAfterReveal: recent.filter((f) => f.payload.resumedAfterReveal).length,
-    revisit: [...latest.values()].filter((f) => f.payload.rating !== 'recalled').slice(0, 6).map((f) => ({
+    revisit: Array.from(latest.values()).filter((f) => f.payload.rating !== 'recalled').slice(0, 6).map((f) => ({
       word: f.payload.word, dictionaryId: f.payload.dictionaryId, contentVersion: f.payload.contentVersion,
       selfReport: f.payload.rating, occurredAt: f.occurredAt, evidenceId: f.id,
     })),

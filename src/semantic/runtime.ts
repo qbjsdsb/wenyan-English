@@ -13,7 +13,7 @@ export async function loadSemanticRun(id: string) {
 export async function revealSemanticItem(id: string, index: number) {
   return db.transaction('rw', db.semanticRuns, async () => {
     const run = await loadSemanticRun(id)
-    if (run.index !== index || run.completedAt !== undefined) throw new Error('进度已改变，请重新打开这一段。')
+    if (run.index !== index || (run.completedAt !== undefined || run.endedAt !== undefined)) throw new Error('进度已改变，请重新打开这一段。')
     if (run.hardStopAt !== undefined && Date.now() >= run.hardStopAt) throw new Error('本次学习已到时间上限。已保存的回想记录会保留。')
     await db.semanticRuns.update(id, { revealedIndex: index })
     return { ...run, revealedIndex: index }
@@ -24,7 +24,7 @@ export async function revealSemanticItem(id: string, index: number) {
 export async function saveSemanticRating(id: string, index: number, rating: RecallRating, resumedAfterReveal: boolean) {
   return db.transaction('rw', db.semanticRuns, db.learningEvents, async () => {
     const run = await loadSemanticRun(id)
-    if (run.index !== index || run.completedAt !== undefined || run.revealedIndex !== index) throw new Error('进度已改变，请重新打开这一段。')
+    if (run.index !== index || (run.completedAt !== undefined || run.endedAt !== undefined) || run.revealedIndex !== index) throw new Error('进度已改变，请重新打开这一段。')
     const item = run.items[index]
     if (!item) throw new Error('词条已不可用。')
     const payload: SemanticPayload = parseSemanticPayload({
@@ -42,4 +42,10 @@ export async function saveSemanticRating(id: string, index: number, rating: Reca
     await db.semanticRuns.put(next)
     return next
   })
+}
+
+/** Ending is a runtime choice; no completion event is synthesized. */
+export async function endSemanticRun(id: string) {
+  const run = await loadSemanticRun(id)
+  await db.semanticRuns.update(run.id, { endedAt: Date.now() })
 }

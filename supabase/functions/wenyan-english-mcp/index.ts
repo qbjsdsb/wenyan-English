@@ -252,6 +252,7 @@ const requestIdSchema = z.string().min(8).max(120).regex(/^[A-Za-z0-9._:-]+$/)
 const optionalDeviceIdSchema = z.string().uuid().optional()
 const intentScopeSchema = z.enum(['ongoing', 'day', 'session'])
 const activitySchema = z.enum([
+  'semantic_recall',
   'vocabulary',
   'reading',
   'dictation',
@@ -264,7 +265,7 @@ const activitySchema = z.enum([
 ])
 const preferredActivitiesSchema = z
   .array(activitySchema)
-  .max(9)
+  .max(10)
   .refine((items) => new Set(items).size === items.length, 'preferredActivities must not contain duplicates')
 const intentConstraintsSchema = z
   .object({

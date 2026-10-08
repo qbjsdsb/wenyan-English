@@ -189,6 +189,7 @@ export function buildSmartSession(input: SmartSessionInput): SmartSessionDraft {
   if (c.reviewPreference === 'review_first') pattern.splice(1, 0, 'weak')
   let preferred = pattern[p.completedBlocks % pattern.length]
   if (p.completedBlocks > 0 && c.preferredActivities?.includes('reading')) preferred = 'reading'
+  if (p.completedBlocks > 0 && p.completedBlocks % 3 === 1 && c.reviewPreference !== 'review_first') preferred = 'semantic_recall'
   if (c.preferredActivities?.includes('semantic_recall')) preferred = 'semantic_recall'
   const order = Array.from(new Set([preferred, 'weak', 'correction', 'review', 'new', 'semantic_recall', 'reading'] as Purpose[]))
   const ranked = [...eligible].sort((a, b) => order.indexOf(a.purpose) - order.indexOf(b.purpose) || b.score - a.score || compare(a.item.key, b.item.key))

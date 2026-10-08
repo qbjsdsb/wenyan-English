@@ -61,7 +61,7 @@
     "start": "vite",
     "build": "cross-env CI=false vite build --base=./",
     "test": "yarn test:deterministic",
-    "test:deterministic": "node --experimental-strip-types scripts/check-smart-session.mjs && node --experimental-strip-types scripts/check-execution-availability.mjs && node --experimental-strip-types scripts/check-coaching.mjs && node --experimental-strip-types scripts/check-coach-decision.mjs && node --experimental-strip-types scripts/check-coaching-adapter.mjs && node --experimental-strip-types scripts/check-mcp-authorization.mjs",
+    "test:deterministic": "node --experimental-strip-types scripts/check-semantic.mjs && node --experimental-strip-types scripts/check-smart-session.mjs && node --experimental-strip-types scripts/check-execution-availability.mjs && node --experimental-strip-types scripts/check-coaching.mjs && node --experimental-strip-types scripts/check-coach-decision.mjs && node --experimental-strip-types scripts/check-coaching-adapter.mjs && node --experimental-strip-types scripts/check-mcp-authorization.mjs",
     "test:e2e": "playwright test",
     "lint": "eslint .",
     "prettier": "prettier --write .",
