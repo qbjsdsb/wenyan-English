@@ -199,24 +199,24 @@ const ResultScreen = () => {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--wenyan-line-soft)] px-7 py-4">
-              <button type="button" className="wenyan-button-secondary" onClick={() => navigate('/today')}>返回今天</button>
+              <button type="button" aria-label="返回今日学习" className="wenyan-button-secondary" onClick={() => navigate('/today')}>返回今天</button>
               {!isReviewMode && (
                 <>
                   <Tooltip content="快捷键：Shift + Enter">
-                    <button className="wenyan-button-secondary" type="button" onClick={dictationButtonHandler}>默写本章</button>
+                    <button aria-label="默写本章节" className="wenyan-button-secondary" type="button" onClick={dictationButtonHandler}>默写本章</button>
                   </Tooltip>
                   <Tooltip content="快捷键：Space">
-                    <button className="wenyan-button-secondary" type="button" onClick={repeatButtonHandler}>再练一遍</button>
+                    <button aria-label="重复本章节" className="wenyan-button-secondary" type="button" onClick={repeatButtonHandler}>再练一遍</button>
                   </Tooltip>
                 </>
               )}
               {!isLastChapter && !isReviewMode && (
                 <Tooltip content="快捷键：Enter">
-                  <button className="wenyan-button-primary" type="button" onClick={nextButtonHandler}>下一章</button>
+                  <button aria-label="下一章节" className="wenyan-button-primary" type="button" onClick={nextButtonHandler}>下一章</button>
                 </Tooltip>
               )}
               {isReviewMode && (
-                <button className="wenyan-button-primary" type="button" onClick={onNavigateToGallery}>选择其他章节</button>
+                <button aria-label="练习其他章节" className="wenyan-button-primary" type="button" onClick={onNavigateToGallery}>选择其他章节</button>
               )}
             </div>
           </section>
