@@ -1,4 +1,5 @@
 import type { CoachingContextInput, CoachingWordFact, ReadingCandidateContext, ReadingCandidateInput, StageReminderPreference } from './types'
+import { buildCoachDecisionSupportV1 } from './decision.js'
 
 const DAY = 86_400_000
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
@@ -283,6 +284,13 @@ export function buildCoachingContext(input: CoachingContextInput) {
     firstFactIds: firstIds,
     completeVisibleHistory: complete,
   })
+  const coachDecisionSupport = buildCoachDecisionSupportV1({
+    comparability: learningEvidence.comparability,
+    coverageComplete: complete,
+    current7: learningEvidence.windows.current7,
+    previous7: learningEvidence.windows.previous7,
+    repeatedSpellingErrorCount14: learningEvidence.repeatedSpellingErrors14.length,
+  })
   const intents = [...input.intents].filter((intent) => intent.effectiveFrom <= input.now && (intent.expiresAt === null || input.now < intent.expiresAt))
     .sort((a, b) => ['ongoing', 'day', 'session'].indexOf(a.scope) - ['ongoing', 'day', 'session'].indexOf(b.scope))
   if (intents.some((i) => i.scope !== 'ongoing' && i.expiresAt === null) || new Set(intents.map((i) => i.scope)).size !== intents.length) {
@@ -312,6 +320,7 @@ export function buildCoachingContext(input: CoachingContextInput) {
         recentSpellingErrorWordCount: errorWords.length, interruptions: null,
       },
       learningEvidence,
+      coachDecisionSupport,
       reviewPressure: { scheduledDueCount: null, basis: 'not_measured' },
       readingCandidates: reading,
     },
