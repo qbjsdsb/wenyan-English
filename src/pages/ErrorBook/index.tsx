@@ -6,7 +6,6 @@ import Pagination, { ITEM_PER_PAGE } from './Pagination'
 import RowDetail from './RowDetail'
 import { currentRowDetailAtom } from './store'
 import type { groupedWordRecords } from './type'
-import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import { db, useDeleteWordRecord } from '@/utils/db'
 import type { WordRecord } from '@/utils/db/record'
@@ -112,9 +111,6 @@ export function ErrorBook() {
           <Pagination className="mt-5" page={currentPage} setPage={setPage} totalPages={totalPages} />
         )}
       </main>
-      <div className={currentRowDetail ? 'blur-[1px]' : undefined}>
-        <Footer />
-      </div>
       {currentRowDetail && <RowDetail currentRowDetail={currentRowDetail} allRecords={sortedRecords} />}
     </div>
   )

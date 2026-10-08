@@ -34,23 +34,22 @@ export default function DictionaryComponent({ dictionary, withTopBorder = false 
       <DialogTrigger asChild>
         <div
           ref={divRef}
-          className={`${withTopBorder ? 'border-t border-[var(--wenyan-line-soft)]' : ''} group flex min-h-[82px] w-full cursor-pointer items-center gap-5 px-4 py-4 text-left transition-colors hover:bg-[var(--wenyan-paper-muted)] focus:outline-none`}
+          className={`${withTopBorder ? 'border-t border-[var(--wenyan-line-soft)]' : ''} group flex min-h-[78px] w-full cursor-pointer items-center gap-5 px-4 py-3.5 text-left transition-colors hover:bg-[var(--wenyan-paper-muted)] focus:outline-none`}
           role="button"
           tabIndex={0}
         >
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2.5">
+              {isSelected && <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--wenyan-accent)]" />}
               <h3 className={`truncate text-[14px] font-semibold ${isSelected ? 'text-[var(--wenyan-accent)]' : 'text-[var(--wenyan-ink)]'}`}>
                 {dictionary.name}
               </h3>
-              {isSelected && (
-                <span className="rounded-full bg-[var(--wenyan-accent-soft)] px-2 py-0.5 text-[9px] font-medium text-[var(--wenyan-accent)]">当前</span>
-              )}
+              {isSelected && <span className="wenyan-muted text-[10px]">当前词书</span>}
             </div>
             <TooltipProvider>
               <Tooltip delayDuration={400}>
                 <TooltipTrigger asChild>
-                  <p className="wenyan-muted mt-1.5 max-w-2xl truncate text-[11px] leading-5">{dictionary.description}</p>
+                  <p className="wenyan-muted mt-1 max-w-2xl truncate text-[11px] leading-5">{dictionary.description}</p>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>{dictionary.description}</p>
@@ -58,7 +57,7 @@ export default function DictionaryComponent({ dictionary, withTopBorder = false 
               </Tooltip>
             </TooltipProvider>
             {progress > 0 && (
-              <Progress.Root value={progress} max={100} className="mt-2 h-[2px] w-40 overflow-hidden rounded-full bg-[var(--wenyan-line-soft)]">
+              <Progress.Root value={progress} max={100} className="mt-2 h-[2px] w-36 overflow-hidden rounded-full bg-[var(--wenyan-line-soft)]">
                 <Progress.Indicator
                   className="h-full rounded-full bg-[var(--wenyan-accent)] transition-[width] duration-300"
                   style={{ width: `${progress}%` }}
@@ -74,7 +73,7 @@ export default function DictionaryComponent({ dictionary, withTopBorder = false 
           </div>
         </div>
       </DialogTrigger>
-      <DialogContent className="w-[60rem] max-w-none !rounded-[var(--wenyan-radius-lg)] border-[var(--wenyan-line)] bg-[var(--wenyan-paper-raised)] text-[var(--wenyan-ink)] shadow-[var(--wenyan-shadow)]">
+      <DialogContent className="w-[54rem] max-w-[calc(100vw-64px)] !rounded-[var(--wenyan-radius-lg)] border-[var(--wenyan-line)] bg-[var(--wenyan-paper-raised)] text-[var(--wenyan-ink)] shadow-[var(--wenyan-shadow)]">
         <DictDetail dictionary={dictionary} />
       </DialogContent>
     </Dialog>
