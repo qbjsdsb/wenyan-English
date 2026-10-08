@@ -13,7 +13,7 @@ export default function Header({ children }: PropsWithChildren) {
           <span className="text-xs tracking-widest text-gray-500">文研 · 英语</span>
         </NavLink>
         <nav aria-label="主导航" className="flex flex-wrap items-center gap-1">
-          {[[ '/today', '今日学习' ], [ '/', '练习' ], [ '/gallery', '词库' ], [ '/analysis', '记录' ], [ '/sync', '云同步' ]].map(([path, label]) => (
+          {[[ '/today', '今日学习' ], [ '/', '练习' ], [ '/gallery', '词库' ], [ '/analysis', '记录' ], [ '/sync', '云同步' ], [ '/preferences', '策略' ]].map(([path, label]) => (
             <NavLink key={path} end to={path} className={({ isActive }) => `${isActive ? 'bg-indigo-50 text-indigo-700 dark:bg-gray-800 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'} rounded-lg px-3 py-2 text-sm no-underline transition-colors hover:bg-gray-100 dark:hover:bg-gray-800`}>
               {label}
             </NavLink>
