@@ -39,7 +39,7 @@ export interface ResolvedSmartSessionIntent {
 }
 
 const SCOPE_ORDER: LearningIntentScope[] = ['ongoing', 'day', 'session']
-const EXECUTABLE_ACTIVITIES: ActivityKind[] = ['vocabulary']
+const EXECUTABLE_ACTIVITIES: ActivityKind[] = ['vocabulary', 'semantic_recall']
 const CACHE_PREFIX = 'wenyanLearningIntentCacheV1:'
 
 function object(value: unknown): Record<string, unknown> | undefined {

@@ -1,4 +1,4 @@
-import { type PreparedSmartSession, assertPreparedVocabularyBlockStartable, prepareSmartVocabularySession, startPreparedVocabularyBlock } from '@/smart-session/adapter'
+import { type PreparedSmartSession, assertPreparedVocabularyBlockStartable, prepareSmartVocabularySession, startPreparedSemanticBlock, startPreparedVocabularyBlock } from '@/smart-session/adapter'
 import { reportSmartSessionExecutionAvailability } from '@/smart-session/executionAvailability'
 import { type ResolvedSmartSessionIntent, bindResolvedSessionIntent, resolveSmartSessionLearningIntent } from '@/smart-session/learningIntent'
 import {
@@ -23,6 +23,7 @@ function retryLabel(retryAt: number | undefined) {
 
 function purposeLabel(prepared: PreparedSmartSession | undefined) {
   if (!prepared) return '正在安排下一段…'
+  if (prepared.kind === 'semantic-resume') return `继续刚才的词义回想（剩余 ${prepared.run.items.length - prepared.run.index} 个）`
   if (prepared.kind === 'resume') return `继续刚才的 ${prepared.record.words.length} 个词`
   if (prepared.draft.disposition === 'break') return '先休息一下'
   const block = prepared.draft.blocks[0]
@@ -37,6 +38,7 @@ function purposeLabel(prepared: PreparedSmartSession | undefined) {
     return '当前没有需要自动安排的内容。'
   }
   const count = block.activity.items.length
+  if (block.purpose === 'semantic_recall') return `回想 ${count} 个熟悉单词的词义`
   if (block.purpose === 'weak') return `先巩固 ${count} 个近期反复拼错的词`
   if (block.purpose === 'correction') return `先纠正 ${count} 个刚才拼错的词`
   if (block.purpose === 'review') return `先复习 ${count} 个现在更值得回看的词`
@@ -63,7 +65,8 @@ function intentNote(intent: ResolvedSmartSessionIntent | undefined, prepared: Pr
   if (intent?.warnings.includes('unbound_cached_session_intent_ignored')) return '云端暂时不可用；未绑定的本次学习安排不会离线抢占别的设备。'
   if (intent?.source === 'cached-cloud') return '云端暂时不可用，已沿用这个账号最近一次仍有效的学习安排。'
   if (intent?.warnings.includes('cloud_intent_unavailable')) return '云端安排暂时不可用，已按本机记录继续。'
-  if (intent?.source === 'cloud') return '已按你最近的学习安排自动调整；本次安排会在真正开始时绑定到这个学习会话。'
+  if (prepared?.kind === 'draft' && prepared.draft.blocks[0]?.activity.kind === 'semantic_recall') return '先在心里回想，再查看释义并如实自评。只练有过学习记录的词，不增加新词，也不把自评当作已经掌握。'
+  if (intent?.source === 'cloud') return '已按你最近的学习安排调整，开始后会保留这段学习的进度。'
   if (prepared?.kind === 'draft' && prepared.draft.warnings.length > 0) {
     return '只依据当前可见学习记录安排；缺失记录不会被当成不会。'
   }
@@ -71,7 +74,7 @@ function intentNote(intent: ResolvedSmartSessionIntent | undefined, prepared: Pr
 }
 
 function blockMeta(prepared: PreparedSmartSession | undefined, intent: ResolvedSmartSessionIntent | undefined) {
-  if (prepared?.kind === 'resume') return ['继续未完成内容']
+  if (prepared?.kind === 'resume' || prepared?.kind === 'semantic-resume') return ['继续未完成内容']
   const block = prepared?.kind === 'draft' ? prepared.draft.blocks[0] : undefined
   const items = block?.activity.items.length ?? 0
   const minutes = block ? Math.max(1, Math.ceil(block.estimatedSeconds / 60)) : 0
@@ -173,6 +176,11 @@ export default function SmartSessionDock() {
 
       if (prepared.kind === 'draft') assertPreparedVocabularyBlockStartable(prepared)
       await bindResolvedSessionIntent(intent, prepared.runtime.id)
+      if (prepared.kind === 'semantic-resume' || (prepared.kind === 'draft' && prepared.draft.blocks[0]?.activity.kind === 'semantic_recall')) {
+        const active = prepared.kind === 'semantic-resume' ? prepared : await startPreparedSemanticBlock(prepared)
+        navigate(`/semantic/${encodeURIComponent(active.run.id)}`)
+        return
+      }
       const active = prepared.kind === 'resume' ? prepared : await startPreparedVocabularyBlock(prepared)
       const record = active.record
       const runtime = active.runtime
@@ -193,7 +201,7 @@ export default function SmartSessionDock() {
 
   if (!supported) return null
 
-  const hasBlock = prepared?.kind === 'resume' || (prepared?.kind === 'draft' && prepared.draft.blocks.length > 0)
+  const hasBlock = prepared?.kind === 'semantic-resume' || prepared?.kind === 'resume' || (prepared?.kind === 'draft' && prepared.draft.blocks.length > 0)
   const isBreak = prepared?.kind === 'draft' && prepared.draft.disposition === 'break'
   const canSmartStart = Boolean(hasBlock || isBreak)
   const showNote = Boolean(note)
@@ -201,7 +209,7 @@ export default function SmartSessionDock() {
     ? '正在准备…'
     : isBreak
       ? '休息好了，继续'
-      : prepared?.kind === 'resume'
+      : prepared?.kind === 'resume' || prepared?.kind === 'semantic-resume'
         ? '继续这一段'
         : hasBlock
           ? '开始学习'

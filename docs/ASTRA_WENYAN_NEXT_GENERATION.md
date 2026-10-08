@@ -32,3 +32,13 @@ Inspect event ingestion constraints, Reading maturity, Smart Session composition
 ## Non-negotiable contracts
 
 Immutable historical truth; AI writes bounded future intent only; stage changes require the user; command completion is not learning completion; no evidence is unknown; offline learning survives AI/cloud failures.
+
+## Checkpoint 2 — semantic measurement and local execution
+
+Selected semantic recall rather than Reading orchestration: only demo Reading provider exists; automatically recommending it would be misleading. Implementing self-reported English→meaning mental recall, feedback reveal, then three-way rating. This is NOT objective marking, recognition, semantic mastery, sense-specific comprehension or FSRS. Retrieval practice + feedback informs the interaction; the self-report boundary is a product measurement decision (https://pdf.retrievalpractice.org/RetrievalPracticeGuide.pdf).
+
+Implemented working draft: sourceVersion 4 semantic facts and restore validator; Dexie v7 additive semanticRuns; independent semantic candidate lane in elastic-v2; owner-bound run; atomically save fact + cursor; persist reveal before showing answer; resume-after-reveal recorded; reference content hash, no copyrighted definitions uploaded; Today routes selected semantic blocks to a keyboard-capable runner. Still integrating cloud evidence and availability, tests and release gates pending. Do not deploy this checkpoint yet.
+
+Found and corrected adapter's hard-coded preferredActivities=['vocabulary']; it otherwise discards legitimate future activity intent. Future timestamps are excluded from local spelling candidates instead of poisoning the planner.
+
+Git HTTPS push has no credential helper in this environment. Durable checkpoints use the authorized GitHub Git Data/Contents connector, with expected-head lease. First checkpoint and Draft PR #49 are confirmed remote. No credentials requested or placed in files.

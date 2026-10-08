@@ -6,7 +6,8 @@ const MAX_IDLE_MS = 6 * 60 * 60 * 1000
 
 export interface SmartBlockRuntime {
   id: string
-  reviewRecordId: number
+  reviewRecordId?: number
+  semanticRunId?: string
   purpose: Purpose
   keys: string[]
   estimatedSeconds: number
@@ -120,7 +121,9 @@ export function getCurrentSmartSessionId(ownerUserId?: string, now = Date.now())
 export async function getRecoverableSmartSessionFocusDictionary(ownerUserId?: string, now = Date.now()) {
   const state = readStored()
   if (!state?.currentBlock || !sameOwner(state, ownerUserId) || now - state.updatedAt > MAX_IDLE_MS) return undefined
-  const record = await db.reviewRecords.get(state.currentBlock.reviewRecordId)
+  const record = state.currentBlock.semanticRunId
+    ? await db.semanticRuns.get(state.currentBlock.semanticRunId).then((run) => run && ({ isFinished: run.completedAt !== undefined }))
+    : state.currentBlock.reviewRecordId === undefined ? undefined : await db.reviewRecords.get(state.currentBlock.reviewRecordId)
   return record && !record.isFinished ? state.focusDictionary : undefined
 }
 
@@ -152,7 +155,9 @@ export async function loadSmartSessionRuntime(
   }
 
   if (state.currentBlock) {
-    const record = await db.reviewRecords.get(state.currentBlock.reviewRecordId)
+    const record = state.currentBlock.semanticRunId
+    ? await db.semanticRuns.get(state.currentBlock.semanticRunId).then((run) => run && ({ isFinished: run.completedAt !== undefined }))
+    : state.currentBlock.reviewRecordId === undefined ? undefined : await db.reviewRecords.get(state.currentBlock.reviewRecordId)
     if (!record) {
       state = { ...state, currentBlock: undefined, updatedAt: now }
       persist(state)
@@ -236,4 +241,9 @@ export function runtimeProgress(state: SmartSessionRuntime, now = Date.now()): S
     activeSecondsSinceBreak: state.estimatedActiveSecondsSinceBreak,
     timingQuality: 'estimated',
   }
+}
+
+export function readCurrentSmartRuntime(ownerUserId?: string) {
+  const state = readStored()
+  return state && sameOwner(state, ownerUserId) ? state : undefined
 }

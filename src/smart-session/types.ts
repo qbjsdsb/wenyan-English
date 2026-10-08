@@ -1,6 +1,6 @@
 /** Pure planning data; never a learning-event write contract. Times are milliseconds unless named otherwise. */
-export type ActivityKind = 'vocabulary' | 'reading' | 'dictation' | 'cloze' | 'translation' | 'writing' | 'grammar' | 'long_sentence' | 'new_question_type'
-export type Purpose = 'review' | 'correction' | 'weak' | 'new' | 'reading'
+export type ActivityKind = 'semantic_recall' | 'vocabulary' | 'reading' | 'dictation' | 'cloze' | 'translation' | 'writing' | 'grammar' | 'long_sentence' | 'new_question_type'
+export type Purpose = 'semantic_recall' | 'review' | 'correction' | 'weak' | 'new' | 'reading'
 export interface SessionConstraints {
   focusDictionary?: string
   targetMinutes?: number
@@ -38,7 +38,17 @@ export interface ReadingCandidate {
   reason: string
   evidenceRefs: readonly string[]
 }
-export type Candidate = VocabularyCandidate | ReadingCandidate
+export interface SemanticCandidate {
+  kind: 'semantic_recall'
+  key: string
+  contentId: string
+  estimatedSeconds: number
+  /** Candidate adapter has required an actual prior spelling observation and a valid reference. */
+  lastAttemptAt?: number
+  lastRating?: 'recalled' | 'partial' | 'not_recalled'
+  evidenceRefs: readonly string[]
+}
+export type Candidate = VocabularyCandidate | ReadingCandidate | SemanticCandidate
 export interface SessionProgress {
   /** Actual attempted keys, including partial blocks. Draft selection never enters this list. */
   attemptedKeys: readonly string[]
@@ -70,7 +80,7 @@ export interface SelectedItem {
 }
 export interface SessionBlock {
   purpose: Purpose
-  activity: { kind: 'vocabulary' | 'reading'; items: SelectedItem[] }
+  activity: { kind: 'vocabulary' | 'reading' | 'semantic_recall'; items: SelectedItem[] }
   estimatedSeconds: number
 }
 /** Ephemeral planner state. These counts describe what can execute now; they are not learning evidence or mastery. */
@@ -82,6 +92,7 @@ export interface ExecutionAvailability {
   correctionCooldownCount: number
   newEligibleCount: number
   newWordCapacity: number
+  semanticEligibleCount?: number
   readingEligibleCount: number
 }
 export interface SmartSessionDraft {
