@@ -1,5 +1,3 @@
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import { getReadingPassage } from '@/reading/content'
 import { saveReadingAttempt } from '@/reading/events'
 import type { ReadingAnswerDraft, ReadingAttemptSummary } from '@/reading/types'
@@ -27,6 +25,8 @@ function readDraft(passageId: string, version: string): StoredReadingDraft | und
   }
 }
 
+const primaryButton = 'shrink-0 rounded-lg bg-[#1d1d1b] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-black disabled:opacity-50 dark:bg-[#eeeeea] dark:text-[#111210] dark:hover:bg-white'
+
 export default function ReadingPage() {
   const { contentId = '' } = useParams()
   const passage = getReadingPassage(contentId)
@@ -39,15 +39,17 @@ export default function ReadingPage() {
 
   if (!passage) {
     return (
-      <div className="flex min-h-screen flex-col text-gray-900 dark:text-gray-100">
-        <Header />
-        <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-16">
-          <p className="text-[11px] font-semibold tracking-[0.18em] text-gray-400">READING</p>
-          <h1 className="mt-3 text-2xl font-semibold tracking-tight">这篇阅读暂时不可用。</h1>
-          <p className="mt-3 text-sm text-gray-500">内容可能尚未导入，或者版本已经更新。</p>
-          <Link to="/today" className="mt-8 inline-block text-sm text-gray-600 underline decoration-gray-300 underline-offset-4 dark:text-gray-300">返回今日学习</Link>
+      <div className="min-h-screen text-gray-900 dark:text-gray-100">
+        <header className="border-b border-black/[0.07] dark:border-white/[0.08]">
+          <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-6">
+            <Link to="/today" className="font-serif text-lg font-semibold text-gray-950 no-underline dark:text-gray-100">Wenyan</Link>
+            <Link to="/today" className="text-sm text-gray-500 no-underline hover:text-gray-900 dark:text-gray-500 dark:hover:text-gray-200">返回</Link>
+          </div>
+        </header>
+        <main className="mx-auto w-full max-w-5xl px-6 py-16">
+          <h1 className="text-2xl font-semibold tracking-tight">这篇阅读暂时不可用</h1>
+          <p className="mt-3 text-sm text-gray-500">内容尚未导入，或版本已经更新。</p>
         </main>
-        <Footer />
       </div>
     )
   }
@@ -89,37 +91,41 @@ export default function ReadingPage() {
     }
   }
 
+  const answeredCount = answers.filter((answer) => answer.selectedOptionId).length
+
   return (
-    <div className="flex min-h-screen flex-col text-gray-900 dark:text-gray-100">
-      <Header />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 pb-16 pt-10 lg:px-10">
-        <div className="mb-9 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[11px] font-semibold tracking-[0.2em] text-gray-400">READING · {passage.source.label}</p>
-            <h1 className="mt-3 text-[34px] font-semibold tracking-[-0.04em] text-gray-950 dark:text-white">{passage.title}</h1>
-            <p className="mt-3 text-sm text-gray-500">约 {passage.estimatedMinutes} 分钟 · {passage.questions.length} 题 · 作答事实与 AI 分析分开保存</p>
+    <div className="min-h-screen text-gray-900 dark:text-gray-100">
+      <header className="sticky top-0 z-40 border-b border-black/[0.07] bg-[#f6f6f3]/95 backdrop-blur-md dark:border-white/[0.08] dark:bg-[#111210]/95">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
+          <div className="flex min-w-0 items-center gap-4">
+            <Link to="/today" className="font-serif text-lg font-semibold text-gray-950 no-underline dark:text-gray-100">Wenyan</Link>
+            <span className="h-4 w-px bg-black/[0.08] dark:bg-white/[0.09]" />
+            <span className="truncate text-xs text-gray-400 dark:text-gray-600">{passage.source.label} · {passage.estimatedMinutes} 分钟 · {passage.questions.length} 题</span>
           </div>
-          <Link to="/today" className="text-sm text-gray-500 transition-colors hover:text-gray-950 dark:hover:text-white">结束阅读</Link>
+          <Link to="/today" className="shrink-0 text-sm text-gray-500 no-underline transition-colors hover:text-gray-900 dark:text-gray-500 dark:hover:text-gray-200">结束阅读</Link>
         </div>
+      </header>
 
-        <div className="grid gap-7 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
-          <article className="rounded-[28px] border border-gray-200/70 bg-white/90 px-7 py-8 shadow-[0_18px_50px_-38px_rgba(15,23,42,0.45)] dark:border-white/10 dark:bg-white/[0.05] lg:px-10 lg:py-10">
-            <div className="space-y-6 text-[17px] leading-9 text-gray-800 dark:text-gray-200">
-              {passage.paragraphs.map((paragraph, index) => (
-                <p key={`${passage.id}-${index}`}>{paragraph}</p>
-              ))}
-            </div>
-          </article>
+      <main className="mx-auto grid w-full max-w-6xl gap-10 px-6 pb-24 pt-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)]">
+        <article className="min-w-0 lg:border-r lg:border-black/[0.07] lg:pr-10 dark:lg:border-white/[0.08]">
+          <h1 className="mb-9 max-w-2xl text-[30px] font-semibold leading-tight tracking-[-0.035em] text-gray-950 dark:text-gray-100">{passage.title}</h1>
+          <div className="space-y-7 text-[17px] leading-[2.05] text-gray-800 dark:text-gray-300">
+            {passage.paragraphs.map((paragraph, index) => (
+              <p key={`${passage.id}-${index}`}>{paragraph}</p>
+            ))}
+          </div>
+        </article>
 
-          <section aria-label="阅读题目" className="space-y-5">
+        <section aria-label="阅读题目" className="min-w-0">
+          <div className="divide-y divide-black/[0.07] border-y border-black/[0.08] dark:divide-white/[0.08] dark:border-white/[0.09]">
             {passage.questions.map((question, index) => {
               const answer = answers.find((item) => item.questionId === question.id)
               const correct = summary ? answer?.selectedOptionId === question.correctOptionId : undefined
               return (
-                <article key={question.id} className="rounded-[22px] border border-gray-200/70 bg-white/85 p-6 shadow-[0_14px_40px_-34px_rgba(15,23,42,0.45)] dark:border-white/10 dark:bg-white/[0.045]">
-                  <p className="text-[11px] font-semibold tracking-[0.16em] text-gray-400">QUESTION {index + 1}</p>
-                  <h2 className="mt-3 text-sm font-medium leading-7 text-gray-900 dark:text-gray-100">{question.stem}</h2>
-                  <div className="mt-4 space-y-2">
+                <article key={question.id} className="py-6">
+                  <p className="mb-2 text-xs tabular-nums text-gray-400 dark:text-gray-600">{index + 1}</p>
+                  <h2 className="text-sm font-medium leading-7 text-gray-900 dark:text-gray-200">{question.stem}</h2>
+                  <div className="mt-4 space-y-1.5">
                     {question.options.map((option) => {
                       const selected = answer?.selectedOptionId === option.id
                       const showCorrect = Boolean(summary && option.id === question.correctOptionId)
@@ -127,15 +133,15 @@ export default function ReadingPage() {
                       return (
                         <label
                           key={option.id}
-                          className={`flex cursor-pointer gap-3 rounded-xl border px-4 py-3 text-sm leading-6 transition-colors ${
+                          className={`${
                             showCorrect
-                              ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40'
+                              ? 'bg-emerald-50/80 text-emerald-900 dark:bg-emerald-950/25 dark:text-emerald-200'
                               : showWrong
-                                ? 'border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/30'
+                                ? 'bg-red-50/70 text-red-900 dark:bg-red-950/20 dark:text-red-200'
                                 : selected
-                                  ? 'border-indigo-300 bg-indigo-50/70 dark:border-indigo-800 dark:bg-indigo-950/30'
-                                  : 'border-gray-200 bg-white/50 hover:border-gray-300 dark:border-white/10 dark:bg-white/[0.025] dark:hover:border-white/20'
-                          }`}
+                                  ? 'bg-black/[0.045] dark:bg-white/[0.06]'
+                                  : 'hover:bg-black/[0.025] dark:hover:bg-white/[0.035]'
+                          } flex cursor-pointer gap-3 rounded-md px-3 py-2.5 text-sm leading-6 transition-colors`}
                         >
                           <input
                             type="radio"
@@ -146,53 +152,45 @@ export default function ReadingPage() {
                             onChange={() => updateAnswer(question.id, option.id)}
                             className="mt-1"
                           />
-                          <span><strong className="mr-2">{option.id}.</strong>{option.text}</span>
+                          <span><span className="mr-2 text-gray-400 dark:text-gray-600">{option.id}.</span>{option.text}</span>
                         </label>
                       )
                     })}
                   </div>
                   {summary && (
-                    <div className={`mt-4 rounded-xl px-4 py-3 text-xs leading-6 ${correct ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200' : 'bg-gray-50 text-gray-600 dark:bg-white/5 dark:text-gray-300'}`}>
-                      <p className="font-medium">{correct ? '答对了' : `正确答案：${question.correctOptionId}`}</p>
+                    <div className="mt-4 border-l border-black/[0.1] pl-3 text-xs leading-6 text-gray-500 dark:border-white/[0.12] dark:text-gray-500">
+                      <p className="font-medium text-gray-700 dark:text-gray-300">{correct ? '答对了' : `正确答案：${question.correctOptionId}`}</p>
                       {question.explanation && <p className="mt-1">{question.explanation}</p>}
                     </div>
                   )}
                 </article>
               )
             })}
+          </div>
 
-            <div className="sticky bottom-5 rounded-[22px] border border-gray-200/80 bg-white/95 p-5 shadow-[0_22px_50px_-30px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/92">
-              {summary ? (
-                <div className="flex items-center justify-between gap-5">
-                  <div>
-                    <p className="text-[11px] font-semibold tracking-[0.16em] text-gray-400">本次结果</p>
-                    <p className="mt-1 text-lg font-semibold">{summary.correctCount} / {summary.questionCount}</p>
-                    <p className="mt-1 text-xs leading-5 text-gray-500">只保存真实作答；错误原因由后续 AI interpretation 单独分析。</p>
-                  </div>
-                  <Link to="/today" className="shrink-0 rounded-xl bg-gray-950 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white">回到今天</Link>
+          <div className="sticky bottom-0 mt-6 border-t border-black/[0.08] bg-[#f6f6f3]/96 py-4 backdrop-blur-md dark:border-white/[0.09] dark:bg-[#111210]/96">
+            {summary ? (
+              <div className="flex items-center justify-between gap-5">
+                <div>
+                  <p className="text-xs text-gray-400 dark:text-gray-600">本次结果</p>
+                  <p className="mt-1 text-lg font-semibold tabular-nums">{summary.correctCount} / {summary.questionCount}</p>
                 </div>
-              ) : (
-                <div className="flex items-center justify-between gap-5">
-                  <div>
-                    <p className="text-sm font-medium">已作答 {answers.filter((answer) => answer.selectedOptionId).length} / {passage.questions.length}</p>
-                    <p className="mt-1 text-xs text-gray-500">可以留空提交；没有作答不会被记成答错。</p>
-                    {error && <p role="alert" className="mt-2 text-xs text-red-600 dark:text-red-300">{error}</p>}
-                  </div>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void submit()}
-                    className="shrink-0 rounded-xl bg-gray-950 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white"
-                  >
-                    {busy ? '正在保存…' : '提交这一篇'}
-                  </button>
+                <Link to="/today" className={`${primaryButton} no-underline`}>回到今天</Link>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-5">
+                <div>
+                  <p className="text-sm font-medium">已作答 {answeredCount} / {passage.questions.length}</p>
+                  {error && <p role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
                 </div>
-              )}
-            </div>
-          </section>
-        </div>
+                <button type="button" disabled={busy} onClick={() => void submit()} className={primaryButton}>
+                  {busy ? '正在保存…' : '提交'}
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
       </main>
-      <Footer />
     </div>
   )
 }

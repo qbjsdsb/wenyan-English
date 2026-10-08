@@ -2,8 +2,7 @@ import { currentRowDetailAtom } from '../store'
 import type { groupedWordRecords } from '../type'
 import { useAtom } from 'jotai'
 import type { FC } from 'react'
-import { useMemo } from 'react'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import NextIcon from '~icons/ooui/next-ltr'
 import PrevIcon from '~icons/ooui/next-rtl'
@@ -23,57 +22,34 @@ const RowPagination: FC<IRowPaginationProps> = ({ className, allRecords }) => {
   }, [currentRowDetail, allRecords])
 
   const nextRowDetail = useCallback(() => {
-    if (!currentRowDetail) return
-
-    const index = currentIndex
-    if (index === -1) return
-    const nextIndex = index + 1
-    if (nextIndex >= allRecords.length) return
-    setCurrentRowDetail(allRecords[nextIndex])
+    if (!currentRowDetail || currentIndex < 0 || currentIndex + 1 >= allRecords.length) return
+    setCurrentRowDetail(allRecords[currentIndex + 1])
   }, [currentRowDetail, currentIndex, allRecords, setCurrentRowDetail])
 
   const prevRowDetail = useCallback(() => {
-    if (!currentRowDetail) return
-
-    const index = currentIndex
-    if (index === -1) return
-    const prevIndex = index - 1
-    if (prevIndex < 0) return
-    setCurrentRowDetail(allRecords[prevIndex])
+    if (!currentRowDetail || currentIndex <= 0) return
+    setCurrentRowDetail(allRecords[currentIndex - 1])
   }, [currentRowDetail, currentIndex, setCurrentRowDetail, allRecords])
 
-  useHotkeys(
-    'left',
-    (e) => {
-      prevRowDetail()
-      e.stopPropagation()
-    },
-    {
-      preventDefault: true,
-    },
-  )
+  useHotkeys('left', (event) => {
+    prevRowDetail()
+    event.stopPropagation()
+  }, { preventDefault: true })
 
-  useHotkeys(
-    'right',
-    (e) => {
-      nextRowDetail()
-      e.stopPropagation()
-    },
-    {
-      preventDefault: true,
-    },
-  )
+  useHotkeys('right', (event) => {
+    nextRowDetail()
+    event.stopPropagation()
+  }, { preventDefault: true })
+
+  const control = 'grid h-8 w-8 place-items-center rounded-md border border-black/[0.08] text-gray-500 transition-colors hover:bg-black/[0.03] disabled:cursor-not-allowed disabled:opacity-25 dark:border-white/[0.09] dark:text-gray-500 dark:hover:bg-white/[0.04]'
 
   return (
-    <div className={`-gap-1 flex select-none items-center ${className}`}>
-      <button
-        className="d cursor-pointer rounded-full  p-1  text-indigo-500 focus:outline-none dark:text-indigo-300"
-        onClick={prevRowDetail}
-      >
+    <div className={`flex select-none items-center gap-3 ${className ?? ''}`}>
+      <button aria-label="上一个错词" className={control} disabled={currentIndex <= 0} onClick={prevRowDetail}>
         <PrevIcon />
       </button>
-      <span className="text-sm text-black dark:text-white">{`${currentIndex + 1} / ${allRecords.length}`}</span>
-      <button className="cursor-pointer rounded-full p-1 text-indigo-500  focus:outline-none dark:text-indigo-300" onClick={nextRowDetail}>
+      <span className="min-w-14 text-center text-xs tabular-nums text-gray-400 dark:text-gray-600">{currentIndex + 1} / {allRecords.length}</span>
+      <button aria-label="下一个错词" className={control} disabled={currentIndex < 0 || currentIndex + 1 >= allRecords.length} onClick={nextRowDetail}>
         <NextIcon />
       </button>
     </div>

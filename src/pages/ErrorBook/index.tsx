@@ -6,59 +6,41 @@ import Pagination, { ITEM_PER_PAGE } from './Pagination'
 import RowDetail from './RowDetail'
 import { currentRowDetailAtom } from './store'
 import type { groupedWordRecords } from './type'
+import Footer from '@/components/Footer'
+import Header from '@/components/Header'
 import { db, useDeleteWordRecord } from '@/utils/db'
 import type { WordRecord } from '@/utils/db/record'
 import * as ScrollArea from '@radix-ui/react-scroll-area'
 import { useAtomValue } from 'jotai'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import IconX from '~icons/tabler/x'
+import { useEffect, useMemo, useState } from 'react'
 
 export function ErrorBook() {
   const [groupedRecords, setGroupedRecords] = useState<groupedWordRecords[]>([])
   const [currentPage, setCurrentPage] = useState(1)
-  const totalPages = useMemo(() => Math.ceil(groupedRecords.length / ITEM_PER_PAGE), [groupedRecords.length])
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(groupedRecords.length / ITEM_PER_PAGE)), [groupedRecords.length])
   const [sortType, setSortType] = useState<ISortType>('asc')
-  const navigate = useNavigate()
   const currentRowDetail = useAtomValue(currentRowDetailAtom)
   const { deleteWordRecord } = useDeleteWordRecord()
   const [reload, setReload] = useState(false)
 
-  const onBack = useCallback(() => {
-    navigate('/')
-  }, [navigate])
+  const setPage = (page: number) => {
+    if (page < 1 || page > totalPages) return
+    setCurrentPage(page)
+  }
 
-  const setPage = useCallback(
-    (page: number) => {
-      if (page < 1 || page > totalPages) return
-      setCurrentPage(page)
-    },
-    [totalPages],
-  )
-
-  const setSort = useCallback(
-    (sortType: ISortType) => {
-      setSortType(sortType)
-      setPage(1)
-    },
-    [setPage],
-  )
+  const setSort = (nextSortType: ISortType) => {
+    setSortType(nextSortType)
+    setCurrentPage(1)
+  }
 
   const sortedRecords = useMemo(() => {
     if (sortType === 'none') return groupedRecords
-    return [...groupedRecords].sort((a, b) => {
-      if (sortType === 'asc') {
-        return a.wrongCount - b.wrongCount
-      } else {
-        return b.wrongCount - a.wrongCount
-      }
-    })
+    return [...groupedRecords].sort((a, b) => (sortType === 'asc' ? a.wrongCount - b.wrongCount : b.wrongCount - a.wrongCount))
   }, [groupedRecords, sortType])
 
   const renderRecords = useMemo(() => {
     const start = (currentPage - 1) * ITEM_PER_PAGE
-    const end = start + ITEM_PER_PAGE
-    return sortedRecords.slice(start, end)
+    return sortedRecords.slice(start, start + ITEM_PER_PAGE)
   }, [currentPage, sortedRecords])
 
   useEffect(() => {
@@ -68,52 +50,56 @@ export function ErrorBook() {
       .toArray()
       .then((records) => {
         const groups: groupedWordRecords[] = []
-
         records.forEach((record) => {
-          let group = groups.find((g) => g.word === record.word && g.dict === record.dict)
+          let group = groups.find((item) => item.word === record.word && item.dict === record.dict)
           if (!group) {
             group = { word: record.word, dict: record.dict, records: [], wrongCount: 0 }
             groups.push(group)
           }
           group.records.push(record as WordRecord)
         })
-
         groups.forEach((group) => {
-          group.wrongCount = group.records.reduce((acc, cur) => {
-            acc += cur.wrongCount
-            return acc
-          }, 0)
+          group.wrongCount = group.records.reduce((total, current) => total + current.wrongCount, 0)
         })
-
         setGroupedRecords(groups)
       })
   }, [reload])
 
   const handleDelete = async (word: string, dict: string) => {
     await deleteWordRecord(word, dict)
-    setReload((prev) => !prev)
+    setReload((previous) => !previous)
   }
 
   return (
-    <>
-      <div className={`relative flex h-screen w-full flex-col items-center pb-4 ease-in ${currentRowDetail && 'blur-sm'}`}>
-        <div className="mr-8 mt-4 flex w-auto items-center justify-center self-end">
-          <h1 className="font-lighter mr-4 w-auto self-end text-gray-500 opacity-70">Tip: 点击错误单词查看详细信息 </h1>
-          <IconX className="h-7 w-7 cursor-pointer text-gray-400" onClick={onBack} />
+    <div className="flex min-h-screen flex-col text-gray-900 dark:text-gray-100">
+      <div className={currentRowDetail ? 'blur-[1px]' : undefined}>
+        <Header />
+      </div>
+      <main className={`mx-auto flex w-full max-w-5xl flex-1 flex-col px-6 py-8 ${currentRowDetail ? 'blur-[1px]' : ''}`}>
+        <div className="mb-8 flex items-end justify-between gap-6">
+          <div>
+            <h1 className="text-[30px] font-semibold tracking-[-0.035em] text-gray-950 dark:text-gray-100">错词</h1>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">{groupedRecords.length} 个词</p>
+          </div>
+          <DropdownExport renderRecords={sortedRecords} />
         </div>
 
-        <div className="flex w-full flex-1 select-text items-start justify-center overflow-hidden">
-          <div className="flex h-full w-5/6 flex-col pt-10">
-            <div className="flex w-full justify-between rounded-lg bg-white px-6 py-5 text-lg text-black shadow-lg dark:bg-gray-800 dark:text-white">
-              <span className="basis-2/12">单词</span>
-              <span className="basis-6/12">释义</span>
-              <HeadWrongNumber className="basis-1/12" sortType={sortType} setSortType={setSort} />
-              <span className="basis-1/12">词典</span>
-              <DropdownExport renderRecords={sortedRecords} />
+        {groupedRecords.length === 0 ? (
+          <div className="flex flex-1 items-center justify-center border-y border-black/[0.08] py-20 text-sm text-gray-400 dark:border-white/[0.09] dark:text-gray-600">
+            还没有错词记录
+          </div>
+        ) : (
+          <div className="flex min-h-0 flex-1 flex-col border-y border-black/[0.08] dark:border-white/[0.09]">
+            <div className="grid grid-cols-[1.2fr_3fr_100px_140px_36px] items-center gap-4 border-b border-black/[0.06] px-4 py-3 text-[11px] text-gray-400 dark:border-white/[0.07] dark:text-gray-600">
+              <span>单词</span>
+              <span>释义</span>
+              <HeadWrongNumber sortType={sortType} setSortType={setSort} />
+              <span>词书</span>
+              <span />
             </div>
-            <ScrollArea.Root className="flex-1 overflow-y-auto pt-5">
-              <ScrollArea.Viewport className="h-full  ">
-                <div className="flex flex-col gap-3">
+            <ScrollArea.Root className="min-h-0 flex-1 overflow-hidden">
+              <ScrollArea.Viewport className="h-full">
+                <div className="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
                   {renderRecords.map((record) => (
                     <ErrorRow
                       key={`${record.dict}-${record.word}`}
@@ -123,13 +109,19 @@ export function ErrorBook() {
                   ))}
                 </div>
               </ScrollArea.Viewport>
-              <ScrollArea.Scrollbar className="flex touch-none select-none bg-transparent" orientation="vertical"></ScrollArea.Scrollbar>
+              <ScrollArea.Scrollbar className="flex touch-none select-none bg-transparent" orientation="vertical" />
             </ScrollArea.Root>
           </div>
-        </div>
-        <Pagination className="pt-3" page={currentPage} setPage={setPage} totalPages={totalPages} />
+        )}
+
+        {groupedRecords.length > ITEM_PER_PAGE && (
+          <Pagination className="mt-5 self-center" page={currentPage} setPage={setPage} totalPages={totalPages} />
+        )}
+      </main>
+      <div className={currentRowDetail ? 'blur-[1px]' : undefined}>
+        <Footer />
       </div>
       {currentRowDetail && <RowDetail currentRowDetail={currentRowDetail} allRecords={sortedRecords} />}
-    </>
+    </div>
   )
 }

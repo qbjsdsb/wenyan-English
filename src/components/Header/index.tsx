@@ -11,8 +11,8 @@ const navigation = [
   ['/analysis', '记录'],
 ] as const
 
-const utilityClass =
-  'grid h-8 w-8 place-items-center rounded-md text-gray-400 transition-colors hover:bg-black/[0.04] hover:text-gray-800 dark:text-gray-500 dark:hover:bg-white/[0.06] dark:hover:text-gray-200'
+const utilityClass = (active = false) =>
+  `${active ? 'bg-black/[0.045] text-gray-800 dark:bg-white/[0.07] dark:text-gray-200' : 'text-gray-400 hover:bg-black/[0.04] hover:text-gray-800 dark:text-gray-500 dark:hover:bg-white/[0.06] dark:hover:text-gray-200'} grid h-8 w-8 place-items-center rounded-md transition-colors`
 
 export default function Header({ children }: PropsWithChildren) {
   const [dark, setDark] = useAtom(isOpenDarkModeAtom)
@@ -47,10 +47,10 @@ export default function Header({ children }: PropsWithChildren) {
             </nav>
 
             <div className="flex items-center gap-0.5 border-l border-black/[0.07] pl-3 dark:border-white/[0.08]">
-              <NavLink to="/sync" aria-label="同步" title="同步" className={utilityClass}>
+              <NavLink to="/sync" aria-label="同步" title="同步" className={({ isActive }) => utilityClass(isActive)}>
                 <Cloud aria-hidden="true" size={15} strokeWidth={1.7} />
               </NavLink>
-              <NavLink to="/preferences" aria-label="设置" title="设置" className={utilityClass}>
+              <NavLink to="/preferences" aria-label="设置" title="设置" className={({ isActive }) => utilityClass(isActive)}>
                 <Settings aria-hidden="true" size={15} strokeWidth={1.7} />
               </NavLink>
               <button
@@ -58,7 +58,7 @@ export default function Header({ children }: PropsWithChildren) {
                 onClick={() => setDark(!dark)}
                 aria-label={dark ? '切换浅色模式' : '切换深色模式'}
                 title={dark ? '浅色模式' : '深色模式'}
-                className={utilityClass}
+                className={utilityClass()}
               >
                 {dark ? <Sun aria-hidden="true" size={15} strokeWidth={1.7} /> : <Moon aria-hidden="true" size={15} strokeWidth={1.7} />}
               </button>

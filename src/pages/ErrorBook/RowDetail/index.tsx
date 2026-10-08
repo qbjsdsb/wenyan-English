@@ -26,85 +26,77 @@ type RowDetailProps = {
 
 const RowDetail: React.FC<RowDetailProps> = ({ currentRowDetail, allRecords }) => {
   const setCurrentRowDetail = useSetAtom(currentRowDetailAtom)
-
   const dictInfo = idDictionaryMap[currentRowDetail.dict]
   const { word, isLoading, hasError } = useGetWord(currentRowDetail.word, dictInfo)
   const wordPronunciationIconRef = useRef<WordPronunciationIconRef>(null)
 
   const rowDetailData: RowDetailData = useMemo(() => {
-    const time =
-      currentRowDetail.records.length > 0
-        ? currentRowDetail.records.reduce((acc, cur) => acc + cur.totalTime, 0) / currentRowDetail.records.length
-        : 0
-    const timeStr = (time / 1000).toFixed(2)
+    const time = currentRowDetail.records.length > 0
+      ? currentRowDetail.records.reduce((acc, cur) => acc + cur.totalTime, 0) / currentRowDetail.records.length
+      : 0
     const correctCount = currentRowDetail.records.length
     const wrongCount = currentRowDetail.wrongCount
-    const sumCount = correctCount + wrongCount
-    return { time: timeStr, sumCount, correctCount, wrongCount }
+    return {
+      time: (time / 1000).toFixed(2),
+      sumCount: correctCount + wrongCount,
+      correctCount,
+      wrongCount,
+    }
   }, [currentRowDetail.records, currentRowDetail.wrongCount])
 
-  const onClose = useCallback(() => {
-    setCurrentRowDetail(null)
-  }, [setCurrentRowDetail])
+  const onClose = useCallback(() => setCurrentRowDetail(null), [setCurrentRowDetail])
 
-  useHotkeys(
-    'esc',
-    (e) => {
-      onClose()
-      e.stopPropagation()
-    },
-    { preventDefault: true },
-  )
+  useHotkeys('esc', (event) => {
+    onClose()
+    event.stopPropagation()
+  }, { preventDefault: true })
 
-  useHotkeys(
-    'ctrl+j',
-    () => {
-      wordPronunciationIconRef.current?.play()
-    },
-    [],
-    { enableOnFormTags: true, preventDefault: true },
-  )
+  useHotkeys('ctrl+j', () => wordPronunciationIconRef.current?.play(), [], { enableOnFormTags: true, preventDefault: true })
 
   return (
-    <div className="absolute inset-0 flex  flex-col items-center  justify-center ">
-      <div className="my-card relative z-10 flex h-[32rem] min-w-[26rem] select-text flex-col items-center justify-around rounded-2xl bg-white px-3 py-10 dark:bg-gray-900">
-        <IconX className="absolute right-3 top-3  h-6 w-6 cursor-pointer text-gray-400" onClick={onClose} />
-        <div className="flex flex-col items-center justify-start">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-6 backdrop-blur-[2px] dark:bg-black/45">
+      <button aria-label="关闭错词详情" className="absolute inset-0 cursor-default" onClick={onClose} />
+      <section className="relative z-10 w-full max-w-xl rounded-xl border border-black/[0.1] bg-[#fbfbf8] px-8 py-8 shadow-2xl dark:border-white/[0.1] dark:bg-[#171816]">
+        <button
+          type="button"
+          aria-label="关闭"
+          className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-md text-gray-400 transition-colors hover:bg-black/[0.04] hover:text-gray-700 dark:text-gray-600 dark:hover:bg-white/[0.05] dark:hover:text-gray-300"
+          onClick={onClose}
+        >
+          <IconX className="h-5 w-5" />
+        </button>
+
+        <div className="flex flex-col items-center pt-4 text-center">
           <div>
-            {currentRowDetail.word.split('').map((t, index) => (
-              <Letter key={`${index}-${t}`} letter={t} visible state="normal" />
+            {currentRowDetail.word.split('').map((letter, index) => (
+              <Letter key={`${index}-${letter}`} letter={letter} visible state="normal" />
             ))}
           </div>
-          <div className="relative flex h-8 items-center">
+          <div className="relative mt-1 flex h-8 items-center">
             {word ? <Phonetic word={word} /> : <LoadingWordUI isLoading={isLoading} hasError={hasError} />}
             {word && (
               <WordPronunciationIcon
                 lang={dictInfo.language}
                 word={word}
-                className="absolute -right-7 top-1/2 h-5 w-5 -translate-y-1/2 transform "
+                className="absolute -right-7 top-1/2 h-5 w-5 -translate-y-1/2"
                 ref={wordPronunciationIconRef}
               />
             )}
           </div>
-          <div className="flex max-w-[24rem] items-center">
-            <span className={`max-w-4xl text-center font-sans transition-colors duration-300 dark:text-white dark:text-opacity-80`}>
-              {word ? word.trans.join('；') : <LoadingWordUI isLoading={isLoading} hasError={hasError} />}
-            </span>
+          <div className="mt-2 max-w-md text-sm leading-7 text-gray-600 dark:text-gray-400">
+            {word ? word.trans.join('；') : <LoadingWordUI isLoading={isLoading} hasError={hasError} />}
           </div>
         </div>
-        <div className="item flex flex-col gap-4">
-          <div className="flex gap-6">
-            <DataTag icon={ClockIcon} name="平均用时" data={rowDetailData.time} />
-            <DataTag icon={HashtagIcon} name="练习次数" data={rowDetailData.sumCount} />
-          </div>
-          <div className="flex gap-6">
-            <DataTag icon={CheckCircle} name="正确次数" data={rowDetailData.correctCount} />
-            <DataTag icon={XCircle} name="错误次数" data={rowDetailData.wrongCount} />
-          </div>
+
+        <div className="mt-8 grid grid-cols-2 gap-x-8 gap-y-4 border-y border-black/[0.07] py-5 dark:border-white/[0.08]">
+          <DataTag icon={ClockIcon} name="平均用时" data={rowDetailData.time} />
+          <DataTag icon={HashtagIcon} name="练习次数" data={rowDetailData.sumCount} />
+          <DataTag icon={CheckCircle} name="正确次数" data={rowDetailData.correctCount} />
+          <DataTag icon={XCircle} name="错误次数" data={rowDetailData.wrongCount} />
         </div>
-        <RowPagination className="absolute bottom-6 mt-10" allRecords={allRecords} />
-      </div>
-      <div className="absolute inset-0 z-0  cursor-pointer bg-transparent" onClick={onClose}></div>
+
+        <RowPagination className="mt-6 justify-center" allRecords={allRecords} />
+      </section>
     </div>
   )
 }

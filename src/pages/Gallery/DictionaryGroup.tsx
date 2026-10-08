@@ -4,15 +4,15 @@ import type React from 'react'
 
 const DictionaryGroup: React.FC<DictionaryGroupProps> = ({ title, dictionaries }) => {
   return (
-    <section className="mb-4 mr-1">
-      <h3 className="sticky top-0 z-30 bg-indigo-50 pb-2 text-sm font-bold text-gray-600 dark:bg-slate-800 dark:text-white dark:text-opacity-60">
+    <section className="mb-5">
+      <h3 className="sticky top-0 z-10 mb-1 bg-[#f6f6f3]/95 px-3 py-2 text-[11px] font-medium text-gray-400 backdrop-blur dark:bg-[#111210]/95 dark:text-gray-600">
         {title}
       </h3>
-      <main className="grid gap-4 rounded-md sm:grid-cols-1 md:grid-cols-2">
+      <div className="space-y-1">
         {dictionaries.map((dict) => (
           <DictionaryCard key={dict.id} dictionary={dict} />
         ))}
-      </main>
+      </div>
     </section>
   )
 }

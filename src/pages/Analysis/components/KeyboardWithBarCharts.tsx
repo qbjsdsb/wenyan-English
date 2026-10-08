@@ -1,5 +1,4 @@
 import Keyboard from './keyboard'
-import purple from './purple.json'
 import useWindowSize from '@/hooks/useWindowSize'
 import { isOpenDarkModeAtom } from '@/store'
 import { BarChart, MapChart } from 'echarts/charts'
@@ -12,38 +11,10 @@ import type { FC } from 'react'
 import { useEffect, useRef } from 'react'
 
 echarts.use([BarChart, CanvasRenderer, GeoComponent, MapChart, ToolboxComponent, TooltipComponent, UniversalTransition, VisualMapComponent])
-echarts.registerTheme('purple', purple)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 echarts.registerMap('Keyboard', Keyboard as any)
 
-const keyboardData = [
-  { name: 'Q', value: 0 },
-  { name: 'W', value: 0 },
-  { name: 'E', value: 0 },
-  { name: 'R', value: 0 },
-  { name: 'T', value: 0 },
-  { name: 'Y', value: 0 },
-  { name: 'U', value: 0 },
-  { name: 'I', value: 0 },
-  { name: 'O', value: 0 },
-  { name: 'P', value: 0 },
-  { name: 'A', value: 0 },
-  { name: 'S', value: 0 },
-  { name: 'D', value: 0 },
-  { name: 'F', value: 0 },
-  { name: 'G', value: 0 },
-  { name: 'H', value: 0 },
-  { name: 'J', value: 0 },
-  { name: 'K', value: 0 },
-  { name: 'L', value: 0 },
-  { name: 'Z', value: 0 },
-  { name: 'X', value: 0 },
-  { name: 'C', value: 0 },
-  { name: 'V', value: 0 },
-  { name: 'B', value: 0 },
-  { name: 'N', value: 0 },
-  { name: 'M', value: 0 },
-]
+const keyboardData = 'QWERTYUIOPASDFGHJKLZXCVBNM'.split('').map((name) => ({ name, value: 0 }))
 
 interface KeyboardWithBarChartsProps {
   title: string
@@ -52,34 +23,29 @@ interface KeyboardWithBarChartsProps {
   suffix?: string
 }
 
-const KeyboardWithBarCharts: FC<KeyboardWithBarChartsProps> = ({ data, title, suffix, name }) => {
+const KeyboardWithBarCharts: FC<KeyboardWithBarChartsProps> = ({ data, title, name }) => {
   const [isOpenDarkMode] = useAtom(isOpenDarkModeAtom)
-
   const chartRef = useRef<HTMLDivElement>(null)
-
   const { width, height } = useWindowSize()
 
   useEffect(() => {
     if (!chartRef.current || !data.length) return
 
     const myData = keyboardData
-      .map((item) => {
-        const find = data.find((_) => _.name === item.name)
-        return { ...item, value: find?.value || 0 }
-      })
+      .map((item) => ({ ...item, value: data.find((entry) => entry.name === item.name)?.value || 0 }))
       .sort((a, b) => b.value - a.value)
 
     let chart = echarts.getInstanceByDom(chartRef.current)
     chart?.dispose()
+    chart = echarts.init(chartRef.current, isOpenDarkMode ? 'dark' : undefined)
 
-    chart = echarts.init(chartRef.current, isOpenDarkMode ? 'purple' : 'light')
+    const lowColor = isOpenDarkMode ? '#242522' : '#e8e8e3'
+    const highColor = isOpenDarkMode ? '#9ca3af' : '#4b5563'
+    const textColor = isOpenDarkMode ? '#9ca3af' : '#6b7280'
 
     const mapOption = {
-      tooltip: {
-        trigger: 'item',
-        showDelay: 0,
-        transitionDuration: 0.2,
-      },
+      backgroundColor: 'transparent',
+      tooltip: { trigger: 'item', showDelay: 0, transitionDuration: 0.2 },
       toolbox: {
         feature: {
           restore: {},
@@ -96,14 +62,10 @@ const KeyboardWithBarCharts: FC<KeyboardWithBarChartsProps> = ({ data, title, su
       visualMap: {
         left: 'right',
         min: 0,
-        max: myData[0].value,
-        inRange: {
-          color: isOpenDarkMode ? ['hsl(0, 0%, 22%)', '#818cf8'] : ['#f0f0f0', '#6366f1'],
-        },
+        max: Math.max(myData[0]?.value ?? 0, 1),
+        inRange: { color: [lowColor, highColor] },
         text: ['多', '少'],
-        textStyle: {
-          color: isOpenDarkMode ? '#fff' : '#000',
-        },
+        textStyle: { color: textColor },
         calculable: true,
       },
       series: [
@@ -113,15 +75,16 @@ const KeyboardWithBarCharts: FC<KeyboardWithBarChartsProps> = ({ data, title, su
           type: 'map',
           roam: true,
           map: 'Keyboard',
-          animationDurationUpdate: 1000,
+          animationDurationUpdate: 700,
           universalTransition: true,
           data: myData,
-          label: { show: true, color: isOpenDarkMode ? '#fff' : '#000' },
+          label: { show: true, color: isOpenDarkMode ? '#d1d5db' : '#374151' },
         },
       ],
     }
 
     const barOption = {
+      backgroundColor: 'transparent',
       tooltip: { trigger: 'axis' },
       toolbox: {
         feature: {
@@ -135,45 +98,35 @@ const KeyboardWithBarCharts: FC<KeyboardWithBarChartsProps> = ({ data, title, su
           },
         },
       },
-      yAxis: {
-        type: 'value',
-        minInterval: 1,
-      },
+      yAxis: { type: 'value', minInterval: 1, axisLabel: { color: textColor } },
       xAxis: {
         type: 'category',
-        axisLabel: {
-          rotate: 30,
-        },
-        data: myData.map(function (item) {
-          return item.name
-        }),
+        axisLabel: { rotate: 30, color: textColor },
+        data: myData.map((item) => item.name),
       },
-      animationDurationUpdate: 1000,
+      animationDurationUpdate: 700,
       series: {
         name,
         type: 'bar',
         id: 'population',
-        data: myData.map(function (item) {
-          return item.value
-        }),
-        color: isOpenDarkMode ? '#818cf8' : '#6366f1',
+        data: myData.map((item) => item.value),
+        color: highColor,
         universalTransition: true,
       },
     }
 
     chart.setOption(mapOption)
-  }, [data, title, suffix, name, isOpenDarkMode])
+  }, [data, name, isOpenDarkMode])
 
   useEffect(() => {
     if (!chartRef.current) return
-    const chart = echarts.getInstanceByDom(chartRef.current)
-    chart?.resize()
-  }, [width, height, chartRef])
+    echarts.getInstanceByDom(chartRef.current)?.resize()
+  }, [width, height])
 
   return (
     <div className="flex h-full flex-col">
-      <div className="text-center text-xl font-bold text-gray-600	dark:text-white">{title}</div>
-      <div style={{ width: '100%', height: '100%' }} ref={chartRef} className="line-chart flex-grow"></div>
+      <h2 className="mb-3 text-sm font-medium text-gray-900 dark:text-gray-200">{title}</h2>
+      <div ref={chartRef} className="min-h-0 flex-1" />
     </div>
   )
 }

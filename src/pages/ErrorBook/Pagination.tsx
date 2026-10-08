@@ -13,27 +13,17 @@ type IPaginationProps = {
 export const ITEM_PER_PAGE = 20
 
 const Pagination: FC<IPaginationProps> = ({ className, page, setPage, totalPages }) => {
-  const nextPage = useCallback(() => {
-    setPage(page + 1)
-  }, [page, setPage])
-
-  const prevPage = useCallback(() => {
-    setPage(page - 1)
-  }, [page, setPage])
+  const nextPage = useCallback(() => setPage(page + 1), [page, setPage])
+  const prevPage = useCallback(() => setPage(page - 1), [page, setPage])
+  const control = 'grid h-8 w-8 place-items-center rounded-md border border-black/[0.08] text-gray-500 transition-colors hover:bg-black/[0.03] disabled:cursor-not-allowed disabled:opacity-25 dark:border-white/[0.09] dark:text-gray-500 dark:hover:bg-white/[0.04]'
 
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <button
-        className="cursor-pointer rounded-full bg-white p-2 text-indigo-500 shadow-md dark:bg-gray-800 dark:text-indigo-300"
-        onClick={prevPage}
-      >
+    <div className={`flex items-center gap-3 ${className ?? ''}`}>
+      <button aria-label="上一页" className={control} disabled={page <= 1} onClick={prevPage}>
         <PrevIcon />
       </button>
-      <span className="text-black dark:text-white">{`${page} / ${totalPages}`}</span>
-      <button
-        className="cursor-pointer rounded-full bg-white p-2 text-indigo-500 shadow-md dark:bg-gray-800 dark:text-indigo-300"
-        onClick={nextPage}
-      >
+      <span className="min-w-14 text-center text-xs tabular-nums text-gray-400 dark:text-gray-600">{page} / {totalPages}</span>
+      <button aria-label="下一页" className={control} disabled={page >= totalPages} onClick={nextPage}>
         <NextIcon />
       </button>
     </div>
