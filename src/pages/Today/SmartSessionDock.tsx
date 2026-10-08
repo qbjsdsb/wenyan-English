@@ -1,5 +1,5 @@
 import { type PreparedSmartSession, prepareSmartVocabularySession, startPreparedVocabularyBlock } from '@/smart-session/adapter'
-import { bindResolvedSessionIntent, type ResolvedSmartSessionIntent, resolveSmartSessionLearningIntent } from '@/smart-session/learningIntent'
+import { type ResolvedSmartSessionIntent, bindResolvedSessionIntent, resolveSmartSessionLearningIntent } from '@/smart-session/learningIntent'
 import {
   acknowledgeSmartBreak,
   createSmartSessionId,
