@@ -7,6 +7,7 @@ import Layout from '@/components/Layout'
 import { isOpenDarkModeAtom } from '@/store'
 import dayjs from 'dayjs'
 import { useAtom } from 'jotai'
+import { useMemo } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useNavigate } from 'react-router-dom'
 
@@ -22,6 +23,16 @@ const Analysis = () => {
     dayjs().unix(),
   )
 
+  const recent = useMemo(() => {
+    const exercises = exerciseRecord.slice(-7).reduce((total, item) => total + item.count, 0)
+    const words = wordRecord.slice(-7).reduce((total, item) => total + item.count, 0)
+    const accuracyValues = accuracyRecord.slice(-7).map(([, value]) => value)
+    const accuracy = accuracyValues.length
+      ? Math.round(accuracyValues.reduce((total, value) => total + value, 0) / accuracyValues.length)
+      : undefined
+    return { exercises, words, accuracy }
+  }, [accuracyRecord, exerciseRecord, wordRecord])
+
   return (
     <Layout>
       <Header />
@@ -36,23 +47,47 @@ const Analysis = () => {
             暂无练习数据
           </div>
         ) : (
-          <div className="border-t border-[var(--wenyan-line-soft)]">
-            <section className="border-b border-[var(--wenyan-line-soft)] py-8">
-              <HeatmapCharts title="过去一年练习次数" data={exerciseRecord} />
+          <>
+            <section className="wenyan-report-summary mb-8 rounded-[var(--wenyan-radius-lg)] border border-[var(--wenyan-line-soft)] px-6 py-5">
+              <div className="mb-4 flex items-baseline justify-between gap-4">
+                <div>
+                  <p className="wenyan-muted text-[10px]">最近 7 天</p>
+                  <h2 className="mt-1 text-[16px] font-semibold tracking-[-0.02em] text-[var(--wenyan-ink)]">学习节奏</h2>
+                </div>
+                <p className="wenyan-muted text-xs">只统计本机已有练习记录</p>
+              </div>
+              <div className="grid grid-cols-3 gap-6">
+                {[
+                  [String(recent.words), '练习词数'],
+                  [String(recent.exercises), '练习次数'],
+                  [recent.accuracy === undefined ? '—' : `${recent.accuracy}%`, '平均正确率'],
+                ].map(([value, label], index) => (
+                  <div key={label} className={index ? 'border-l border-[var(--wenyan-line-soft)] pl-6' : ''}>
+                    <div className="wenyan-metric-value wenyan-mono text-[24px] font-semibold tracking-[-0.04em] text-[var(--wenyan-ink)]" style={{ animationDelay: `${index * 55}ms` }}>{value}</div>
+                    <div className="wenyan-muted mt-1 text-[10px]">{label}</div>
+                  </div>
+                ))}
+              </div>
             </section>
-            <section className="border-b border-[var(--wenyan-line-soft)] py-8">
-              <HeatmapCharts title="过去一年练习词数" data={wordRecord} />
-            </section>
-            <section className="h-[360px] border-b border-[var(--wenyan-line-soft)] py-8">
-              <LineCharts title="WPM 趋势" name="WPM" data={wpmRecord} />
-            </section>
-            <section className="h-[360px] border-b border-[var(--wenyan-line-soft)] py-8">
-              <LineCharts title="正确率趋势" name="正确率(%)" data={accuracyRecord} suffix="%" />
-            </section>
-            <section className="h-[380px] py-8">
-              <KeyboardWithBarCharts title="按键错误排行" name="错误次数" data={wrongTimeRecord} />
-            </section>
-          </div>
+
+            <div className="border-t border-[var(--wenyan-line-soft)]">
+              <section className="wenyan-report-section border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '30ms' } as React.CSSProperties}>
+                <HeatmapCharts title="过去一年练习次数" data={exerciseRecord} />
+              </section>
+              <section className="wenyan-report-section border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '80ms' } as React.CSSProperties}>
+                <HeatmapCharts title="过去一年练习词数" data={wordRecord} />
+              </section>
+              <section className="wenyan-report-section h-[360px] border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '130ms' } as React.CSSProperties}>
+                <LineCharts title="WPM 趋势" name="WPM" data={wpmRecord} />
+              </section>
+              <section className="wenyan-report-section h-[360px] border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '180ms' } as React.CSSProperties}>
+                <LineCharts title="正确率趋势" name="正确率(%)" data={accuracyRecord} suffix="%" />
+              </section>
+              <section className="wenyan-report-section h-[380px] py-8" style={{ '--wenyan-delay': '230ms' } as React.CSSProperties}>
+                <KeyboardWithBarCharts title="按键错误排行" name="错误次数" data={wrongTimeRecord} />
+              </section>
+            </div>
+          </>
         )}
       </main>
     </Layout>
