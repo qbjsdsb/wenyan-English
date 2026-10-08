@@ -73,6 +73,8 @@ export default function SmartSessionDock() {
     if (!supported) return
     setBusy(true)
     setError('')
+    setPrepared(undefined)
+    setIntent(undefined)
     try {
       const ownerUserId = getLocalLearningOwnerId()
       const runtimeSessionId = getCurrentSmartSessionId(ownerUserId) ?? createSmartSessionId()
@@ -104,7 +106,10 @@ export default function SmartSessionDock() {
     void refresh()
   }, [refresh])
 
-  const label = useMemo(() => purposeLabel(prepared), [prepared])
+  const label = useMemo(
+    () => error && !prepared ? '暂时无法安排下一段学习。' : purposeLabel(prepared),
+    [error, prepared],
+  )
   const note = useMemo(() => intentNote(intent, prepared), [intent, prepared])
   const meta = useMemo(() => blockMeta(prepared, intent), [intent, prepared])
 
@@ -167,14 +172,26 @@ export default function SmartSessionDock() {
           )}
           {error && <p role="alert" className="mt-4 text-xs text-red-600 dark:text-red-300">{error}</p>}
         </div>
-        <button
-          type="button"
-          disabled={busy || (!hasBlock && !isBreak)}
-          onClick={() => void start()}
-          className="w-full shrink-0 rounded-2xl bg-indigo-600 px-7 py-4 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
-        >
-          {busy ? '正在准备…' : isBreak ? '休息好了，继续' : prepared?.kind === 'resume' ? '继续这一段' : '开始学习'}
-        </button>
+        <div className="flex flex-col gap-3">
+          {error && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void refresh()}
+              className="rounded-xl border border-gray-300 px-5 py-3 text-sm disabled:opacity-50 dark:border-gray-600"
+            >
+              重新安排
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={busy || (!hasBlock && !isBreak)}
+            onClick={() => void start()}
+            className="w-full shrink-0 rounded-2xl bg-indigo-600 px-7 py-4 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
+          >
+            {busy ? '正在准备…' : isBreak ? '休息好了，继续' : prepared?.kind === 'resume' ? '继续这一段' : '开始学习'}
+          </button>
+        </div>
       </div>
     </section>
   )

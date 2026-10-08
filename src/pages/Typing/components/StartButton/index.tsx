@@ -49,6 +49,7 @@ export default function StartButton({ isLoading }: { isLoading: boolean }) {
             state.isTyping ? 'bg-gray-400  dark:bg-gray-700 dark:hover:bg-gray-500' : 'bg-indigo-500'
           } my-btn-primary w-20 shadow`}
           type="button"
+          disabled={isLoading}
           onClick={onToggleIsTyping}
           aria-label={state.isTyping ? '暂停' : '开始'}
         >

@@ -2,6 +2,17 @@
 
 更新：2026-10-08。续接前仍须核对远端 `main`、开放 PR、CI、GitHub Pages 与 Supabase 实际部署版本；本页只记录已经核实的状态，不把聊天记忆当事实。
 
+## Pages 词库加载修复（2026-10-08）
+
+- 根因已实测：旧 `/qwerty-learner/dicts/2025KaoYanHongBaoShu.json` 返回 404 HTML；正确 `/wenyan-English/dicts/2025KaoYanHongBaoShu.json` 返回 200 JSON。
+- 词库和本地音效使用 Vite `BASE_URL`，移除上游部署前缀；未改变词库版本、学习事实、数据库或 OAuth 权限。
+- 词库加载检查 HTTP 状态、JSON MIME、解析结果和非空单词数组，15 秒超时并显示中文错误。
+- Today 失败后结束“正在安排”，支持重新安排；刷新时清除旧草案，避免失败后启动过期安排。
+- 练习页显示加载错误和重试，错误时禁止开始及键盘启动；保存的复习词组和内置首章直接使用本机内容，不依赖词库网络请求。
+- 新增 `playwright.pages.config.ts` 与 `pages-assets.spec.ts`：正式构建、真实词库、Pages 子路径、音效、失败及重试。默认开发测试排除这组专用测试；CI 增加 Pages 构建验收和 Smart Session 浏览器回归。
+- 验证：lint 通过（7 条既有警告，0 错误）；TypeScript 通过；Pages 正式构建通过；Pages 真实资源与故障恢复 7/7、Smart Session 2/2、学习计划 5/5 通过。Smart Session 旧 fixture 补齐当前必填 id/timezone 后通过，未放宽生产校验。线上部署状态待提交后核验。
+- 后续：修复部署成功后，在用户已登录的真实设备验证学习与事实上传闭环；本次浏览器回归不替代真实账号 E2E。
+
 ## 当前正式主线
 
 Wenyan English 已进入 **Local-first deterministic learning runtime + ChatGPT strategy brain** 阶段。

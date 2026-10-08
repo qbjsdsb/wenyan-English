@@ -26,7 +26,8 @@ import { useImmerReducer } from 'use-immer'
 const App: React.FC = () => {
   const [state, dispatch] = useImmerReducer(typingReducer, structuredClone(initialState))
   const [isLoading, setIsLoading] = useState<boolean>(true)
-  const { words } = useWordList()
+  const { words, error: wordListError, retry: retryWordList } = useWordList()
+  const [retryingWords, setRetryingWords] = useState(false)
 
   const [currentDictId, setCurrentDictId] = useAtom(currentDictIdAtom)
   const setCurrentChapter = useSetAtom(currentChapterAtom)
@@ -83,7 +84,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!state.isTyping) {
       const onKeyDown = (e: KeyboardEvent) => {
-        if (!isLoading && e.key !== 'Enter' && (isLegal(e.key) || e.key === ' ') && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        if (!isLoading && !wordListError && e.key !== 'Enter' && (isLegal(e.key) || e.key === ' ') && !e.altKey && !e.ctrlKey && !e.metaKey) {
           e.preventDefault()
           dispatch({ type: TypingStateActionType.SET_IS_TYPING, payload: true })
         }
@@ -92,7 +93,7 @@ const App: React.FC = () => {
 
       return () => window.removeEventListener('keydown', onKeyDown)
     }
-  }, [state.isTyping, isLoading, dispatch])
+  }, [state.isTyping, isLoading, wordListError, dispatch])
 
   useEffect(() => {
     if (words !== undefined) {
@@ -148,7 +149,7 @@ const App: React.FC = () => {
           <DictChapterButton />
           <PronunciationSwitcher />
           <Switcher />
-          <StartButton isLoading={isLoading} />
+          <StartButton isLoading={isLoading || Boolean(wordListError)} />
           <Tooltip content="跳过该词">
             <button
               className={`${
@@ -163,7 +164,16 @@ const App: React.FC = () => {
         <div className="container mx-auto flex h-full flex-1 flex-col items-center justify-center pb-5">
           <div className="container relative mx-auto flex h-full flex-col items-center">
             <div className="container flex flex-grow items-center justify-center">
-              {isLoading ? (
+              {wordListError ? (
+                <div role="alert" className="flex max-w-md flex-col items-center gap-4 px-6 text-center">
+                  <h2 className="text-lg font-medium">词库暂时无法加载</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{wordListError.message}</p>
+                  <button type="button" disabled={retryingWords} className="my-btn-primary disabled:opacity-50" onClick={() => {
+                    setRetryingWords(true)
+                    void retryWordList().catch(() => undefined).finally(() => setRetryingWords(false))
+                  }}>{retryingWords ? '正在重试…' : '重新加载词库'}</button>
+                </div>
+              ) : isLoading ? (
                 <div className="flex flex-col items-center justify-center ">
                   <div
                     className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid  border-indigo-400 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"

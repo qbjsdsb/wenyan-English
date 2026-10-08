@@ -84,11 +84,15 @@ test('active Learning Intent is merged by scope and safely shapes the next block
       contentType: 'application/json',
       json: [
         {
+          id: '00000000-0000-4000-8000-000000000002',
+          timezone: 'Asia/Shanghai',
           scope: 'session',
           revision: 2,
           constraints: { targetMinutes: 10, newWordCeiling: 1, intensity: 'gentle' },
         },
         {
+          id: '00000000-0000-4000-8000-000000000003',
+          timezone: 'Asia/Shanghai',
           scope: 'ongoing',
           revision: 4,
           constraints: { newWordCeiling: 3, reviewPreference: 'balanced' },

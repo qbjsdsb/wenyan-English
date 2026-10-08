@@ -10,6 +10,7 @@ export type UseWordListResult = {
   words: WordWithIndex[]
   isLoading: boolean
   error: Error | undefined
+  retry: () => Promise<void>
 }
 
 /**
@@ -26,7 +27,12 @@ export function useWordList(): UseWordListResult {
   }
 
   const isFirstChapter = !isReviewMode && currentDictInfo.id === 'cet4' && currentChapter === 0
-  const { data: wordList, error, isLoading } = useSWR(currentDictInfo.url, wordListFetcher)
+  // Built-in starter words and saved review blocks already have local content.
+  const { data: wordList, error, isLoading, mutate } = useSWR(
+    isFirstChapter || isReviewMode ? null : currentDictInfo.url,
+    wordListFetcher,
+    { shouldRetryOnError: false },
+  )
 
   const words: WordWithIndex[] = useMemo(() => {
     let newWords: Word[]
@@ -58,7 +64,12 @@ export function useWordList(): UseWordListResult {
     })
   }, [isFirstChapter, isReviewMode, wordList, reviewRecord?.words, currentChapter])
 
-  return { words, isLoading, error }
+  return {
+    words,
+    isLoading,
+    error,
+    retry: async () => { await mutate() },
+  }
 }
 
 const firstChapter = [
