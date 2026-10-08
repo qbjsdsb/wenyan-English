@@ -130,6 +130,7 @@ const App: React.FC = () => {
   const skipButton = (
     <Tooltip content="跳过该词">
       <button
+        aria-label="Skip"
         className={`${
           state.isShowSkip ? 'opacity-100' : 'pointer-events-none w-0 px-0 opacity-0'
         } rounded-[var(--wenyan-radius-sm)] px-2.5 py-1.5 text-xs text-[var(--wenyan-ink-muted)] transition-all hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]`}
