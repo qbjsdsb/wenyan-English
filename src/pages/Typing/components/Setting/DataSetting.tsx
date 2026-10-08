@@ -8,7 +8,6 @@ import { useCallback, useState } from 'react'
 export default function DataSetting() {
   const [isExporting, setIsExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState(0)
-
   const [isImporting, setIsImporting] = useState(false)
   const [importProgress, setImportProgress] = useState(0)
 
@@ -18,10 +17,7 @@ export default function DataSetting() {
       setExportProgress(100)
       return true
     }
-    if (totalRows) {
-      setExportProgress(Math.floor((completedRows / totalRows) * 100))
-    }
-
+    if (totalRows) setExportProgress(Math.floor((completedRows / totalRows) * 100))
     return true
   }, [])
 
@@ -37,10 +33,7 @@ export default function DataSetting() {
       setImportProgress(100)
       return true
     }
-    if (totalRows) {
-      setImportProgress(Math.floor((completedRows / totalRows) * 100))
-    }
-
+    if (totalRows) setImportProgress(Math.floor((completedRows / totalRows) * 100))
     return true
   }, [])
 
@@ -53,75 +46,47 @@ export default function DataSetting() {
     importDatabase(onStartImport, importProgressCallback)
   }, [importProgressCallback, onStartImport])
 
+  const progress = (value: number) => (
+    <div className="flex w-full items-center gap-3">
+      <Progress.Root className="wenyan-data-progress min-w-0 flex-1" value={value}>
+        <Progress.Indicator style={{ transform: `translateX(-${100 - value}%)` }} />
+      </Progress.Root>
+      <span className="wenyan-setting-state w-9 text-right">{value}%</span>
+    </div>
+  )
+
   return (
-    <ScrollArea.Root className="flex-1 select-none overflow-y-auto ">
-      <ScrollArea.Viewport className="h-full w-full px-3">
+    <ScrollArea.Root className="flex-1 select-none overflow-y-auto">
+      <ScrollArea.Viewport className="h-full w-full">
         <div className={styles.tabContent}>
           <div className={styles.section}>
-            <span className={styles.sectionLabel}>数据导出</span>
-            <span className={styles.sectionDescription}>
-              目前，用户的练习数据<strong>仅保存在本地</strong>。如果您需要在不同的设备、浏览器或者其他非官方部署上使用 Qwerty Learner，
-              您需要手动进行数据同步和保存。为了保留您的练习进度，以及使用近期即将上线的数据分析和智能训练功能，
-              我们建议您及时备份您的数据。
-            </span>
-            <span className="pl-4 text-left text-sm font-bold leading-tight text-red-500">
-              为了您的数据安全，请不要修改导出的数据文件。
-            </span>
-            <div className="flex h-3 w-full items-center justify-start px-5">
-              <Progress.Root
-                className="translate-z-0 relative h-2 w-11/12 transform  overflow-hidden rounded-full bg-gray-200"
-                value={exportProgress}
-              >
-                <Progress.Indicator
-                  className="cubic-bezier(0.65, 0, 0.35, 1) h-full w-full bg-indigo-400 transition-transform duration-500 ease-out"
-                  style={{ transform: `translateX(-${100 - exportProgress}%)` }}
-                />
-              </Progress.Root>
-              <span className="ml-4 w-10 text-xs font-normal text-gray-600">{`${exportProgress}%`}</span>
+            <div>
+              <span className={styles.sectionLabel}>导出本机备份</span>
+              <p className={`${styles.sectionDescription} mt-1`}>
+                导出当前浏览器里的本机学习数据，适合迁移、离线留档或故障前备份。云端同步仍请使用 Wenyan 的“同步”页面。
+              </p>
             </div>
-
-            <button
-              className="my-btn-primary ml-4 disabled:bg-gray-300"
-              type="button"
-              onClick={onClickExport}
-              disabled={isExporting}
-              title="导出数据"
-            >
-              导出数据
+            {progress(exportProgress)}
+            <button className="wenyan-button-secondary" type="button" onClick={onClickExport} disabled={isExporting}>
+              {isExporting ? '正在导出…' : exportProgress === 100 ? '再次导出' : '导出本机数据'}
             </button>
           </div>
+
           <div className={styles.section}>
-            <span className={styles.sectionLabel}>数据导入</span>
-            <span className={styles.sectionDescription}>
-              请注意，导入数据将<strong className="text-sm font-bold text-red-500"> 完全覆盖 </strong>当前数据。请谨慎操作。
-            </span>
-
-            <div className="flex h-3 w-full items-center justify-start px-5">
-              <Progress.Root
-                className="translate-z-0 relative h-2 w-11/12 transform  overflow-hidden rounded-full bg-gray-200"
-                value={importProgress}
-              >
-                <Progress.Indicator
-                  className="cubic-bezier(0.65, 0, 0.35, 1) h-full w-full bg-indigo-400 transition-transform duration-500 ease-out"
-                  style={{ transform: `translateX(-${100 - importProgress}%)` }}
-                />
-              </Progress.Root>
-              <span className="ml-4 w-10 text-xs font-normal text-gray-600">{`${importProgress}%`}</span>
+            <div>
+              <span className={styles.sectionLabel}>导入本机备份</span>
+              <p className={`${styles.sectionDescription} mt-1`}>从已有备份恢复当前浏览器的数据。</p>
             </div>
-
-            <button
-              className="my-btn-primary ml-4 disabled:bg-gray-300"
-              type="button"
-              onClick={onClickImport}
-              disabled={isImporting}
-              title="导入数据"
-            >
-              导入数据
+            <div className="wenyan-danger-note w-full rounded-[var(--wenyan-radius-sm)] px-3.5 py-3 text-xs leading-5 text-[var(--wenyan-ink-secondary)]">
+              导入会完全覆盖当前浏览器里的本机数据。开始前建议先导出一次备份。
+            </div>
+            {progress(importProgress)}
+            <button className="wenyan-button-danger" type="button" onClick={onClickImport} disabled={isImporting}>
+              {isImporting ? '正在导入…' : importProgress === 100 ? '再次导入' : '选择备份并导入'}
             </button>
           </div>
         </div>
       </ScrollArea.Viewport>
-      <ScrollArea.Scrollbar className="flex touch-none select-none bg-transparent " orientation="vertical"></ScrollArea.Scrollbar>
     </ScrollArea.Root>
   )
 }
