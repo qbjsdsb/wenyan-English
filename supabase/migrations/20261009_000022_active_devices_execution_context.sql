@@ -69,6 +69,7 @@ begin
           'coverage', e.coverage
         )
       )
+    end
   ) order by d.last_seen_at desc), '[]'::jsonb)
   into v_result
   from public.wenyan_devices as d
