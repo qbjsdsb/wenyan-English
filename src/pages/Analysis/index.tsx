@@ -2,6 +2,7 @@ import HeatmapCharts from './components/HeatmapCharts'
 import KeyboardWithBarCharts from './components/KeyboardWithBarCharts'
 import LineCharts from './components/LineCharts'
 import { useWordStats } from './hooks/useWordStats'
+import { LoadingUI } from '@/components/Loading'
 import Header from '@/components/Header'
 import Layout from '@/components/Layout'
 import { isOpenDarkModeAtom } from '@/store'
@@ -43,7 +44,14 @@ const Analysis = () => {
           <p className="wenyan-muted mt-2 text-sm">过去一年的练习情况</p>
         </div>
 
-        {isEmpty ? (
+        {isEmpty === undefined ? (
+          <section className="wenyan-surface flex min-h-[260px] items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <LoadingUI label="正在整理学习记录" />
+              <p className="wenyan-muted text-[11px]">正在整理学习记录</p>
+            </div>
+          </section>
+        ) : isEmpty ? (
           <div className="wenyan-muted flex min-h-[320px] items-center justify-center border-y border-[var(--wenyan-line-soft)] text-sm">
             暂无练习数据
           </div>
@@ -72,21 +80,11 @@ const Analysis = () => {
             </section>
 
             <div className="border-t border-[var(--wenyan-line-soft)]">
-              <section className="wenyan-report-section border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '30ms' } as CSSProperties}>
-                <HeatmapCharts title="过去一年练习次数" data={exerciseRecord} />
-              </section>
-              <section className="wenyan-report-section border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '80ms' } as CSSProperties}>
-                <HeatmapCharts title="过去一年练习词数" data={wordRecord} />
-              </section>
-              <section className="wenyan-report-section h-[360px] border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '130ms' } as CSSProperties}>
-                <LineCharts title="WPM 趋势" name="WPM" data={wpmRecord} />
-              </section>
-              <section className="wenyan-report-section h-[360px] border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '180ms' } as CSSProperties}>
-                <LineCharts title="正确率趋势" name="正确率(%)" data={accuracyRecord} suffix="%" />
-              </section>
-              <section className="wenyan-report-section h-[380px] py-8" style={{ '--wenyan-delay': '230ms' } as CSSProperties}>
-                <KeyboardWithBarCharts title="按键错误排行" name="错误次数" data={wrongTimeRecord} />
-              </section>
+              <section className="wenyan-report-section border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '30ms' } as CSSProperties}><HeatmapCharts title="过去一年练习次数" data={exerciseRecord} /></section>
+              <section className="wenyan-report-section border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '80ms' } as CSSProperties}><HeatmapCharts title="过去一年练习词数" data={wordRecord} /></section>
+              <section className="wenyan-report-section h-[360px] border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '130ms' } as CSSProperties}><LineCharts title="WPM 趋势" name="WPM" data={wpmRecord} /></section>
+              <section className="wenyan-report-section h-[360px] border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '180ms' } as CSSProperties}><LineCharts title="正确率趋势" name="正确率(%)" data={accuracyRecord} suffix="%" /></section>
+              <section className="wenyan-report-section h-[380px] py-8" style={{ '--wenyan-delay': '230ms' } as CSSProperties}><KeyboardWithBarCharts title="按键错误排行" name="错误次数" data={wrongTimeRecord} /></section>
             </div>
           </>
         )}
