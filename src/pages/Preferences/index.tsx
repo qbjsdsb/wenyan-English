@@ -1,4 +1,3 @@
-import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import { type LearningPreferencesSnapshot, confirmLearningStage, getLearningPreferences } from '@/coaching/preferences'
 import type { LearningStage } from '@/coaching/types'
@@ -61,7 +60,7 @@ export default function PreferencesPage() {
   return (
     <div className="flex min-h-screen flex-col text-[var(--wenyan-ink)]">
       <Header />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 pb-14 pt-9">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-6 pb-16 pt-9">
         <div className="mb-7">
           <h1 className="wenyan-page-title">学习阶段</h1>
           <p className="wenyan-muted mt-2 text-sm">决定后续自动安排可以做到哪一步</p>
@@ -122,8 +121,20 @@ export default function PreferencesPage() {
             </details>
           </>
         )}
+
+        <section aria-label="关于 Wenyan" className="mt-12 border-t border-[var(--wenyan-line-soft)] pt-5">
+          <div className="flex items-center justify-between gap-6">
+            <div>
+              <p className="text-sm font-medium text-[var(--wenyan-ink)]">Wenyan</p>
+              <p className="wenyan-muted mt-1 text-[11px]">个人英语学习工作区</p>
+            </div>
+            <div className="flex items-center gap-4 text-[11px]">
+              <a href="https://github.com/qbjsdsb/wenyan-English" target="_blank" rel="noreferrer" className="wenyan-link">项目</a>
+              <a href="https://github.com/RealKai42/qwerty-learner" target="_blank" rel="noreferrer" className="wenyan-link">GPL-3.0</a>
+            </div>
+          </div>
+        </section>
       </main>
-      <Footer />
     </div>
   )
 }
