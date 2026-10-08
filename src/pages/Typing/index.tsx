@@ -160,11 +160,13 @@ const App: React.FC = () => {
               <Link to="/today" aria-label="今日学习" className="wenyan-brand text-[14px] font-semibold no-underline opacity-80 transition-opacity hover:opacity-100">
                 Wenyan
               </Link>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <span>{idDictionaryMap[currentDictId]?.name} · 第 {currentChapter + 1} 章</span>
                 {state.chapterData.words.length > 0 && (
                   <span className="wenyan-mono text-[10px] text-[var(--wenyan-ink-secondary)]">{Math.min(state.chapterData.index + 1, state.chapterData.words.length)} / {state.chapterData.words.length}</span>
                 )}
+                <span aria-hidden="true" className="mx-0.5 h-3 w-px bg-[var(--wenyan-line-soft)]" />
+                <WordList inline />
                 <StartButton isLoading={isLoading || Boolean(wordListError)} />
                 {skipButton}
               </div>
@@ -178,7 +180,8 @@ const App: React.FC = () => {
           {!state.isTyping && (
             <div className="wenyan-setup-bar my-4 flex items-center justify-between gap-6 px-4 py-3">
               <DictChapterButton />
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <WordList inline />
                 <Switcher />
                 <StartButton isLoading={isLoading || Boolean(wordListError)} />
                 {skipButton}
@@ -207,7 +210,6 @@ const App: React.FC = () => {
           </div>
         </div>
       </main>
-      <WordList />
     </TypingContext.Provider>
   )
 }
