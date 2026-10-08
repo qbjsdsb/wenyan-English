@@ -16,21 +16,21 @@ const utilityClass = (active = false) =>
     active
       ? 'bg-[var(--wenyan-accent-soft)] text-[var(--wenyan-accent)]'
       : 'text-[var(--wenyan-ink-muted)] hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]'
-  } grid h-[30px] w-[30px] place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors`
+  } grid h-[32px] w-[32px] place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors`
 
 export default function Header({ children }: PropsWithChildren) {
   const [dark, setDark] = useAtom(isOpenDarkModeAtom)
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper)]">
+    <header className="wenyan-chrome sticky top-0 z-40 w-full border-b border-[var(--wenyan-line-soft)]">
       <div className="mx-auto w-full max-w-5xl px-6">
-        <div className="flex min-h-[56px] items-center justify-between gap-6">
-          <NavLink className="wenyan-brand shrink-0 text-[19px] font-semibold no-underline" to="/today">
+        <div className="flex min-h-[60px] items-center justify-between gap-6">
+          <NavLink className="wenyan-brand shrink-0 text-[21px] font-semibold no-underline" to="/today">
             Wenyan
           </NavLink>
 
           <div className="flex min-w-0 items-center gap-3.5">
-            <nav aria-label="主导航" className="flex min-w-0 items-center gap-0.5">
+            <nav aria-label="主导航" className="flex min-w-0 items-center gap-1">
               {navigation.map(([path, label]) => (
                 <NavLink
                   key={path}
@@ -40,9 +40,9 @@ export default function Header({ children }: PropsWithChildren) {
                   className={({ isActive }) =>
                     `${
                       isActive
-                        ? 'text-[var(--wenyan-ink)] after:absolute after:-bottom-[17px] after:left-1/2 after:h-[2px] after:w-3.5 after:-translate-x-1/2 after:rounded-full after:bg-[var(--wenyan-accent)]'
-                        : 'text-[var(--wenyan-ink-secondary)] hover:text-[var(--wenyan-ink)]'
-                    } relative rounded-md px-2.5 py-1.5 text-[13px] font-medium no-underline transition-colors`
+                        ? 'bg-[var(--wenyan-accent-soft)] text-[var(--wenyan-accent)]'
+                        : 'text-[var(--wenyan-ink-secondary)] hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]'
+                    } relative rounded-[var(--wenyan-radius-sm)] px-3 py-1.5 text-[13px] font-medium no-underline transition-colors`
                   }
                 >
                   {label}
@@ -50,12 +50,12 @@ export default function Header({ children }: PropsWithChildren) {
               ))}
             </nav>
 
-            <div className="flex items-center gap-0.5 border-l border-[var(--wenyan-line-soft)] pl-3">
+            <div className="flex items-center gap-1 border-l border-[var(--wenyan-line-soft)] pl-3">
               <NavLink to="/sync" aria-label="同步" title="同步" className={({ isActive }) => utilityClass(isActive)}>
-                <Cloud aria-hidden="true" size={14} strokeWidth={1.65} />
+                <Cloud aria-hidden="true" size={15} strokeWidth={1.7} />
               </NavLink>
               <NavLink to="/preferences" aria-label="设置" title="设置" className={({ isActive }) => utilityClass(isActive)}>
-                <Settings aria-hidden="true" size={14} strokeWidth={1.65} />
+                <Settings aria-hidden="true" size={15} strokeWidth={1.7} />
               </NavLink>
               <button
                 type="button"
@@ -64,7 +64,7 @@ export default function Header({ children }: PropsWithChildren) {
                 title={dark ? '浅色模式' : '深色模式'}
                 className={utilityClass()}
               >
-                {dark ? <Sun aria-hidden="true" size={14} strokeWidth={1.65} /> : <Moon aria-hidden="true" size={14} strokeWidth={1.65} />}
+                {dark ? <Sun aria-hidden="true" size={15} strokeWidth={1.7} /> : <Moon aria-hidden="true" size={15} strokeWidth={1.7} />}
               </button>
             </div>
           </div>
