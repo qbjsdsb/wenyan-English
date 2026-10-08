@@ -208,26 +208,26 @@ export default function SmartSessionDock() {
     <section
       aria-label="智能学习"
       data-intent-source={intent?.source ?? 'loading'}
-      className="wenyan-surface wenyan-fade-in mb-10 px-6 py-6"
+      className="wenyan-surface wenyan-fade-in mb-8 px-5 py-5"
     >
-      <div className="flex items-end justify-between gap-10">
+      <div className="flex items-center justify-between gap-8">
         <div className="min-w-0 max-w-2xl">
-          <p className="mb-2 text-[12px] font-medium text-[var(--wenyan-accent)]">继续学习</p>
-          <h2 className="text-[27px] font-semibold leading-[1.22] tracking-[-0.032em] text-[var(--wenyan-ink)]">{label}</h2>
+          <p className="mb-1.5 text-[11px] font-medium tracking-[0.01em] text-[var(--wenyan-accent)]">继续学习</p>
+          <h2 className="text-[23px] font-semibold leading-[1.28] tracking-[-0.028em] text-[var(--wenyan-ink)]">{label}</h2>
 
           {meta.length > 0 && (
-            <div className="wenyan-muted mt-3 flex flex-wrap items-center gap-2 text-xs" aria-label="这一段概况">
+            <div className="wenyan-muted mt-2.5 flex flex-wrap items-center gap-1.5 text-[11px]" aria-label="这一段概况">
               {meta.map((item, index) => (
                 <span key={item} className="contents">
-                  {index > 0 && <span aria-hidden="true">·</span>}
+                  {index > 0 && <span aria-hidden="true" className="opacity-55">·</span>}
                   <span>{item}</span>
                 </span>
               ))}
             </div>
           )}
 
-          {showNote && <p className="wenyan-muted mt-3 max-w-2xl text-[11px] leading-5">{note}</p>}
-          {error && <p role="alert" className="mt-3 text-xs leading-5 text-[var(--wenyan-danger)]">{error}</p>}
+          {showNote && <p className="wenyan-muted mt-2 max-w-2xl text-[11px] leading-[1.65]">{note}</p>}
+          {error && <p role="alert" className="mt-2.5 text-xs leading-5 text-[var(--wenyan-danger)]">{error}</p>}
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-2">
@@ -245,7 +245,7 @@ export default function SmartSessionDock() {
             type="button"
             disabled={busy || (!prepared && !error) || Boolean(error)}
             onClick={() => void (canSmartStart ? start() : refresh())}
-            className="wenyan-button-primary px-5"
+            className={`${canSmartStart ? 'wenyan-button-primary' : 'wenyan-button-secondary'} px-4`}
           >
             {primaryLabel}
           </button>
@@ -253,7 +253,7 @@ export default function SmartSessionDock() {
             <Link
               to="/"
               aria-label="手动继续当前章节（不按这条智能安排）"
-              className="wenyan-link text-xs"
+              className="wenyan-muted text-[11px] no-underline transition-colors hover:text-[var(--wenyan-ink-secondary)]"
             >
               手动继续
             </Link>
