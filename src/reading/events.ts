@@ -1,5 +1,6 @@
 import type { QuestionAttemptedPayload, ReadingCompletedPayload } from '@/learning/types'
 import { createLearningEvent } from '@/learning/types'
+import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
 import { db } from '@/utils/db'
 import type { ReadingAnswerDraft, ReadingAttemptSummary, ReadingPassage } from './types'
 
@@ -12,6 +13,7 @@ export async function saveReadingAttempt(
   passage: ReadingPassage,
   answers: readonly ReadingAnswerDraft[],
   durationMs: number,
+  ownerUserId = getLocalLearningOwnerId(),
 ): Promise<ReadingAttemptSummary> {
   if (!Number.isFinite(durationMs) || durationMs < 0) throw new Error('reading_duration_invalid')
 
@@ -28,7 +30,7 @@ export async function saveReadingAttempt(
     if (answered) answeredCount += 1
     if (isCorrect) correctCount += 1
 
-    return createLearningEvent<QuestionAttemptedPayload>(
+    const event = createLearningEvent<QuestionAttemptedPayload>(
       'question_attempted',
       {
         attemptId,
@@ -45,6 +47,10 @@ export async function saveReadingAttempt(
       },
       3,
     )
+    // The owner is frozen by the Reading runner. Switching accounts while a
+    // passage is open must never reassign the finished attempt to the new user.
+    event.ownerUserId = ownerUserId
+    return event
   })
 
   const completedEvent = createLearningEvent<ReadingCompletedPayload>(
@@ -61,6 +67,7 @@ export async function saveReadingAttempt(
     },
     3,
   )
+  completedEvent.ownerUserId = ownerUserId
 
   await db.transaction('rw', db.learningEvents, async () => {
     await db.learningEvents.bulkAdd([...questionEvents, completedEvent])
