@@ -1,8 +1,9 @@
+import { type LearningIntentScope, evaluateIntentApplicability, isValidIanaTimezone } from './intentPolicy'
 import type { ActivityKind, SessionConstraints } from './types'
 import { idDictionaryMap } from '@/resources/dictionary'
 import { supabase } from '@/supabase/client'
 
-export type LearningIntentScope = 'ongoing' | 'day' | 'session'
+export type { LearningIntentScope } from './intentPolicy'
 
 interface LearningIntentRow {
   id: string
@@ -56,25 +57,6 @@ function timestamp(value: unknown, fallback: number | null) {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
-function validTimezone(value: unknown) {
-  if (typeof value !== 'string' || !value || value.length > 64) return undefined
-  try {
-    new Intl.DateTimeFormat('en-CA', { timeZone: value }).format(0)
-    return value
-  } catch {
-    return undefined
-  }
-}
-
-function calendarDay(time: number, timezone: string) {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(time)
-}
-
 function parseConstraints(value: unknown, warnings: string[]): SessionConstraints {
   const row = object(value)
   if (!row) return {}
@@ -118,8 +100,7 @@ function parseIntent(value: unknown, warnings: string[]): LearningIntentRow | un
     warnings.push('ignored_invalid_intent_scope')
     return undefined
   }
-  const timezone = validTimezone(row.timezone)
-  if (!timezone) {
+  if (!isValidIanaTimezone(row.timezone)) {
     warnings.push('ignored_invalid_intent_timezone')
     return undefined
   }
@@ -147,7 +128,7 @@ function parseIntent(value: unknown, warnings: string[]): LearningIntentRow | un
   return {
     id: row.id,
     scope: row.scope as LearningIntentScope,
-    timezone,
+    timezone: row.timezone,
     revision: row.revision,
     effectiveFrom,
     expiresAt,
@@ -167,24 +148,9 @@ function activeIntents(
     .map((item) => parseIntent(item, warnings))
     .filter((item): item is LearningIntentRow => Boolean(item))
     .filter((item) => {
-      if (item.effectiveFrom > now || (item.expiresAt !== null && now >= item.expiresAt)) return false
-      if (item.scope === 'day' && calendarDay(item.effectiveFrom, item.timezone) !== calendarDay(now, item.timezone)) {
-        warnings.push('day_intent_outside_effective_calendar_day')
-        return false
-      }
-      if (item.scope === 'session') {
-        if (item.boundSessionId !== null && item.boundSessionId !== runtimeSessionId) {
-          warnings.push('session_intent_bound_elsewhere')
-          return false
-        }
-        // An unbound cached session intent may have been claimed by another device
-        // while this browser was offline. Only live cloud state may claim it.
-        if (source === 'cached-cloud' && item.boundSessionId === null) {
-          warnings.push('unbound_cached_session_intent_ignored')
-          return false
-        }
-      }
-      return true
+      const result = evaluateIntentApplicability(item, now, source, runtimeSessionId)
+      if (result.warning) warnings.push(result.warning)
+      return result.active
     })
 }
 
