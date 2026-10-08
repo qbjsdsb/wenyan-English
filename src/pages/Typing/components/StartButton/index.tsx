@@ -7,7 +7,6 @@ import { useCallback, useContext } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 
 export default function StartButton({ isLoading }: { isLoading: boolean }) {
-  // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
   const { state, dispatch } = useContext(TypingContext)!
   const randomConfig = useAtomValue(randomConfigAtom)
 
@@ -25,17 +24,13 @@ export default function StartButton({ isLoading }: { isLoading: boolean }) {
     <div className="flex items-center gap-1.5">
       <Tooltip content={`${state.isTyping ? '暂停' : '开始'}（Enter）`}>
         <button
-          className={`${
-            state.isTyping
-              ? 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10'
-              : 'border-gray-950 bg-gray-950 text-white hover:bg-gray-800 dark:border-gray-100 dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white'
-          } inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-medium shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40`}
+          className={`${state.isTyping ? 'wenyan-button-secondary' : 'wenyan-button-primary'} inline-flex items-center gap-2 px-4 disabled:cursor-not-allowed disabled:opacity-40`}
           type="button"
           disabled={isLoading}
           onClick={onToggleIsTyping}
           aria-label={state.isTyping ? '暂停' : '开始'}
         >
-          {state.isTyping ? <Pause aria-hidden="true" size={15} /> : <Play aria-hidden="true" size={15} />}
+          {state.isTyping ? <Pause aria-hidden="true" size={14} strokeWidth={1.8} /> : <Play aria-hidden="true" size={14} strokeWidth={1.8} />}
           <span>{state.isTyping ? '暂停' : '开始'}</span>
         </button>
       </Tooltip>
@@ -45,9 +40,9 @@ export default function StartButton({ isLoading }: { isLoading: boolean }) {
           type="button"
           onClick={onClickRestart}
           aria-label="重新开始当前章节"
-          className="grid h-10 w-10 place-items-center rounded-xl border border-gray-200 bg-white/70 text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-800 dark:border-white/10 dark:bg-white/5 dark:text-gray-500 dark:hover:bg-white/10 dark:hover:text-gray-200"
+          className="wenyan-button-secondary grid min-h-[var(--wenyan-control-height)] w-9 place-items-center !px-0 text-[var(--wenyan-ink-muted)] hover:text-[var(--wenyan-ink)]"
         >
-          <RotateCcw aria-hidden="true" size={15} />
+          <RotateCcw aria-hidden="true" size={14} strokeWidth={1.75} />
         </button>
       </Tooltip>
     </div>
