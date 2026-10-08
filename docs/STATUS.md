@@ -10,7 +10,7 @@
 - Today 失败后结束“正在安排”，支持重新安排；刷新时清除旧草案，避免失败后启动过期安排。
 - 练习页显示加载错误和重试，错误时禁止开始及键盘启动；保存的复习词组和内置首章直接使用本机内容，不依赖词库网络请求。
 - 新增 `playwright.pages.config.ts` 与 `pages-assets.spec.ts`：正式构建、真实词库、Pages 子路径、音效、失败及重试。默认开发测试排除这组专用测试；CI 增加 Pages 构建验收和 Smart Session 浏览器回归。
-- 验证：lint 通过（7 条既有警告，0 错误）；TypeScript 通过；Pages 正式构建通过；Pages 真实资源与故障恢复 7/7、Smart Session 2/2、学习计划 5/5 通过。Smart Session 旧 fixture 补齐当前必填 id/timezone 后通过，未放宽生产校验。线上部署状态待提交后核验。
+- 验证：lint 通过（7 条既有警告，0 错误）；TypeScript 通过；Pages 正式构建通过；Pages 真实资源与故障恢复 7/7、Smart Session 2/2、学习计划 5/5 通过。Smart Session 旧 fixture 补齐当前必填 id/timezone 后通过，未放宽生产校验。修复提交 `1b74f4e798f3c2a6c82997d7fb5883e7e69d26c0` 的完整 CI（run 37745021171）与 Pages 部署（run 37745021054）均成功。线上全新浏览器 smoke 已确认真实红宝书请求为 `/wenyan-English/dicts/2025KaoYanHongBaoShu.json`，Today 开始学习可用、无错误，练习页显示“按任意键开始”。该 smoke 使用独立未登录上下文，不读取或修改用户的真实学习记录。
 - 后续：修复部署成功后，在用户已登录的真实设备验证学习与事实上传闭环；本次浏览器回归不替代真实账号 E2E。
 
 ## 当前正式主线
