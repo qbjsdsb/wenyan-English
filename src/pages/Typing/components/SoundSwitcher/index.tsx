@@ -9,16 +9,11 @@ export default function SoundSwitcher() {
   const [hintSoundsConfig, setHintSoundsConfig] = useAtom(hintSoundsConfigAtom)
 
   const onChangeKeySound = useCallback(
-    (checked: boolean) => {
-      setKeySoundsConfig((old) => ({ ...old, isOpen: checked }))
-    },
+    (checked: boolean) => setKeySoundsConfig((old) => ({ ...old, isOpen: checked })),
     [setKeySoundsConfig],
   )
-
   const onChangeHintSound = useCallback(
-    (checked: boolean) => {
-      setHintSoundsConfig((old) => ({ ...old, isOpen: checked }))
-    },
+    (checked: boolean) => setHintSoundsConfig((old) => ({ ...old, isOpen: checked })),
     [setHintSoundsConfig],
   )
 
@@ -27,12 +22,7 @@ export default function SoundSwitcher() {
       {({ open }) => (
         <>
           <Popover.Button
-            className={`flex items-center justify-center rounded p-[2px] text-lg text-indigo-500 outline-none transition-colors duration-300 ease-in-out hover:bg-indigo-400 hover:text-white  ${
-              open ? 'bg-indigo-500 text-white' : ''
-            }`}
-            onFocus={(e) => {
-              e.target.blur()
-            }}
+            className={`${open ? 'bg-[var(--wenyan-paper-raised)] text-[var(--wenyan-ink)]' : 'text-[var(--wenyan-ink-muted)]'} grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors hover:bg-[var(--wenyan-paper-raised)] hover:text-[var(--wenyan-ink)]`}
             aria-label="音效设置"
             title="音效设置"
           >
@@ -41,36 +31,27 @@ export default function SoundSwitcher() {
 
           <Transition
             as={Fragment}
-            enter="transition ease-out duration-200"
+            enter="transition ease-out duration-150"
             enterFrom="opacity-0 translate-y-1"
             enterTo="opacity-100 translate-y-0"
-            leave="transition ease-in duration-150"
+            leave="transition ease-in duration-100"
             leaveFrom="opacity-100 translate-y-0"
             leaveTo="opacity-0 translate-y-1"
           >
-            <Popover.Panel className="absolute left-1/2 z-10 mt-2 flex max-w-max -translate-x-1/2 px-4 ">
-              <div className="shadow-upper box-border flex w-60 select-none flex-col items-center justify-center gap-4 rounded-xl bg-white p-4 drop-shadow dark:bg-gray-800">
-                <div className="flex w-full  flex-col  items-start gap-2 py-0">
-                  <span className="text-sm font-normal leading-5 text-gray-900 dark:text-white dark:text-opacity-60">开关按键音</span>
-                  <div className="flex w-full flex-row items-center justify-between">
-                    <Switch checked={keySoundsConfig.isOpen} onChange={onChangeKeySound} className="switch-root">
-                      <span aria-hidden="true" className="switch-thumb" />
-                    </Switch>
-                    <span className="text-right text-xs font-normal leading-tight text-gray-600">{`发音已${
-                      keySoundsConfig.isOpen ? '开启' : '关闭'
-                    }`}</span>
-                  </div>
+            <Popover.Panel className="wenyan-surface absolute left-1/2 z-50 mt-2 w-56 -translate-x-1/2 p-4">
+              <div className="mb-2 text-[12px] font-semibold text-[var(--wenyan-ink)]">音效</div>
+              <div className="divide-y divide-[var(--wenyan-line-soft)]">
+                <div className="flex items-center justify-between py-2">
+                  <span className="wenyan-body text-xs">按键音</span>
+                  <Switch checked={keySoundsConfig.isOpen} onChange={onChangeKeySound} className="switch-root">
+                    <span aria-hidden="true" className="switch-thumb" />
+                  </Switch>
                 </div>
-                <div className="flex w-full flex-col items-start  gap-2 py-0">
-                  <span className="text-sm font-normal leading-5 text-gray-900 dark:text-white dark:text-opacity-60">开关效果音</span>
-                  <div className="flex w-full flex-row items-center justify-between">
-                    <Switch checked={hintSoundsConfig.isOpen} onChange={onChangeHintSound} className="switch-root">
-                      <span aria-hidden="true" className="switch-thumb" />
-                    </Switch>
-                    <span className="text-right text-xs font-normal leading-tight text-gray-600">{`发音已${
-                      hintSoundsConfig.isOpen ? '开启' : '关闭'
-                    }`}</span>
-                  </div>
+                <div className="flex items-center justify-between py-2">
+                  <span className="wenyan-body text-xs">提示音</span>
+                  <Switch checked={hintSoundsConfig.isOpen} onChange={onChangeHintSound} className="switch-root">
+                    <span aria-hidden="true" className="switch-thumb" />
+                  </Switch>
                 </div>
               </div>
             </Popover.Panel>
