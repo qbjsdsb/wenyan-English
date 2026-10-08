@@ -1,4 +1,4 @@
-import { buildLearningEvidenceV1 } from './evidence'
+import { buildLearningEvidenceV1 } from './evidence.ts'
 import type { CoachingContextInput, CoachingWordFact, ReadingCandidateContext, ReadingCandidateInput, StageReminderPreference } from './types'
 
 const DAY = 86_400_000
