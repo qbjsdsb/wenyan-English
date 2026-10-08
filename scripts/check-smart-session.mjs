@@ -4,6 +4,7 @@ import { buildSmartSession } from '../src/smart-session/planner.ts'
 
 const now = 1_800_000_000_000
 const day = 86_400_000
+const minute = 60_000
 const word = (key, attempts = [], extra = {}) => ({
   kind: 'vocabulary', key, contentId: 'book/' + key, dictionaryId: 'kaoyan',
   ordinal: Number(key.replace(/\D/g, '')) || 0, attempts, estimatedSeconds: 60, ...extra,
@@ -24,6 +25,7 @@ check('pure, deterministic, open-ended sparse fallback', () => {
   const a = buildSmartSession(input)
   assert.deepEqual(a, buildSmartSession(input))
   assert.equal(JSON.stringify(input), before)
+  assert.equal(a.algorithmVersion, 'elastic-v2')
   assert.equal(a.blocks[0].purpose, 'new')
   assert.equal(count(a), 6)
 })
@@ -47,6 +49,46 @@ check('repeated spelling errors beat unseen words initially', () => {
   const r = buildSmartSession({ ...input, candidates: [...fresh, weak] })
   assert.equal(r.blocks[0].purpose, 'weak')
   assert.deepEqual(r.blocks[0].activity.items[0].evidenceRefs, ['w1', 'w2'])
+})
+check('one recent spelling error becomes a correction block after cooldown', () => {
+  const typo = word('typo', [{ id: 't1', occurredAt: now - 21 * minute, wrongCount: 1 }])
+  const r = buildSmartSession({
+    ...input,
+    candidates: [...fresh, typo],
+    constraints: { focusDictionary: 'kaoyan', newWordCeiling: 0, reviewPreference: 'review_first' },
+  })
+  assert.equal(r.blocks[0].purpose, 'correction')
+  assert.equal(count(r), 1)
+  assert.equal(r.blocks[0].activity.items[0].reason, 'recent_spelling_error_needs_correction')
+  assert.deepEqual(r.blocks[0].activity.items[0].evidenceRefs, ['t1'])
+})
+check('review-only intent waits safely for a fresh error cooldown instead of deadlocking silently', () => {
+  const typo = word('typo', [{ id: 't1', occurredAt: now - 5 * minute, wrongCount: 1 }])
+  const r = buildSmartSession({
+    ...input,
+    candidates: [...fresh, typo],
+    constraints: { focusDictionary: 'kaoyan', newWordCeiling: 0, reviewPreference: 'review_first' },
+  })
+  assert.equal(count(r), 0)
+  assert.equal(r.reason, 'review_only_waiting_for_correction_cooldown')
+  assert.equal(r.retryAt, now + 15 * minute)
+  assert.ok(r.deferred.some((entry) => entry.key === 'typo' && entry.reason === 'recent_practice_cooldown'))
+  assert.ok(r.deferred.some((entry) => entry.reason === 'new_word_ceiling'))
+})
+check('new-word ceiling with nothing due is explained explicitly', () => {
+  const r = buildSmartSession({ ...input, constraints: { focusDictionary: 'kaoyan', newWordCeiling: 0 } })
+  assert.equal(count(r), 0)
+  assert.equal(r.reason, 'new_word_ceiling_no_review')
+  assert.equal(r.retryAt, undefined)
+})
+check('a corrected latest attempt does not remain a correction candidate', () => {
+  const corrected = word('fixed', [
+    { id: 'old-error', occurredAt: now - 2 * day, wrongCount: 1 },
+    { id: 'clean', occurredAt: now - 30 * minute, wrongCount: 0 },
+  ])
+  const r = buildSmartSession({ ...input, candidates: [corrected], constraints: { focusDictionary: 'kaoyan', newWordCeiling: 0 } })
+  assert.equal(count(r), 0)
+  assert.equal(r.reason, 'nothing_due_yet')
 })
 check('duplicate source UUIDs and words do not double count', () => {
   const a = word('due', [attempt('same')])
