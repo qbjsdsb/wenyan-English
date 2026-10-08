@@ -20,6 +20,7 @@ function purposeLabel(prepared: PreparedSmartSession | undefined) {
 }
 
 function intentNote(intent: ResolvedSmartSessionIntent | undefined, prepared: PreparedSmartSession | undefined) {
+  if (intent?.source === 'cached-cloud') return '云端暂时不可用，已沿用这个账号最近一次仍有效的学习安排。'
   if (intent?.warnings.includes('cloud_intent_unavailable')) return '云端安排暂时不可用，已按本机记录继续。'
   if (intent?.source === 'cloud') return '已按你最近的学习安排自动调整；随时可以停，不会累积欠任务。'
   if (prepared?.kind === 'draft' && prepared.draft.warnings.length > 0) {
@@ -35,6 +36,7 @@ function blockMeta(prepared: PreparedSmartSession | undefined, intent: ResolvedS
   const minutes = block ? Math.max(1, Math.ceil(block.estimatedSeconds / 60)) : 0
   const meta = block ? [`约 ${minutes} 分钟`, `${items} 个词`] : []
   if (intent?.source === 'cloud') meta.push('最近安排已应用')
+  if (intent?.source === 'cached-cloud') meta.push('沿用最近有效安排')
   return meta
 }
 
