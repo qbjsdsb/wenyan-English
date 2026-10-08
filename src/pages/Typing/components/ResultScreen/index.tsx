@@ -138,6 +138,9 @@ const ResultScreen = () => {
               <div>
                 <p className="wenyan-muted text-[10px]">本次学习完成</p>
                 <h2 className="mt-1 text-[18px] font-semibold tracking-[-0.02em] text-[var(--wenyan-ink)]">{title}</h2>
+                {wrongWords.length === 0 && (
+                  <p className="mt-2 text-[11px] text-[var(--wenyan-success)]">表现不错！全对了！</p>
+                )}
               </div>
               <button
                 type="button"
