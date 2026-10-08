@@ -1,5 +1,4 @@
 import { TypingContext } from '../../store'
-import InfoBox from './InfoBox'
 import { useContext } from 'react'
 
 export default function Speed() {
@@ -13,18 +12,27 @@ export default function Speed() {
 
   if (!hasActivity) return null
 
+  const time = `${minutesString}:${secondsString}`
+  const detailLabel = `本次学习数据：时间 ${time}，输入 ${inputNumber}，WPM ${state.timerData.wpm}，正确 ${state.chapterData.correctCount}，正确率 ${state.timerData.accuracy}%`
+
   return (
     <div
-      aria-label="本次学习数据"
-      className={`wenyan-focus-metrics mb-7 flex items-center justify-center gap-8 rounded-[var(--wenyan-radius-md)] bg-[color-mix(in_srgb,var(--wenyan-paper-raised)_72%,transparent)] px-5 py-3 transition-all duration-200 ${
-        state.isTyping ? 'opacity-90' : 'opacity-60'
+      aria-label={detailLabel}
+      className={`wenyan-focus-metrics mb-5 flex items-center justify-center gap-3 text-[10px] tracking-[0.015em] transition-opacity duration-200 ${
+        state.isTyping ? 'opacity-70' : 'opacity-45'
       }`}
     >
-      <InfoBox info={`${minutesString}:${secondsString}`} description="时间" />
-      <InfoBox info={inputNumber + ''} description="输入" />
-      <InfoBox info={state.timerData.wpm + ''} description="WPM" />
-      <InfoBox info={state.chapterData.correctCount + ''} description="正确" />
-      <InfoBox info={state.timerData.accuracy + ''} description="正确率" />
+      <span className="tabular-nums text-[var(--wenyan-ink-secondary)]">{time}</span>
+      <span aria-hidden="true" className="opacity-35">·</span>
+      <span className="tabular-nums"><strong className="font-medium text-[var(--wenyan-ink-secondary)]">{state.timerData.wpm}</strong> WPM</span>
+      <span aria-hidden="true" className="opacity-35">·</span>
+      <span className="tabular-nums"><strong className="font-medium text-[var(--wenyan-ink-secondary)]">{state.timerData.accuracy}%</strong> 正确率</span>
+      {inputNumber > 0 && (
+        <>
+          <span aria-hidden="true" className="opacity-35">·</span>
+          <span className="tabular-nums">{state.chapterData.correctCount}/{inputNumber} 正确</span>
+        </>
+      )}
     </div>
   )
 }
