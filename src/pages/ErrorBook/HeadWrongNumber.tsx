@@ -14,32 +14,18 @@ export type ISortType = 'asc' | 'desc' | 'none'
 
 const HeadWrongNumber: FC<IHeadWrongNumberProps> = ({ className, sortType, setSortType }) => {
   const onClick = useCallback(() => {
-    const sortTypes: Record<ISortType, ISortType> = {
-      asc: 'desc',
-      desc: 'none',
-      none: 'asc',
-    }
+    const sortTypes: Record<ISortType, ISortType> = { asc: 'desc', desc: 'none', none: 'asc' }
     setSortType(sortTypes[sortType])
   }, [setSortType, sortType])
 
   return (
-    <span className={`relative cursor-pointer ${className}`} onClick={onClick}>
-      错误次数
-      <div className="absolute -right-2 bottom-0 top-0 flex flex-col items-center justify-center text-[12px]">
-        <UPIcon
-          className={classNames('-mb-2 ', {
-            'text-indigo-500': sortType === 'asc',
-            'text-gray-400': sortType !== 'asc',
-          })}
-        />
-        <DownIcon
-          className={classNames({
-            'text-indigo-500': sortType === 'desc',
-            'text-gray-400': sortType !== 'desc',
-          })}
-        />
-      </div>
-    </span>
+    <button type="button" className={`flex items-center gap-1.5 text-left ${className ?? ''}`} onClick={onClick}>
+      <span>错误次数</span>
+      <span className="flex flex-col text-[9px] leading-[7px]">
+        <UPIcon className={classNames({ 'text-gray-800 dark:text-gray-300': sortType === 'asc', 'text-gray-300 dark:text-gray-700': sortType !== 'asc' })} />
+        <DownIcon className={classNames({ 'text-gray-800 dark:text-gray-300': sortType === 'desc', 'text-gray-300 dark:text-gray-700': sortType !== 'desc' })} />
+      </span>
+    </button>
   )
 }
 
