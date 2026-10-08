@@ -1,6 +1,6 @@
 import type { SemanticRun } from '@/semantic/run'
 import type { RecallRating } from '@/semantic/core'
-import { endloadrevealSemanticItem, saveSemanticRating } from '@/semantic/runtime'
+import { endSemanticRun, loadSemanticRun, revealSemanticItem, saveSemanticRating } from '@/semantic/runtime'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
@@ -26,7 +26,13 @@ export default function SemanticPage() {
       setError('')
     } catch (cause) { setError(cause instanceof Error ? cause.message : '无法读取这段学习。') }
   }, [runId])
-  useEffect(() => { void restore() }, [restore])
+  useEffect(() => {
+    void restore()
+    const changed = () => { setRun(undefined); setSaved(false); void restore() }
+    window.addEventListener('wenyan-learning-owner-changed', changed)
+    window.addEventListener('storage', changed)
+    return () => { window.removeEventListener('wenyan-learning-owner-changed', changed); window.removeEventListener('storage', changed) }
+  }, [restore])
   useEffect(() => { focus.current?.focus() }, [run?.index])
   useEffect(() => {
     if (run?.hardStopAt === undefined) return

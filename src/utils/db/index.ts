@@ -13,7 +13,7 @@ import type { IChapterRecord, IReviewRecord, IRevisionDictRecord, IWordRecord, L
 import { ChapterRecord, ReviewRecord, WordRecord } from './record'
 
 class RecordDB extends Dexie {
-  semanticRuns!: Table<string>
+  semanticRuns!: Table<SemanticRun, string>
   wordRecords!: Table<IWordRecord, number>
   chapterRecords!: Table<IChapterRecord, number>
   reviewRecords!: Table<IReviewRecord, number>

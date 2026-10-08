@@ -11,7 +11,7 @@ import { currentChapterAtom, currentDictIdAtom, currentDictInfoAtom, reviewModeI
 import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { ArrowRight } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 function retryLabel(retryAt: number | undefined) {
@@ -108,15 +108,16 @@ export default function SmartSessionDock() {
   const [intent, setIntent] = useState<ResolvedSmartSessionIntent>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const generation = useRef(0)
 
   const supported = dict.language === 'en'
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (quiet = false) => {
+    const request = ++generation.current
     if (!supported) return
     setBusy(true)
     setError('')
-    setPrepared(undefined)
-    setIntent(undefined)
+    if (!quiet) { setPrepared(undefined); setIntent(undefined) }
     try {
       const ownerUserId = getLocalLearningOwnerId()
       const runtimeSessionId = getCurrentSmartSessionId(ownerUserId) ?? createSmartSessionId()
@@ -135,19 +136,31 @@ export default function SmartSessionDock() {
         Date.now(),
         runtimeSessionId,
       )
+      if (request !== generation.current) return
       setIntent(effectiveIntent)
       setPrepared(nextPrepared)
       void reportSmartSessionExecutionAvailability(nextPrepared)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '暂时无法生成下一段学习。')
+      if (request === generation.current) setError(cause instanceof Error ? cause.message : '暂时无法生成下一段学习。')
     } finally {
-      setBusy(false)
+      if (request === generation.current) setBusy(false)
     }
   }, [dict.id, supported])
 
   useEffect(() => {
     void refresh()
+    const changed = () => { void refresh() }
+    const foreground = () => { if (document.visibilityState === 'visible') void refresh(true) }
+    window.addEventListener('wenyan-learning-owner-changed', changed)
+    window.addEventListener('focus', foreground)
+    return () => { generation.current++; window.removeEventListener('wenyan-learning-owner-changed', changed); window.removeEventListener('focus', foreground) }
   }, [refresh])
+
+  useEffect(() => {
+    if (busy) return
+    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(true) }, 60000)
+    return () => window.clearInterval(timer)
+  }, [busy, refresh])
 
   useEffect(() => {
     if (prepared?.kind !== 'draft' || prepared.draft.retryAt === undefined) return

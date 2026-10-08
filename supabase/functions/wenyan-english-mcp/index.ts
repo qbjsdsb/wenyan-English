@@ -328,7 +328,7 @@ function queuedCommandResult(command: unknown) {
 }
 
 function createServer(token: string, capabilities: CapabilitySnapshot) {
-  const server = new McpServer({ name: 'Wenyan English', version: '0.7.0' })
+  const server = new McpServer({ name: 'Wenyan English', version: '0.8.0' })
 
   server.registerTool(
     'get_coaching_context',

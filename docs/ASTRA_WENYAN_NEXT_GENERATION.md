@@ -54,3 +54,7 @@ Git HTTPS push has no credential helper in this environment. Durable checkpoints
 - CI checkpoint caught ES5 Map iterator compatibility; corrected with Array.from. Next CI passed lint/typecheck and exposed a planner fallback regression when no semantic candidates exist; corrected by only selecting a semantic interleave when eligible candidates exist. Local original 20 planner scenarios pass after correction.
 - Local targeted semantic measurement/spacing/budget/agent checks pass; cloud adapter 10 scenarios pass. Browser checks added for full Today→semantic→refresh→fact and storage rollback/owner isolation. CI is the general gate.
 - CLI telemetry was blocked by automatic review; no approval bypass attempted. Generated migration file retained; use authorized Supabase connector for DDL. No new CLI calls needed.
+
+## Production migration (2026-10-09 00:04 China time)
+
+Applied semantic_recall_agent_contract via authorized Supabase connector, after inspecting existing schema. Validator accepts semantic_recall and continues rejecting duplicate activity/stage keys. Report RPC stays SECURITY INVOKER, anon execute=false, authenticated execute=true, one defaulted parameter preserves old clients. Security Advisor reports only previously documented private-schema deny-by-default/three legacy SECURITY DEFINER findings and leaked-password setting; performance only unused-index notices. No historical data touched. Full-source MCP deployment follows.
