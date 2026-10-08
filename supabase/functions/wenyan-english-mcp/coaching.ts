@@ -1,5 +1,11 @@
 import { buildCoachingContext } from '../../../src/coaching/context.ts'
-import type { CoachingWordFact, IntentReference } from '../../../src/coaching/types.ts'
+import type {
+  CoachingWordFact,
+  IntentReference,
+  LearningStage,
+  StagePreference,
+  StageReminderPreference,
+} from '../../../src/coaching/types.ts'
 import type { SessionConstraints } from '../../../src/smart-session/types.ts'
 
 const PAGE_SIZE = 500
@@ -8,6 +14,13 @@ const MAX_CONTEXT_BYTES = 24 * 1024
 const COACHING_ALGORITHM_VERSION = 'coaching-v1'
 
 type IntentReadStatus = 'available' | 'not_authorized' | 'unavailable' | 'invalid_response'
+type PreferenceReadStatus = 'available' | 'not_authorized' | 'unavailable' | 'invalid_response'
+
+const DEFAULT_STAGE: StagePreference = {
+  current: 'vocabulary',
+  revision: 0,
+  provenance: { kind: 'product_default', ref: 'exam-prep-strategy-v1', since: null },
+}
 
 interface CloudWordRow {
   id?: unknown
@@ -60,6 +73,10 @@ function parseNonNegativeInteger(value: unknown) {
 
 function isConstraints(value: unknown): value is SessionConstraints {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function object(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null
 }
 
 function uniqueSorted(items: readonly string[]) {
@@ -211,6 +228,73 @@ function mapIntent(value: unknown): IntentReference | null {
   }
 }
 
+function mapPreferences(value: unknown): { stage: StagePreference; reminder: StageReminderPreference | null } | null {
+  const root = object(value)
+  const stageRow = object(root?.learningStage)
+  const provenance = object(stageRow?.provenance)
+  if (!root || !stageRow || !provenance) return null
+
+  const current = stageRow.current
+  const revision = stageRow.revision
+  const kind = provenance.kind
+  const ref = provenance.ref
+  const since = provenance.since === null ? null : parseTimestamp(provenance.since)
+
+  if (
+    !['vocabulary', 'mixed', 'exam_practice'].includes(String(current)) ||
+    !Number.isInteger(revision) ||
+    Number(revision) < 0 ||
+    !['product_default', 'user_confirmation'].includes(String(kind)) ||
+    typeof ref !== 'string' ||
+    !ref ||
+    (provenance.since !== null && since === null)
+  ) return null
+
+  const stage: StagePreference = {
+    current: current as LearningStage,
+    revision: Number(revision),
+    provenance: {
+      kind: kind as StagePreference['provenance']['kind'],
+      ref,
+      since,
+    },
+  }
+
+  if (root.stageReminder === null || root.stageReminder === undefined) return { stage, reminder: null }
+  const reminderRow = object(root.stageReminder)
+  const revisit = object(reminderRow?.revisit)
+  const declinedAt = parseTimestamp(reminderRow?.declinedAt)
+  if (
+    !reminderRow ||
+    !revisit ||
+    !['vocabulary', 'mixed', 'exam_practice'].includes(String(reminderRow.target)) ||
+    declinedAt === null ||
+    typeof reminderRow.provenanceRef !== 'string' ||
+    !reminderRow.provenanceRef
+  ) return null
+
+  let revisitValue: StageReminderPreference['revisit']
+  if (revisit.kind === 'user_reopens') {
+    revisitValue = { kind: 'user_reopens' }
+  } else if (revisit.kind === 'after') {
+    const notBefore = parseTimestamp(revisit.notBefore)
+    if (notBefore === null || !Number.isInteger(revisit.additionalActiveDays) || Number(revisit.additionalActiveDays) < 1) return null
+    revisitValue = { kind: 'after', notBefore, additionalActiveDays: Number(revisit.additionalActiveDays) }
+  } else {
+    return null
+  }
+
+  return {
+    stage,
+    reminder: {
+      target: reminderRow.target as LearningStage,
+      declinedAt,
+      provenanceRef: reminderRow.provenanceRef,
+      revisit: revisitValue,
+    },
+  }
+}
+
 async function readIntents(options: CoachingAdapterOptions) {
   if (options.intentReadCapabilityStatus === 'denied') {
     return { status: 'not_authorized' as IntentReadStatus, intents: [] as IntentReference[], invalidRows: 0 }
@@ -236,15 +320,34 @@ async function readIntents(options: CoachingAdapterOptions) {
   }
 }
 
+async function readPreferences(options: CoachingAdapterOptions) {
+  try {
+    const raw = await postRpc(options.supabaseUrl, 'get_learning_preferences', options.token, options.publishableKey)
+    const mapped = mapPreferences(raw)
+    if (!mapped) {
+      return { status: 'invalid_response' as PreferenceReadStatus, stage: DEFAULT_STAGE, reminder: null as StageReminderPreference | null }
+    }
+    return { status: 'available' as PreferenceReadStatus, ...mapped }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    return {
+      status: (message === 'NOT_AUTHORIZED' ? 'not_authorized' : 'unavailable') as PreferenceReadStatus,
+      stage: DEFAULT_STAGE,
+      reminder: null as StageReminderPreference | null,
+    }
+  }
+}
+
 export async function buildCloudCoachingContext(options: CoachingAdapterOptions) {
   const now = options.now ?? Date.now()
   if (!Number.isFinite(now) || now < 0) throw new Error('INVALID_SNAPSHOT_TIME')
   const receivedAtOrBefore = new Date(now).toISOString()
 
-  // Learning facts are required. Active intent enriches the context but must not make read-only evidence unavailable.
-  const [wordData, intentData] = await Promise.all([
+  // Learning facts are required. Intent and durable preferences are optional enrichments and must fail soft.
+  const [wordData, intentData, preferenceData] = await Promise.all([
     readWordFacts(options, receivedAtOrBefore),
     readIntents(options),
+    readPreferences(options),
   ])
 
   const canonicalIntents = [...intentData.intents]
@@ -268,6 +371,9 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
     truncated: wordData.truncated,
     intents: canonicalIntents,
     intentReadStatus: intentData.status,
+    learningStage: preferenceData.stage,
+    stageReminder: preferenceData.reminder,
+    preferenceReadStatus: preferenceData.status,
   })
   const snapshotId = `sha256:${fingerprint}`
 
@@ -284,14 +390,10 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
       localOnlyPossible: true,
       wordHistoryTruncated: wordData.truncated,
     },
-    stage: {
-      current: 'vocabulary',
-      revision: 0,
-      provenance: { kind: 'product_default', ref: 'exam-prep-strategy-v1', since: null },
-    },
+    stage: preferenceData.stage,
     vocabularyProvider: { status: 'unavailable', ref: null },
     intents: intentData.intents,
-    reminder: null,
+    reminder: preferenceData.reminder,
   })
 
   const adapterWarnings = [
@@ -299,6 +401,7 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
     'multi_source_snapshot_not_atomic',
     ...(intentData.status === 'available' ? [] : ['learning_intent_unavailable']),
     ...(intentData.invalidRows > 0 ? ['invalid_learning_intent_rows_excluded'] : []),
+    ...(preferenceData.status === 'available' ? [] : ['learning_preferences_unavailable']),
   ]
   const evidenceRefs = context.evidence.refs.map((ref) => ({
     ...ref,
@@ -320,16 +423,18 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
       ...context.uncertainty,
       'snapshot_query_refs_are_descriptive_not_replay_handles',
       ...(intentData.status === 'available' ? [] : ['active_learning_intent_not_visible_in_this_snapshot']),
+      ...(preferenceData.status === 'available' ? [] : ['learning_stage_preference_not_visible_in_this_snapshot']),
     ]),
-    toolVersion: 'coaching-context-v1.1',
+    toolVersion: 'coaching-context-v1.2',
     requestId: crypto.randomUUID(),
     adapter: {
-      source: 'owner-scoped synced cloud learning_events; active Learning Intent when authorized and available',
+      source: 'owner-scoped synced cloud learning_events; durable Learning Preferences and active Learning Intent when authorized and available',
       wordRowsRead: wordData.rowCount,
       invalidRowsExcluded: wordData.invalidRows,
       maxWordFacts: MAX_WORD_FACTS,
       intentReadStatus: intentData.status,
       invalidIntentRowsExcluded: intentData.invalidRows,
+      preferenceReadStatus: preferenceData.status,
       readingCandidatesRequested: options.includeReadingCandidates,
       readingCandidatesAvailable: false,
       candidatePurpose: options.candidatePurpose,
@@ -346,6 +451,10 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
         },
         intents: {
           status: intentData.status,
+          atomicWithWordFacts: false,
+        },
+        preferences: {
+          status: preferenceData.status,
           atomicWithWordFacts: false,
         },
       },

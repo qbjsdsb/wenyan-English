@@ -12,6 +12,7 @@ export type CapabilityFeature =
   | 'intent_read'
   | 'intent_write'
   | 'plans_write'
+  | 'preferences_write'
   | 'device_read'
   | 'navigation_control'
   | 'session_control'
@@ -36,6 +37,7 @@ const featureRequirements: Record<CapabilityFeature, readonly WenyanCapability[]
   intent_read: ['plans:read', 'coach:auto_adjust'],
   intent_write: ['coach:auto_adjust'],
   plans_write: ['plans:write'],
+  preferences_write: ['preferences:write'],
   device_read: ['navigation:control', 'session:control'],
   navigation_control: ['navigation:control'],
   session_control: ['session:control'],

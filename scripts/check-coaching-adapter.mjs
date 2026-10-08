@@ -13,7 +13,9 @@ function jsonResponse(value, status = 200) {
 
 let eventReads = 0
 let intentReads = 0
+let preferenceReads = 0
 let intentMode = 'available'
+let preferenceMode = 'available'
 
 globalThis.fetch = async (input, init = {}) => {
   const rawUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
@@ -75,6 +77,25 @@ globalThis.fetch = async (input, init = {}) => {
     ])
   }
 
+  if (url.pathname.endsWith('/rest/v1/rpc/get_learning_preferences')) {
+    preferenceReads += 1
+    assert.equal(init.method, 'POST')
+    if (preferenceMode === 'forbidden') return jsonResponse({ message: 'preferences_read_not_granted' }, 403)
+    if (preferenceMode === 'transport') throw new TypeError('simulated preference network failure')
+    if (preferenceMode === 'decode') return new Response('{broken-json', { status: 200 })
+    return jsonResponse({
+      schemaVersion: 1,
+      learningStage: {
+        current: 'mixed',
+        revision: 3,
+        provenance: { kind: 'user_confirmation', ref: 'pref-fixture', since: earlierIso },
+      },
+      stageReminder: null,
+      confirmedAt: earlierIso,
+      updatedAt: earlierIso,
+    })
+  }
+
   throw new Error(`unexpected fetch ${url}`)
 }
 
@@ -94,12 +115,15 @@ try {
 
   assert.equal(eventReads, 2)
   assert.equal(intentReads, 2)
+  assert.equal(preferenceReads, 2)
   assert.equal(result.schemaVersion, 1)
-  assert.equal(result.toolVersion, 'coaching-context-v1.1')
+  assert.equal(result.toolVersion, 'coaching-context-v1.2')
   assert.match(result.snapshot.id, /^sha256:[0-9a-f]{64}$/)
   assert.equal(repeated.snapshot.id, result.snapshot.id)
   assert.notEqual(repeated.requestId, result.requestId)
-  assert.equal(result.preferences.learningStage.current, 'vocabulary')
+  assert.equal(result.preferences.learningStage.current, 'mixed')
+  assert.equal(result.preferences.learningStage.revision, 3)
+  assert.equal(result.preferences.learningStage.provenance.kind, 'user_confirmation')
   assert.equal(result.preferences.currentIntent.length, 1)
   assert.equal(result.preferences.currentIntent[0].constraints.newWordCeiling, 8)
   assert.equal(result.derived.recentLearning.wordAttempts7, 2)
@@ -113,10 +137,12 @@ try {
   assert.equal(result.adapter.wordRowsRead, 3)
   assert.equal(result.adapter.invalidRowsExcluded, 1)
   assert.equal(result.adapter.intentReadStatus, 'available')
+  assert.equal(result.adapter.preferenceReadStatus, 'available')
   assert.equal(result.adapter.readingCandidatesRequested, true)
   assert.equal(result.adapter.readingCandidatesAvailable, false)
   assert.equal(result.adapter.snapshotDescriptor.persistence, 'not_persisted')
   assert.equal(result.adapter.snapshotDescriptor.replaySupport, 'not_exposed')
+  assert.equal(result.adapter.snapshotDescriptor.preferences.status, 'available')
   assert.ok(result.evidence.refs.every((ref) => ref.replayable === false && ref.id.startsWith('query:')))
   assert.ok(Buffer.byteLength(JSON.stringify(result)) < 24 * 1024)
 
@@ -126,6 +152,7 @@ try {
   assert.equal(readOnly.adapter.intentReadStatus, 'not_authorized')
   assert.ok(readOnly.snapshot.warnings.includes('learning_intent_unavailable'))
   assert.ok(readOnly.uncertainty.includes('active_learning_intent_not_visible_in_this_snapshot'))
+  assert.equal(readOnly.preferences.learningStage.current, 'mixed')
   assert.equal(readOnly.derived.recentLearning.wordAttempts7, 2)
   assert.ok(Buffer.byteLength(JSON.stringify(readOnly)) < 24 * 1024)
 
@@ -135,12 +162,14 @@ try {
   assert.equal(intentReads, intentReadsBeforeCapabilityGate)
   assert.equal(capabilityDenied.adapter.intentReadStatus, 'not_authorized')
   assert.equal(capabilityDenied.preferences.currentIntent.length, 0)
+  assert.equal(capabilityDenied.preferences.learningStage.current, 'mixed')
   assert.equal(capabilityDenied.derived.recentLearning.wordAttempts7, 2)
 
   const capabilityLookupUnavailable = await buildCloudCoachingContext({ ...options, intentReadCapabilityStatus: 'unavailable' })
   assert.equal(intentReads, intentReadsBeforeCapabilityGate)
   assert.equal(capabilityLookupUnavailable.adapter.intentReadStatus, 'unavailable')
   assert.equal(capabilityLookupUnavailable.preferences.currentIntent.length, 0)
+  assert.equal(capabilityLookupUnavailable.preferences.learningStage.current, 'mixed')
   assert.equal(capabilityLookupUnavailable.derived.recentLearning.wordAttempts7, 2)
 
   intentMode = 'transport'
@@ -157,7 +186,28 @@ try {
   assert.equal(decodeFailure.derived.recentLearning.wordAttempts7, 2)
   assert.ok(decodeFailure.snapshot.warnings.includes('learning_intent_unavailable'))
 
-  console.log('6 cloud coaching adapter scenarios passed')
+  intentMode = 'available'
+  preferenceMode = 'forbidden'
+  const preferenceDenied = await buildCloudCoachingContext(options)
+  assert.equal(preferenceDenied.adapter.preferenceReadStatus, 'not_authorized')
+  assert.equal(preferenceDenied.preferences.learningStage.current, 'vocabulary')
+  assert.equal(preferenceDenied.preferences.learningStage.revision, 0)
+  assert.ok(preferenceDenied.snapshot.warnings.includes('learning_preferences_unavailable'))
+  assert.ok(preferenceDenied.uncertainty.includes('learning_stage_preference_not_visible_in_this_snapshot'))
+
+  preferenceMode = 'transport'
+  const preferenceTransport = await buildCloudCoachingContext(options)
+  assert.equal(preferenceTransport.adapter.preferenceReadStatus, 'unavailable')
+  assert.equal(preferenceTransport.preferences.learningStage.current, 'vocabulary')
+  assert.equal(preferenceTransport.derived.recentLearning.wordAttempts7, 2)
+
+  preferenceMode = 'decode'
+  const preferenceDecode = await buildCloudCoachingContext(options)
+  assert.equal(preferenceDecode.adapter.preferenceReadStatus, 'unavailable')
+  assert.equal(preferenceDecode.preferences.learningStage.current, 'vocabulary')
+  assert.equal(preferenceDecode.derived.recentLearning.wordAttempts7, 2)
+
+  console.log('9 cloud coaching adapter scenarios passed')
 } finally {
   globalThis.fetch = originalFetch
 }
