@@ -12,7 +12,7 @@ import { db } from '@/utils/db'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { saveAs } from 'file-saver'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { BookOpen, Check, Cloud, RefreshCw } from 'lucide-react'
+import { BookOpen, Cloud, RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import SmartSessionDock from './SmartSessionDock'
@@ -298,8 +298,8 @@ export default function TodayPage() {
                                   {task.reason && <p className="mt-2 max-w-xl text-xs leading-5 text-gray-500 dark:text-gray-400">{task.reason}</p>}
                                 </div>
                                 {complete ? (
-                                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                    <Check aria-hidden="true" size={13} /> 已完成
+                                  <span className="inline-flex shrink-0 items-center rounded-full bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                    已完成 ✓
                                   </span>
                                 ) : (
                                   <button disabled={busy} onClick={() => launch(plan, task)} className={`${secondary} shrink-0`}>
