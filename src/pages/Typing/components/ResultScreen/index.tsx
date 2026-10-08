@@ -124,11 +124,11 @@ const ResultScreen = () => {
   const title = `${currentDictInfo.name} · ${isReviewMode ? '错词复习' : `第 ${currentChapter + 1} 章`}`
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/30 px-6 py-8 backdrop-blur-[2px]">
+    <div className="wenyan-completion-stage fixed inset-0 z-50 overflow-y-auto px-6 py-8 backdrop-blur-[3px]">
       <Transition
         appear
         show
-        enter="ease-out duration-150"
+        enter="ease-out duration-200"
         enterFrom="opacity-0 translate-y-1 scale-[0.99]"
         enterTo="opacity-100 translate-y-0 scale-100"
       >
