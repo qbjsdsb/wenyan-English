@@ -18,6 +18,7 @@ import { wordListFetcher } from '@/utils/wordListFetcher'
 const DAY = 86_400_000
 const SHANGHAI_OFFSET = 8 * 60 * 60 * 1000
 const DEFAULT_WORD_SECONDS = 15
+const HARD_STOP_RESERVE_MS = 60_000
 
 export function smartVocabularyKey(word: string) {
   return `spelling:${word.trim().toLocaleLowerCase()}`
@@ -61,11 +62,17 @@ export async function prepareSmartVocabularySession(
   dictId: string,
   constraints: SessionConstraints = {},
   now = Date.now(),
+  runtimeSessionId?: string,
 ): Promise<PreparedSmartSession> {
   const dictionary = idDictionaryMap[dictId]
   if (!dictionary || dictionary.language !== 'en') throw new Error('smart_session_requires_english_dictionary')
 
-  let runtime = await loadSmartSessionRuntime(dictId, now)
+  const ownerUserId = getLocalLearningOwnerId()
+  let runtime = await loadSmartSessionRuntime(dictId, now, {
+    ownerUserId,
+    hardStopMinutes: constraints.hardStopMinutes,
+    sessionId: runtimeSessionId,
+  })
   if (runtime.currentBlock) {
     const record = await db.reviewRecords.get(runtime.currentBlock.reviewRecordId)
     if (record && !record.isFinished) return { kind: 'resume', runtime, record: record as ReviewRecord }
@@ -75,7 +82,6 @@ export async function prepareSmartVocabularySession(
     wordListFetcher(dictionary.url),
     db.learningEvents.where('eventType').equals('word_attempted').toArray(),
   ])
-  const ownerUserId = getLocalLearningOwnerId()
   const visibleEvents = rawEvents
     .filter((event) => visibleToCurrentOwner(ownerUserId, event.ownerUserId))
     .map((event) => ({ event, payload: wordAttemptPayload(event.payload) }))
@@ -92,9 +98,10 @@ export async function prepareSmartVocabularySession(
 
   const sessionAttemptedKeys = new Set<string>()
   let sessionNewItems = 0
+  const evidenceSince = runtime.executionStartedAt ?? now
   attemptsByKey.forEach((attempts, key) => {
-    if (attempts.some((attempt) => attempt.occurredAt >= runtime.startedAt)) sessionAttemptedKeys.add(key)
-    if (attempts[0]?.occurredAt >= runtime.startedAt) sessionNewItems += 1
+    if (attempts.some((attempt) => attempt.occurredAt >= evidenceSince)) sessionAttemptedKeys.add(key)
+    if (runtime.executionStartedAt !== undefined && attempts[0]?.occurredAt >= runtime.executionStartedAt) sessionNewItems += 1
   })
   runtime = reconcileSmartRuntimeEvidence(runtime, Array.from(sessionAttemptedKeys), sessionNewItems, now)
 
@@ -144,13 +151,39 @@ export async function prepareSmartVocabularySession(
   return { kind: 'draft', runtime, draft, wordsByContentId }
 }
 
-export async function startPreparedVocabularyBlock(
+function assertHardStopAllowsBlock(runtime: SmartSessionRuntime, block: SessionBlock, now: number) {
+  if (runtime.hardStopAt !== undefined) {
+    if (now >= runtime.hardStopAt) throw new Error('smart_session_hard_stop_reached')
+    if (now + block.estimatedSeconds * 1000 + HARD_STOP_RESERVE_MS > runtime.hardStopAt) {
+      throw new Error('smart_session_hard_stop_would_be_exceeded')
+    }
+    return
+  }
+  if (
+    runtime.hardStopMinutes !== undefined
+    && block.estimatedSeconds * 1000 + HARD_STOP_RESERVE_MS > runtime.hardStopMinutes * 60_000
+  ) {
+    throw new Error('smart_session_hard_stop_would_be_exceeded')
+  }
+}
+
+export function assertPreparedVocabularyBlockStartable(
   prepared: Extract<PreparedSmartSession, { kind: 'draft' }>,
-): Promise<{ runtime: SmartSessionRuntime; record: ReviewRecord }> {
+  now = Date.now(),
+) {
   const block: SessionBlock | undefined = prepared.draft.blocks[0]
   if (!block || block.activity.kind !== 'vocabulary' || block.activity.items.length === 0) {
     throw new Error('smart_session_has_no_vocabulary_block')
   }
+  assertHardStopAllowsBlock(prepared.runtime, block, now)
+  return block
+}
+
+export async function startPreparedVocabularyBlock(
+  prepared: Extract<PreparedSmartSession, { kind: 'draft' }>,
+  now = Date.now(),
+): Promise<{ runtime: SmartSessionRuntime; record: ReviewRecord }> {
+  const block = assertPreparedVocabularyBlockStartable(prepared, now)
 
   const words = block.activity.items.map((item) => {
     const word = prepared.wordsByContentId.get(item.contentId)
@@ -161,12 +194,16 @@ export async function startPreparedVocabularyBlock(
   const reviewRecordId = await db.reviewRecords.add(record)
   record.id = reviewRecordId
 
-  const runtime = beginSmartBlock(prepared.runtime, {
-    reviewRecordId,
-    purpose: block.purpose,
-    keys: block.activity.items.map((item) => item.key),
-    estimatedSeconds: block.estimatedSeconds,
-  })
+  const runtime = beginSmartBlock(
+    prepared.runtime,
+    {
+      reviewRecordId,
+      purpose: block.purpose,
+      keys: block.activity.items.map((item) => item.key),
+      estimatedSeconds: block.estimatedSeconds,
+    },
+    now,
+  )
 
   return { runtime, record }
 }

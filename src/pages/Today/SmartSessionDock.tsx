@@ -1,7 +1,13 @@
-import { type PreparedSmartSession, prepareSmartVocabularySession, startPreparedVocabularyBlock } from '@/smart-session/adapter'
-import { type ResolvedSmartSessionIntent, resolveSmartSessionLearningIntent } from '@/smart-session/learningIntent'
-import { acknowledgeSmartBreak, getRecoverableSmartSessionFocusDictionary } from '@/smart-session/runtime'
+import { type PreparedSmartSession, assertPreparedVocabularyBlockStartable, prepareSmartVocabularySession, startPreparedVocabularyBlock } from '@/smart-session/adapter'
+import { type ResolvedSmartSessionIntent, bindResolvedSessionIntent, resolveSmartSessionLearningIntent } from '@/smart-session/learningIntent'
+import {
+  acknowledgeSmartBreak,
+  createSmartSessionId,
+  getCurrentSmartSessionId,
+  getRecoverableSmartSessionFocusDictionary,
+} from '@/smart-session/runtime'
 import { currentChapterAtom, currentDictIdAtom, currentDictInfoAtom, reviewModeInfoAtom } from '@/store'
+import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -20,9 +26,10 @@ function purposeLabel(prepared: PreparedSmartSession | undefined) {
 }
 
 function intentNote(intent: ResolvedSmartSessionIntent | undefined, prepared: PreparedSmartSession | undefined) {
+  if (intent?.warnings.includes('unbound_cached_session_intent_ignored')) return '云端暂时不可用；未绑定的本次学习安排不会离线抢占别的设备。'
   if (intent?.source === 'cached-cloud') return '云端暂时不可用，已沿用这个账号最近一次仍有效的学习安排。'
   if (intent?.warnings.includes('cloud_intent_unavailable')) return '云端安排暂时不可用，已按本机记录继续。'
-  if (intent?.source === 'cloud') return '已按你最近的学习安排自动调整；随时可以停，不会累积欠任务。'
+  if (intent?.source === 'cloud') return '已按你最近的学习安排自动调整；本次安排会在真正开始时绑定到这个学习会话。'
   if (prepared?.kind === 'draft' && prepared.draft.warnings.length > 0) {
     return '只依据当前可见学习记录安排；缺失记录不会被当成不会。'
   }
@@ -37,7 +44,16 @@ function blockMeta(prepared: PreparedSmartSession | undefined, intent: ResolvedS
   const meta = block ? [`约 ${minutes} 分钟`, `${items} 个词`] : []
   if (intent?.source === 'cloud') meta.push('最近安排已应用')
   if (intent?.source === 'cached-cloud') meta.push('沿用最近有效安排')
+  if (prepared?.runtime.hardStopMinutes !== undefined || prepared?.runtime.hardStopAt !== undefined) meta.push('到点按单词边界停止')
   return meta
+}
+
+function userFacingError(cause: unknown) {
+  const message = cause instanceof Error ? cause.message : ''
+  if (message.includes('smart_session_hard_stop')) return '本次学习已经到达时间上限，不再开启新的学习段。'
+  if (message.includes('session_intent_bound_elsewhere')) return '这条“本次学习”安排已经被另一个学习会话使用，正在重新计算。'
+  if (message.includes('session_intent_binding_requires_live_cloud')) return '本次学习安排需要联网确认后才能首次启动。'
+  return message || '暂时无法开始这一段学习。'
 }
 
 export default function SmartSessionDock() {
@@ -58,17 +74,25 @@ export default function SmartSessionDock() {
     setBusy(true)
     setError('')
     try {
+      const ownerUserId = getLocalLearningOwnerId()
+      const runtimeSessionId = getCurrentSmartSessionId(ownerUserId) ?? createSmartSessionId()
       const [recoverableFocus, resolvedIntent] = await Promise.all([
-        getRecoverableSmartSessionFocusDictionary(),
-        resolveSmartSessionLearningIntent(dict.id),
+        getRecoverableSmartSessionFocusDictionary(ownerUserId),
+        resolveSmartSessionLearningIntent(dict.id, runtimeSessionId),
       ])
       const focusDictionary = recoverableFocus ?? resolvedIntent.constraints.focusDictionary ?? dict.id
       const effectiveIntent: ResolvedSmartSessionIntent = {
         ...resolvedIntent,
         constraints: { ...resolvedIntent.constraints, focusDictionary },
       }
+      const nextPrepared = await prepareSmartVocabularySession(
+        focusDictionary,
+        effectiveIntent.constraints,
+        Date.now(),
+        runtimeSessionId,
+      )
       setIntent(effectiveIntent)
-      setPrepared(await prepareSmartVocabularySession(focusDictionary, effectiveIntent.constraints))
+      setPrepared(nextPrepared)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '暂时无法生成下一段学习。')
     } finally {
@@ -85,7 +109,7 @@ export default function SmartSessionDock() {
   const meta = useMemo(() => blockMeta(prepared, intent), [intent, prepared])
 
   const start = async () => {
-    if (!prepared || !supported) return
+    if (!prepared || !intent || !supported) return
     setBusy(true)
     setError('')
     try {
@@ -95,6 +119,8 @@ export default function SmartSessionDock() {
         return
       }
 
+      if (prepared.kind === 'draft') assertPreparedVocabularyBlockStartable(prepared)
+      await bindResolvedSessionIntent(intent, prepared.runtime.id)
       const active = prepared.kind === 'resume' ? prepared : await startPreparedVocabularyBlock(prepared)
       const record = active.record
       const runtime = active.runtime
@@ -107,7 +133,8 @@ export default function SmartSessionDock() {
         `/?smartSession=${encodeURIComponent(runtime.id)}&smartBlock=${encodeURIComponent(runtime.currentBlock.id)}`,
       )
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '暂时无法开始这一段学习。')
+      setError(userFacingError(cause))
+      if (cause instanceof Error && cause.message.includes('session_intent_bound_elsewhere')) await refresh()
       setBusy(false)
     }
   }
