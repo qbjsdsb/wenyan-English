@@ -7,10 +7,7 @@ export default function ShareButton() {
   const [isShowSharePanel, setIsShowSharePanel] = useState(false)
 
   const randomChoose = useMemo(
-    () => ({
-      picRandom: Math.random(),
-      promoteRandom: Math.random(),
-    }),
+    () => ({ picRandom: Math.random(), promoteRandom: Math.random() }),
     [],
   )
 
@@ -22,14 +19,14 @@ export default function ShareButton() {
   return (
     <>
       {isShowSharePanel && <SharePicDialog showState={isShowSharePanel} setShowState={setIsShowSharePanel} randomChoose={randomChoose} />}
-
       <button
         type="button"
-        className="cursor-pointer text-xl text-gray-500 hover:text-indigo-400"
+        className="grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] text-[var(--wenyan-ink-muted)] transition-colors hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]"
         onClick={onClickShare}
-        title="分享你的成绩给朋友"
+        title="分享学习结果"
+        aria-label="分享学习结果"
       >
-        <IconShare2 />
+        <IconShare2 className="h-4 w-4" />
       </button>
     </>
   )
