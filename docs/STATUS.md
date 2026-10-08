@@ -16,15 +16,42 @@ Wenyan English 已进入 **Local-first deterministic learning runtime + ChatGPT 
 
 2026-10-08 已完成真实登录设备闭环验收：ChatGPT / MCP 能读取 owner-scoped 状态，网页端能执行受限学习入口，真实学习产生 immutable facts，云端同步后 ChatGPT 能重新读取新证据；Cloud Plan 的完成状态由匹配的 immutable completion evidence 推导，而不是由 command completed、页面打开或计划创建伪造。
 
+### 2026-10-08 Smart Session review-only deadlock 已收口
+
+PR #35 `Fix Smart Session review-only deadlock` 已合并到 `main`，merge SHA：
+
+```text
+b50c9d61dfb66bc41fc0d74396851a5b98fbc5b8
+```
+
+问题是合法的 Cloud Learning Intent 可以同时要求 `review_first` 与 `newWordCeiling = 0`，但旧 planner 只有“重复错误达到 weak 条件”或“到期 review”才有可执行复习内容，导致 AI 正确要求“今天只复习”时，本地可能恰好 `blocks=[]`，Today 主入口看起来像坏掉。
+
+本次升级 Smart Session planner 到 `elastic-v2`：
+
+- 单次最近拼写错误不再夸大成 `weak`，新增独立 `correction` purpose；
+- 最新一次拼写错误在 20 分钟 cooldown 后可进入 correction block；
+- 最近重复错误仍按原规则进入 `weak`；
+- 最新已纠正成功的单次旧错误不会继续占据 correction 队列；
+- `newWordCeiling = 0` 继续作为硬约束，planner 不会为了让按钮可点而偷偷加入新词；
+- cooldown 会返回 `retryAt`，Today 到点自动重新计算；
+- 无 block 时明确区分 cooldown、new-word ceiling、nothing due、budget reached；
+- 用户仍可显式选择 `手动继续当前章节（不按这条智能安排）`，该入口是明确 override，不伪装成智能计划执行。
+
+PR #35 的最终 PR CI `Wenyan CI #160` 全绿；合并后的 `main` CI `Wenyan CI #161` 也全绿。合并后的 `Deploy Wenyan Pages #27` build + deploy 均成功，因此生产 Pages 已包含本次修复。
+
+验证包括：Smart Session deterministic **20 passed**、AI Coaching **18 passed**、Coach decision guardrails **7 passed**、Cloud coaching adapter **9 passed**、OAuth capability **9 passed**、普通浏览器 E2E **12 passed**、Pages vocabulary / failure recovery **7 passed**，以及 production build / Pages artifact build。
+
+本次无需 Supabase schema migration，也无需修改或重新部署 `wenyan-english-mcp` Edge Function；问题属于 Learning Intent 与本地 deterministic planner 的执行语义缝隙，以及 Today 空状态表达不足。
+
 ## 当前生产基线
 
-- GitHub `main`：AI Coach v2 decision guardrails 已通过 PR #31 合并；merge SHA `0baf8bd5c1ec49c5d1dc43aa8f3b8dadaf37bf1a`。
+- GitHub `main`：Smart Session `elastic-v2` 已通过 PR #35 合并；当前已核实 merge SHA `b50c9d61dfb66bc41fc0d74396851a5b98fbc5b8`，`Wenyan CI #161` 成功，`Deploy Wenyan Pages #27` 成功。
 - Supabase 项目：`cmjhxvpkdeheujuteqoi`。
 - Edge Function：`wenyan-english-mcp` **v13 ACTIVE**。
 - `verify_jwt=false` 仍为有意配置：函数内部执行 Supabase OAuth JWT resource-server 校验；这不代表匿名开放。
-- v13 部署逻辑固定到上述 merge SHA，生产 authenticated `get_coaching_context` smoke 已确认新字段 `derived.coachDecisionSupport.algorithmVersion = coach-decision-support-v1` 可读取。
+- v13 部署逻辑仍固定到 AI Coach v2 / Decision Support 已验证的生产源码；生产 authenticated `get_coaching_context` smoke 已确认 `derived.coachDecisionSupport.algorithmVersion = coach-decision-support-v1` 可读取。本次 Smart Session 本地修复不要求 Edge Function 升版。
 - 当前 OAuth client 的已批准能力继续保持 `plans:read`、`plans:write`、`coach:auto_adjust`、`navigation:control`、`session:control`；没有 `preferences:write`，因此 ChatGPT 不能越权修改长期学习阶段。
-- `toolVersion` 仍为 `coaching-context-v1.2`；本次是在兼容现有工具合同下增加 bounded derived decision support，没有扩大历史事实写权限。
+- `toolVersion` 仍为 `coaching-context-v1.2`；当前合同继续提供 bounded derived decision support，没有扩大历史事实写权限。
 - v13 当前 Supabase source entrypoint 使用一个固定 Git SHA 的部署 shim 来解析已合并源码；行为已通过真实 MCP smoke。后续如建立稳定 CI/CLI 自动部署，应恢复完整 source tree 直接上传，避免把该 shim 当长期发布规范。
 
 ## 已完成并进入主线的能力
@@ -38,8 +65,11 @@ Wenyan English 已进入 **Local-first deterministic learning runtime + ChatGPT 
 
 ### Smart Session / Learning Intent
 
-- deterministic Smart Session planner 已成为 Today 主入口。
+- deterministic Smart Session planner 已成为 Today 主入口，当前算法合同为 `elastic-v2`。
 - 可恢复未完成 vocabulary block；离线仍能学习。
+- 单次近期拼写错误进入 bounded `correction`，重复近期错误仍进入 `weak`；二者不再混为同一种证据。
+- 20 分钟 cooldown 后 correction 才可执行；cooldown 期间有 `retryAt` 并自动重新计算。
+- `newWordCeiling = 0` 不会被本地 executor 静默突破；没有可执行 block 时页面给出真实原因和显式 override。
 - Learning Intent 支持 `ongoing / day / session`，优先级 `session > day > ongoing > local defaults`。
 - MCP 支持 intent read/revise/clear；generic Intent 只控制未来短期学习，不取得长期 stage 写权限。
 - owner-scoped last-valid Intent cache 已实现，账号切换不串缓存。
@@ -116,6 +146,8 @@ PR #31 新增 `derived.coachDecisionSupport`，算法版本 `coach-decision-supp
 
 修复提交 `1b74f4e798f3c2a6c82997d7fb5883e7e69d26c0` 的 CI 与 Pages 部署均成功，线上 smoke 已确认真实红宝书资源路径和练习入口正常。后续真实账号 E2E 也已完成，不再把该项列为阻塞。
 
+PR #35 合并后，`Deploy Wenyan Pages #27` 再次成功，当前 Pages 已部署 Smart Session `elastic-v2` 与新的 review-only / cooldown / explicit override UI。
+
 ## 近期已收口里程碑
 
 - Coaching Production Closure v1：PR #26，Learning Preferences / Stage、owner-scoped Intent cache、v1.2 adapter、权限分离。
@@ -123,6 +155,8 @@ PR #31 新增 `derived.coachDecisionSupport`，算法版本 `coach-decision-supp
 - AI Coach v2 / Learning Evidence v1：PR #28，bounded comparative evidence，不生成虚假综合分数。
 - Pages vocabulary repair：提交 `1b74f4e...`，线上资源与浏览器 smoke 通过。
 - AI Coach v2 / Decision Support v1：PR #31，merge SHA `0baf8bd5...`，生产 MCP v13 smoke 通过。
+- English workspace polish：PR #33，Today / 词书 / 策略 / 统计等桌面学习工作区视觉打磨进入主线。
+- Smart Session review-only deadlock closure：PR #35，merge SHA `b50c9d61...`；`elastic-v2`、correction block、retryAt、真实空状态解释、浏览器与 Pages 回归均通过并已部署。
 - Real authenticated E2E：真实登录网页学习 → immutable fact → cloud → ChatGPT reread 已验收。
 
 ## 当前仍未完成 / 不得误称实现
@@ -131,17 +165,19 @@ PR #31 新增 `derived.coachDecisionSupport`，算法版本 `coach-decision-supp
 2. **红宝书正式 provider**：还没有可信版本号、稳定 item mapping 与可信全书分母，因此 `observedProgress` 必须继续为 null。
 3. **snapshot replay**：只有 SHA-256 fingerprint + 非持久 descriptor，没有 server-side manifest / replay handle。
 4. **语义词汇证据**：当前主要仍是 spelling evidence；semantic/contextual recall 尚未建立，FSRS/item-level scheduler 不应提前硬套。
-5. **旧 Supabase Advisor 项**：旧 `wenyan_private` RLS / SECURITY DEFINER / Auth password 配置告警另批治理，不与 Coaching Loop 功能混改。
-6. **生产部署工程化**：v13 已可用，但当前使用固定 commit 的 deployment shim；后续应建立可重复的完整源码 CI/CLI deploy pipeline。
+5. **Coach 对执行器即时可执行性的可见度仍有限**：Coaching Context 还没有把 `reviewEligibleCount / correctionCooldownCount / newWordCapacity` 一类 deterministic execution availability 作为稳定公共合同完整暴露给 ChatGPT。本次已保证本地 executor 不死锁并真实解释状态，下一阶段再从源头减少 Coach 与 executor 的信息差。
+6. **旧 Supabase Advisor 项**：旧 `wenyan_private` RLS / SECURITY DEFINER / Auth password 配置告警另批治理，不与 Coaching Loop 功能混改。
+7. **生产部署工程化**：v13 已可用，但当前使用固定 commit 的 deployment shim；后续应建立可重复的完整源码 CI/CLI deploy pipeline。
 
 ## 下一步优先级
 
-1. **Reading provider + executor**：先接可信 private provider、eligible candidates 与 fresh runtime guard；只有用户确认 `mixed` 后才允许自动执行 Reading。
-2. **红宝书 provider 正式化**：建立稳定版本、item mapping、可信 denominator，之后才能给出真实 observed progress。
-3. **Semantic / contextual vocabulary evidence**：增加真正能反映词义/上下文回忆的证据，再评估 item-level scheduler / FSRS。
-4. **AI Coach v2 继续迭代**：用多日真实数据验证 decision support 是否足够，再增加 bounded diagnosis vocabulary；不要用一天数据制造趋势。
-5. 内容验收后扩考研阅读、完形、新题型、翻译、作文；文学继续冻结到英语闭环稳定。
-6. 把 Supabase Edge Function 发布整理为可重复、可审计的完整源码部署流程。
+1. **Execution Availability → Coaching Context**：把本地 planner 可解释的即时可执行状态整理成 deterministic derived evidence，让 ChatGPT 在写 `newWordCeiling=0`、review-only 等 Intent 前就能知道当前真正有多少可执行复习 / correction / cooldown / 新词容量；不能把它包装成 mastery 分数。
+2. **Reading provider + executor**：先接可信 private provider、eligible candidates 与 fresh runtime guard；只有用户确认 `mixed` 后才允许自动执行 Reading。
+3. **红宝书 provider 正式化**：建立稳定版本、item mapping、可信 denominator，之后才能给出真实 observed progress。
+4. **Semantic / contextual vocabulary evidence**：增加真正能反映词义/上下文回忆的证据，再评估 item-level scheduler / FSRS。
+5. **AI Coach v2 继续迭代**：用多日真实数据验证 decision support 是否足够，再增加 bounded diagnosis vocabulary；不要用一天数据制造趋势。
+6. 内容验收后扩考研阅读、完形、新题型、翻译、作文；文学继续冻结到英语闭环稳定。
+7. 把 Supabase Edge Function 发布整理为可重复、可审计的完整源码部署流程。
 
 ## 续接检查
 
@@ -162,6 +198,7 @@ yarn build
 
 部署续接额外核对：
 
+- GitHub `main` 是否仍包含 PR #35 / `elastic-v2`，以及最近一次 Wenyan CI / Pages deploy 是否成功；
 - Supabase `wenyan-english-mcp` 实际 ACTIVE version；
 - `verify_jwt=false` 必须与函数内部 OAuth JWT 验证同时存在；
 - OAuth protected-resource discovery、未认证拒绝、authenticated `get_coaching_context`；
