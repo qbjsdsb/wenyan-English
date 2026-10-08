@@ -1,24 +1,26 @@
 import { getReadingPassage } from '@/reading/content'
 import { saveReadingAttempt } from '@/reading/events'
 import type { ReadingAnswerDraft, ReadingAttemptSummary } from '@/reading/types'
-import { useMemo, useState } from 'react'
+import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 interface StoredReadingDraft {
+  ownerUserId?: string
   startedAt: number
   answers: ReadingAnswerDraft[]
 }
 
-function draftKey(passageId: string, version: string) {
-  return `wenyanReadingDraft:${passageId}:${version}`
+function draftKey(passageId: string, version: string, ownerUserId?: string) {
+  return `wenyanReadingDraft:${encodeURIComponent(ownerUserId ?? 'anonymous')}:${passageId}:${version}`
 }
 
-function readDraft(passageId: string, version: string): StoredReadingDraft | undefined {
+function readDraft(passageId: string, version: string, ownerUserId?: string): StoredReadingDraft | undefined {
   try {
-    const raw = window.localStorage.getItem(draftKey(passageId, version))
+    const raw = window.localStorage.getItem(draftKey(passageId, version, ownerUserId))
     if (!raw) return undefined
     const value = JSON.parse(raw) as StoredReadingDraft
-    if (!Number.isFinite(value.startedAt) || !Array.isArray(value.answers)) return undefined
+    if (value.ownerUserId !== ownerUserId || !Number.isFinite(value.startedAt) || !Array.isArray(value.answers)) return undefined
     return value
   } catch {
     return undefined
@@ -30,12 +32,32 @@ const primaryButton = 'wenyan-button-primary shrink-0'
 export default function ReadingPage() {
   const { contentId = '' } = useParams()
   const passage = getReadingPassage(contentId)
-  const restored = useMemo(() => (passage ? readDraft(passage.id, passage.version) : undefined), [passage])
-  const [startedAt] = useState(() => restored?.startedAt ?? Date.now())
+  const [ownerUserId, setOwnerUserId] = useState(() => getLocalLearningOwnerId())
+  const restored = useMemo(
+    () => (passage ? readDraft(passage.id, passage.version, ownerUserId) : undefined),
+    [ownerUserId, passage],
+  )
+  const [startedAt, setStartedAt] = useState(() => restored?.startedAt ?? Date.now())
   const [answers, setAnswers] = useState<ReadingAnswerDraft[]>(() => restored?.answers ?? [])
   const [summary, setSummary] = useState<ReadingAttemptSummary>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const ownerChanged = () => {
+      const nextOwner = getLocalLearningOwnerId()
+      if (nextOwner === ownerUserId) return
+      const nextDraft = passage ? readDraft(passage.id, passage.version, nextOwner) : undefined
+      setOwnerUserId(nextOwner)
+      setStartedAt(nextDraft?.startedAt ?? Date.now())
+      setAnswers(nextDraft?.answers ?? [])
+      setSummary(undefined)
+      setBusy(false)
+      setError('账号已切换。已为当前账号重新读取独立的阅读草稿。')
+    }
+    window.addEventListener('wenyan-learning-owner-changed', ownerChanged)
+    return () => window.removeEventListener('wenyan-learning-owner-changed', ownerChanged)
+  }, [ownerUserId, passage])
 
   if (!passage) {
     return (
@@ -56,6 +78,10 @@ export default function ReadingPage() {
 
   const updateAnswer = (questionId: string, selectedOptionId: string) => {
     if (summary) return
+    if (getLocalLearningOwnerId() !== ownerUserId) {
+      setError('账号刚刚发生变化。请重新选择答案，避免把草稿写入错误账号。')
+      return
+    }
     setAnswers((current) => {
       const previous = current.find((answer) => answer.questionId === questionId)
       const next: ReadingAnswerDraft = {
@@ -68,7 +94,10 @@ export default function ReadingPage() {
       }
       const merged = [...current.filter((answer) => answer.questionId !== questionId), next]
       try {
-        window.localStorage.setItem(draftKey(passage.id, passage.version), JSON.stringify({ startedAt, answers: merged }))
+        window.localStorage.setItem(
+          draftKey(passage.id, passage.version, ownerUserId),
+          JSON.stringify({ ownerUserId, startedAt, answers: merged }),
+        )
       } catch {
         // Draft recovery is helpful, but storage failure must not block answering.
       }
@@ -78,12 +107,16 @@ export default function ReadingPage() {
 
   const submit = async () => {
     if (busy || summary) return
+    if (getLocalLearningOwnerId() !== ownerUserId) {
+      setError('账号已经切换。这次阅读不会提交到新的账号；请重新打开当前阅读。')
+      return
+    }
     setBusy(true)
     setError('')
     try {
-      const saved = await saveReadingAttempt(passage, answers, Math.max(0, Date.now() - startedAt))
+      const saved = await saveReadingAttempt(passage, answers, Math.max(0, Date.now() - startedAt), ownerUserId)
       setSummary(saved)
-      window.localStorage.removeItem(draftKey(passage.id, passage.version))
+      window.localStorage.removeItem(draftKey(passage.id, passage.version, ownerUserId))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '暂时无法保存这次阅读。')
     } finally {
