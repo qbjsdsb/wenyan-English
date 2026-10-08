@@ -3,6 +3,7 @@ import AnalysisButton from '../AnalysisButton'
 import ErrorBookButton from '../ErrorBookButton'
 import HandPositionIllustration from '../HandPositionIllustration'
 import LoopWordSwitcher from '../LoopWordSwitcher'
+import PronunciationSwitcher from '../PronunciationSwitcher'
 import Setting from '../Setting'
 import SoundSwitcher from '../SoundSwitcher'
 import WordDictationSwitcher from '../WordDictationSwitcher'
@@ -49,10 +50,15 @@ export default function Switcher() {
             leaveFrom="opacity-100 translate-y-0"
             leaveTo="opacity-0 translate-y-1"
           >
-            <Popover.Panel className="wenyan-surface absolute right-0 z-40 mt-2 w-[340px] p-4">
+            <Popover.Panel className="wenyan-surface absolute right-0 z-40 mt-2 w-[360px] p-4">
               <div className="mb-3 flex items-baseline justify-between">
                 <span className="text-sm font-semibold text-[var(--wenyan-ink)]">学习设置</span>
                 <span className="wenyan-muted text-[10px]">低频选项集中在这里</span>
+              </div>
+
+              <div className="mb-3 flex items-center justify-between border-b border-[var(--wenyan-line-soft)] pb-3">
+                <span className="wenyan-muted text-xs">发音与音标</span>
+                <div className="wenyan-study-settings"><PronunciationSwitcher /></div>
               </div>
 
               <div className="wenyan-study-settings grid grid-cols-4 gap-2 rounded-[var(--wenyan-radius-md)] bg-[var(--wenyan-paper-muted)] p-2">
