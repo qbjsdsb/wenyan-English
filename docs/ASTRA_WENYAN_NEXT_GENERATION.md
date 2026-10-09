@@ -190,3 +190,10 @@ PR #56 merge ledger: CI #251 (`37926660281`) fully green on `2f53a8442b13dd15851
 
 
 Release trigger correction: GitHub's default squash message inherited the early decision commit's skip-CI directive, so the push workflows did not start on `39bcdf7`. Do not force-rewrite that merge. Final small UI wording closure names the live/result metric explicitly as key accuracy (not word/meaning accuracy), with a normal commit message, and carries the durable release notes. It triggers the existing Pages path filter. Future squash merges should supply a clean commit_message rather than propagating early documentation skip directives. Code algorithms remain exactly those verified by CI #251; this closure only changes two measurement labels and documentation.
+
+
+### PR #56 final release ledger
+
+Frontend release `982cba3cba39ca8c4b4e6012643a9da7639c4eef`: Deploy Wenyan Pages run `37927645763` build and deploy both successful. Live project Pages GET returned HTTP 200 and its published entry bundle includes `typingCheckpoints`, confirming the new frontend assets are served. Full feature CI #251 passed before merge; automatic main closure CI is separate run `37927645884`. The subsequent docs-only closure does not change runtime code or trigger another Pages/CI cycle.
+
+All decisions, source, data-model boundary and release state now exist on main and PR #56. Genuine user completion has not been simulated or claimed. Production MCP v15 retains its existing immutable backend source pin because no MCP source or contract changed. No unfinished local product code remains.

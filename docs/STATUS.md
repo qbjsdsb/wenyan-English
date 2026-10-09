@@ -7,23 +7,25 @@
 ## 生产基线
 
 - 仓库：`qbjsdsb/wenyan-English`
-- 最终运行时代码基线：`3b20da322d8d18c64b371b7f228ce380b4eadc3f`
+- 前端生产代码基线：`982cba3cba39ca8c4b4e6012643a9da7639c4eef`
+  - PR #56 `Make daily vocabulary practice recoverable and calmer`，合并 `39bcdf7`，最后仅指标文案/文档收口 `982cba3`
   - PR #54 `Add objective semantic evidence v1`
   - PR #55 `Refine library keyboard flow, calm motion and rendering cost`
 - PR #54 合并 SHA：`23f785a97f07fad7884ca1de90f76df40ecba25b`
 - PR #55 合并 SHA：`3b20da322d8d18c64b371b7f228ce380b4eadc3f`
 - PR #54 CI #245：success
 - #54 + #55 重放后的 PR CI #248：success
-- 最终 main CI #249：success
-- GitHub Pages：Deploy Wenyan Pages #50，build + deploy success
+- 上一生产基线 main CI #249：success
+- PR #56 CI #251：完整 success；新生产基线的自动 main CI 另见 run `37927645884`
+- GitHub Pages：最新部署 run `37927645763`，build + deploy success，源码 `982cba3`；旧 #50 对应 `3b20da3`
 - Supabase：`cmjhxvpkdeheujuteqoi`
 - 生产 Edge Function：`wenyan-english-mcp` **v15 ACTIVE**
 - MCP server contract 仍为 0.8.x；Coaching Context：`coaching-context-v1.5`
 - `verify_jwt=false` 仍为有意配置：Edge Function 自己校验 Supabase OAuth JWT 的 JWKS / issuer / audience / session / client / authenticated identity；这不代表匿名开放。
-- v15 部署固定到不可变最终 main `3b20da3…`。CI 同时生成 `ci-artifacts/wenyan-mcp-deploy.json`，其中包含完整 13 文件函数依赖闭包，作为后续完整源码部署的可复现产物。
+- v15 部署固定到其部署时不可变源码 `3b20da3…`；PR #56 未改动 MCP/Edge Function 源码，前端本机恢复不要求重新部署后端。CI 同时生成 `ci-artifacts/wenyan-mcp-deploy.json`，其中包含完整 13 文件函数依赖闭包，作为后续完整源码部署的可复现产物。
 - v15 上线后，OAuth protected-resource discovery 已实时返回 HTTP 200，并报告正确 resource、Supabase Auth issuer、`openid` scope。
 
-本页之后如再出现 docs-only closure commit，运行时代码基线仍以上述 `3b20da3…` 为准，除非新的功能提交明确更新本节。
+本页之后如再出现 docs-only closure commit，前端运行时代码基线仍以上述 `982cba3…` 为准，后端源码仍为 `3b20da3…`，除非新的功能提交明确更新本节。
 
 ## 2026-10-09 vocabulary focus / recovery（PR #56）
 
@@ -34,7 +36,8 @@
 - **Tested**：一次定向浏览器批次 7 通过、1 因测试读取逐字母 innerText 换行失败；修正为 textContent 后只重跑该用例并通过，覆盖随机/循环/账号/内容变化。类型检查通过；源码定向 lint 通过。无需反复运行全套测试。
 - **Visual / interaction QA**：词表浅深色、结果页中文截图已检查；首词中途重开与只练错词流程通过，页面无异常。CI #250 的算法/类型/构建通过，浏览器旧文案断言和过早读取 fixture 已修正；只重跑相关三项，全通过（26.9s）。
 - **Merged / tested**：PR #56 合并为 `39bcdf7b8c74f02c303bea7187bd61816b9b39a3`；CI #251（run `37926660281`）完整通过，包括算法、类型、构建、浏览器和 Pages 恢复。
-- **Pending**：新 Pages 部署与真实用户验收。设计和代码均进入 PR #56；不将本机恢复称为跨设备恢复或完整离线 PWA。游标只在完成词时保存，用时恢复到最近已提交词的边界。
+- **Deployed / smoke verified**：Pages build + deploy success（run `37927645763`，源码 `982cba3`）；线上首页 HTTP 200，发布后的入口 bundle 包含新 typingCheckpoints 表。
+- **Real-user verified**：本轮尚未由用户本人走完真实学习；合成浏览器验收不等于个人学习验收。设计和代码均进入 PR #56；不将本机恢复称为跨设备恢复或完整离线 PWA。游标只在完成词时保存，用时恢复到最近已提交词的边界。
 
 ## 当前产品形态
 
@@ -114,7 +117,7 @@ Agent 不得把这些证据压成一个没有依据的“掌握率”。
 - 词汇保存失败不会静默跳到下一词；
 - 章节完成等待本地事实真正提交；
 - 表单 / 按钮 / IME / 设置区不再被学习快捷键劫持；
-- 公开词书具备经过校验的 last-known-good IndexedDB fallback；
+- 公开词书具备经过校验的 last-known-good CacheStorage fallback；
 - 生产 `/gallery` 使用 `Gallery-N`，搜索覆盖完整匹配词书；
 - 选书 / 选章交互改成更明确的原生控件；
 - review chapter `-1` 不计入章节覆盖；章节覆盖明确是 practiced chapters，不是 mastery；
