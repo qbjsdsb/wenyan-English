@@ -14,7 +14,7 @@ export const ChapterButton: React.FC<ChapterButtonProps> = ({ index, selected, w
       const button = buttonRef.current
       const container = button.parentElement?.parentElement
       const halfHeight = button.getBoundingClientRect().height / 2
-      container?.scrollTo({ top: Math.max(button.offsetTop - container.offsetTop - halfHeight, 0), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+      container?.scrollTo({ top: Math.max(button.offsetTop - container.offsetTop - halfHeight, 0), behavior: 'smooth' })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected])
@@ -28,8 +28,11 @@ export const ChapterButton: React.FC<ChapterButtonProps> = ({ index, selected, w
   return (
     <button
       ref={buttonRef}
-      aria-pressed={selected}
-      className={`wenyan-chapter-choice ${selected ? 'is-selected' : ''}`}
+      className={`${
+        selected
+          ? 'border-gray-900 bg-black/[0.035] dark:border-gray-200 dark:bg-white/[0.06]'
+          : 'border-black/[0.08] hover:border-black/[0.18] dark:border-white/[0.09] dark:hover:border-white/[0.18]'
+      } min-h-[92px] rounded-lg border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/50`}
       type="button"
       onClick={onClick}
       title="选择章节"
