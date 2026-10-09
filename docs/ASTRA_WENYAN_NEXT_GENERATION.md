@@ -197,3 +197,13 @@ Release trigger correction: GitHub's default squash message inherited the early 
 Frontend release `982cba3cba39ca8c4b4e6012643a9da7639c4eef`: Deploy Wenyan Pages run `37927645763` build and deploy both successful. Live project Pages GET returned HTTP 200 and its published entry bundle includes `typingCheckpoints`, confirming the new frontend assets are served. Full feature CI #251 passed before merge; automatic main closure CI is separate run `37927645884`. The subsequent docs-only closure does not change runtime code or trigger another Pages/CI cycle.
 
 All decisions, source, data-model boundary and release state now exist on main and PR #56. Genuine user completion has not been simulated or claimed. Production MCP v15 retains its existing immutable backend source pin because no MCP source or contract changed. No unfinished local product code remains.
+
+## 2026-10-09 · Vocabulary practice desk (in progress)
+
+Baseline: refreshed origin/main `6b3369197c15db9239b145f74216863a2655237d`; branch `feature/vocabulary-practice-desk`. Existing recall and discrimination runners already write immutable sourceVersion 4/5 facts, use atomic cursors, sync and enter Coach evidence. Discoverability is the missing link, not another runner.
+
+Decision: keep Today / Smart Session as recommended learning; add one compact `/practice` desk for deliberate vocabulary training. Modes: existing spelling, mental meaning recall, objective reference-meaning selection. Pools: current chapter, previously attempted words, recent spelling errors, latest uncertain semantic evidence. No mastery score; no synthetic confusion pairs. Chinese → English remains existing masked spelling (with possible audio/hints), not a new falsely labeled recognition fact. Dedicated reverse recognition requires a separately versioned measurement and cloud parser deployment and is deferred.
+
+Important runtime issue: Smart Session currently searches all unfinished semanticRuns. New manual runs must carry `origin: manual`; legacy/Smart runs remain compatible. Manual sessions must never acquire a Smart hard stop or consume a cloud-plan completion. Direct practice reuses the same facts and scheduling evidence, without creating facts on launch. Resume is owner-scoped and versioned content is frozen.
+
+Planned implementation: practice desk + clear Today/header/paused-typing/finish links; manual recall/check runs; semantic uncertainty selection; owner-safe resume; bounded results and another small practice entry. No reading, database migration, or MCP contract change. Status: designed; implementation and verification pending.
