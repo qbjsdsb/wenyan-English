@@ -1,3 +1,4 @@
+import { ignoresStudyKey } from './keyboard'
 import Header from '@/components/Header'
 import Tooltip from '@/components/Tooltip'
 import { idDictionaryMap } from '@/resources/dictionary'
@@ -35,6 +36,25 @@ const App: React.FC = () => {
   const [searchParams] = useSearchParams()
   const savedChapter = useRef(false)
   const [saveError, setSaveError] = useState('')
+  const [chapterSaved, setChapterSaved] = useState(false)
+  const [savingChapter, setSavingChapter] = useState(false)
+  const chapterSaveInFlight = useRef(false)
+
+  const persistChapter = async () => {
+    if (chapterSaveInFlight.current) return
+    chapterSaveInFlight.current = true
+    setSavingChapter(true)
+    setSaveError('')
+    try {
+      await saveChapterRecord(state, searchParams.get('taskRun'))
+      setChapterSaved(true)
+    } catch {
+      setSaveError('本次章节记录尚未保存。请保持此页面，检查浏览器存储空间后重试。')
+    } finally {
+      chapterSaveInFlight.current = false
+      setSavingChapter(false)
+    }
+  }
 
   const reviewModeInfo = useAtomValue(reviewModeInfoAtom)
   const isReviewMode = useAtomValue(isReviewModeAtom)
@@ -76,9 +96,9 @@ const App: React.FC = () => {
   }, [state.chapterData.words])
 
   useEffect(() => {
-    if (!state.isTyping) {
+    if (!state.isTyping && !state.isFinished && !state.isSavingRecord) {
       const onKeyDown = (e: KeyboardEvent) => {
-        if (!isLoading && !wordListError && e.key !== 'Enter' && (isLegal(e.key) || e.key === ' ') && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        if (!ignoresStudyKey(e) && !isLoading && !wordListError && e.key !== 'Enter' && (isLegal(e.key) || e.key === ' ') && !e.altKey && !e.ctrlKey && !e.metaKey) {
           e.preventDefault()
           dispatch({ type: TypingStateActionType.SET_IS_TYPING, payload: true })
         }
@@ -87,7 +107,7 @@ const App: React.FC = () => {
 
       return () => window.removeEventListener('keydown', onKeyDown)
     }
-  }, [state.isTyping, isLoading, wordListError, dispatch])
+  }, [state.isTyping, state.isFinished, state.isSavingRecord, isLoading, wordListError, dispatch])
 
   useEffect(() => {
     if (words !== undefined) {
@@ -102,13 +122,15 @@ const App: React.FC = () => {
   }, [words])
 
   useEffect(() => {
-    if (!state.isFinished) savedChapter.current = false
+    if (!state.isFinished) {
+      savedChapter.current = false
+      setChapterSaved(false)
+      setSaveError('')
+    }
     if (state.isFinished && !state.isSavingRecord && !savedChapter.current) {
       savedChapter.current = true
       chapterLogUploader()
-      void saveChapterRecord(state, searchParams.get('taskRun')).catch(() => {
-        setSaveError('本次章节记录保存失败，请保持此页面并重试。')
-      })
+      void persistChapter()
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -140,13 +162,15 @@ const App: React.FC = () => {
 
   return (
     <TypingContext.Provider value={{ state: state, dispatch }}>
-      {state.isFinished && <ResultScreen />}
-      {saveError && (
-        <div role="alert" className="wenyan-surface fixed bottom-4 left-4 z-50 p-4 text-sm text-[var(--wenyan-danger)]">
-          {saveError}
-          <button className="ml-3 underline" onClick={() => {
-            void saveChapterRecord(state, searchParams.get('taskRun')).then(() => setSaveError('')).catch(() => setSaveError('保存仍未成功，请检查浏览器存储空间后重试。'))
-          }}>重试保存</button>
+      {state.isFinished && chapterSaved && <ResultScreen />}
+      {state.isFinished && !chapterSaved && (
+        <div className="wenyan-completion-stage fixed inset-0 z-50 grid place-items-center px-6">
+          <section className="wenyan-surface w-full max-w-md p-8" aria-label="保存学习记录">
+            <h2 className="text-xl font-semibold">这一段练习结束了</h2>
+            {saveError ? <p role="alert" className="mt-4 text-sm leading-6 text-[var(--wenyan-danger)]">{saveError}</p> :
+              <p role="status" className="wenyan-muted mt-4 text-sm">正在把学习记录保存到本机…</p>}
+            {saveError && <button disabled={savingChapter} className="wenyan-button-primary mt-6" onClick={() => void persistChapter()}>重试保存</button>}
+          </section>
         </div>
       )}
 
@@ -158,13 +182,13 @@ const App: React.FC = () => {
                 Wenyan
               </Link>
               <div className="flex items-center gap-2.5">
-                <span>{idDictionaryMap[currentDictId]?.name} · 第 {currentChapter + 1} 章</span>
+                <span>{idDictionaryMap[currentDictId]?.name} · {isReviewMode ? (searchParams.has('smartSession') ? '本段词汇练习' : '错词复习') : `第 ${currentChapter + 1} 章`}</span>
                 {state.chapterData.words.length > 0 && (
                   <span className="wenyan-mono text-[10px] text-[var(--wenyan-ink-secondary)]">{Math.min(state.chapterData.index + 1, state.chapterData.words.length)} / {state.chapterData.words.length}</span>
                 )}
                 <span aria-hidden="true" className="mx-0.5 h-3 w-px bg-[var(--wenyan-line-soft)]" />
                 <WordList inline />
-                <StartButton isLoading={isLoading || Boolean(wordListError)} />
+                <StartButton isLoading={isLoading || Boolean(wordListError) || state.isFinished} />
                 {skipButton}
               </div>
             </div>
@@ -180,7 +204,7 @@ const App: React.FC = () => {
               <div className="flex items-center gap-1.5">
                 <WordList inline />
                 <Switcher />
-                <StartButton isLoading={isLoading || Boolean(wordListError)} />
+                <StartButton isLoading={isLoading || Boolean(wordListError) || state.isFinished} />
                 {skipButton}
               </div>
             </div>
@@ -198,7 +222,7 @@ const App: React.FC = () => {
                   }}>{retryingWords ? '正在重试…' : '重新加载词库'}</button>
                 </div>
               ) : isLoading ? (
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--wenyan-line)] border-r-transparent" role="status" />
+                <div role="status" className="flex flex-col items-center gap-4"><span aria-hidden="true" className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--wenyan-line)] border-r-transparent" /><span className="wenyan-muted text-sm">正在准备这一章的单词…</span></div>
               ) : (
                 !state.isFinished && <WordPanel />
               )}

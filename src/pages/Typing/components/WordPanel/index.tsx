@@ -1,3 +1,4 @@
+import { ignoresStudyKey } from '@/pages/Typing/keyboard'
 import { TypingContext, TypingStateActionType } from '../../store'
 import type { TypingState } from '../../store/type'
 import PrevAndNextWord from '../PrevAndNextWord'
@@ -10,7 +11,7 @@ import { isSmartSessionHardStopReached } from '@/smart-session/runtime'
 import { isReviewModeAtom, isShowPrevAndNextWordAtom, loopWordConfigAtom, phoneticConfigAtom, reviewModeInfoAtom } from '@/store'
 import type { Word } from '@/typings'
 import { useAtomValue, useSetAtom } from 'jotai'
-import { useCallback, useContext, useMemo, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
@@ -152,6 +153,8 @@ export default function WordPanel() {
   )
   const [isShowTranslation, setIsHoveringTranslation] = useState(false)
 
+  useEffect(() => { if (!state.isTyping) setIsHoveringTranslation(false) }, [state.isTyping])
+
   const handleShowTranslation = useCallback((checked: boolean) => {
     setIsHoveringTranslation(checked)
   }, [])
@@ -161,8 +164,8 @@ export default function WordPanel() {
     () => {
       handleShowTranslation(true)
     },
-    { enableOnFormTags: true, preventDefault: true },
-    [],
+    { enabled: state.isTyping, ignoreEventWhen: ignoresStudyKey, preventDefault: true },
+    [state.isTyping],
   )
 
   useHotkeys(
@@ -170,8 +173,8 @@ export default function WordPanel() {
     () => {
       handleShowTranslation(false)
     },
-    { enableOnFormTags: true, keyup: true, preventDefault: true },
-    [],
+    { enabled: state.isTyping, ignoreEventWhen: ignoresStudyKey, keyup: true, preventDefault: true },
+    [state.isTyping],
   )
 
   const shouldShowTranslation = useMemo(() => {
@@ -201,14 +204,14 @@ export default function WordPanel() {
               />
               {!state.isTyping && (
                 <p className="mt-3 select-none text-center text-[11px] font-medium tracking-[0.02em] text-[var(--wenyan-accent)]">
-                  按任意键{state.timerData.time ? '继续' : '开始'}
+                  {state.isSavingRecord ? '先保存当前词，再继续' : `按任意键${state.timerData.time ? '继续' : '开始'}`}
                 </p>
               )}
             </div>
           </div>
         )}
       </div>
-      <Progress className={`mb-7 mt-auto transition-opacity duration-200 ${state.isTyping ? 'opacity-65' : 'opacity-0'}`} />
+      <Progress className={`mb-7 mt-auto transition-opacity duration-200 ${state.isTyping ? 'opacity-65' : 'opacity-90'}`} />
     </div>
   )
 }

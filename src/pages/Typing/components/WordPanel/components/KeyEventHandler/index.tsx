@@ -1,3 +1,4 @@
+import { ignoresStudyKey } from '@/pages/Typing/keyboard'
 import type { WordUpdateAction } from '../InputHandler'
 import { TypingContext } from '@/pages/Typing/store'
 import { isChineseSymbol, isLegal } from '@/utils'
@@ -9,6 +10,7 @@ export default function KeyEventHandler({ updateInput }: { updateInput: (updateO
 
   const onKeydown = useCallback(
     (e: KeyboardEvent) => {
+      if (ignoresStudyKey(e)) return
       const char = e.key
 
       if (isChineseSymbol(char)) {

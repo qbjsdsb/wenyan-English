@@ -229,6 +229,7 @@ export function useSaveWordRecord() {
         })
       } catch (error) {
         console.error('保存单词记录与学习事实失败：', error)
+        throw error
       }
 
       if (dispatch) {

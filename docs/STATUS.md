@@ -2,6 +2,15 @@
 
 更新：2026-10-08。续接前仍须核对远端 `main`、开放 PR、CI、GitHub Pages 与 Supabase 实际部署版本；本页只记录已经核实的持久状态，不把聊天记忆当事实，也不保存用户真实学习明细。
 
+## 2026-10-09 vocabulary reliability checkpoint
+
+- **Baseline**：最新 main `f0e957f`，包含 PR #49、#50、#51；新分支 `fix/vocabulary-daily-reliability`。
+- **Found / implemented**：原单词保存 hook 吞掉失败，260ms 后仍前进；现等待本机原子事务成功，失败留在该词、暂停并允许重试。章节结果页同样等待保存，失败时保留结果现场而不放行下一章。
+- **Keyboard / UX**：输入框、按钮、对话框、IME 和设置浮层不再被开始/输入快捷键抢占；暂停时 Tab 恢复正常导航；按住 Tab 后失焦不会持续泄露提示。保留原单词完成反馈时长，增加清楚的加载、保存、重试反馈。
+- **Recovery**：词书不在窗口重新聚焦/网络重连时后台重取，避免新数组触发 SETUP_CHAPTER 重置当前练习；显式重试仍保留。
+- **Validation**：本地 typecheck 通过，Typing/DB 定向 lint 无错误（既有 non-null warnings）。新增浏览器回归覆盖写入失败/重试、章节失败、Tab/Enter 隔离、焦点恢复；本地 Chromium 四项均通过；额外检查失败后开始/跳词不能绕过待保存状态。暂停时保留当前位置，智能词汇段不再误标为错词复习。初次 checkpoint CI 已通过既有/新增浏览器流程；后续提交 CI 运行中。补修暂停瞬间正确率滞后一秒、零时长 WPM 非有限值。
+- **Boundary**：未更改 schema、AI、云端部署或既有学习语义；未宣称全部功能已验收。普通章节刷新仍从该章开头开始，已保存事实保留；Smart Session 有单独恢复路径。
+
 ## 2026-10-09 quiet-study UI follow-up
 
 - **Baseline / merged**：重新 fetch main，确认 PR #49 已合并，真实 main 为 `48090e3c8cad7529d1794c35e8ff187480a355b1`。下方“#49 尚未合并”为当时历史状态。

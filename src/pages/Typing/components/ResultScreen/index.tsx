@@ -14,7 +14,7 @@ import { Transition } from '@headlessui/react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { useCallback, useContext, useEffect, useMemo } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import IexportWords from '~icons/icon-park-outline/excel'
 import IconX from '~icons/tabler/x'
 
@@ -25,6 +25,7 @@ const ResultScreen = () => {
   const [currentChapter, setCurrentChapter] = useAtom(currentChapterAtom)
   const randomConfig = useAtomValue(randomConfigAtom)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const setReviewModeInfo = useSetAtom(reviewModeInfoAtom)
   const isReviewMode = useAtomValue(isReviewModeAtom)
 
@@ -121,7 +122,7 @@ const ResultScreen = () => {
   }, { preventDefault: true })
   useHotkeys('shift+enter', dictationButtonHandler, { preventDefault: true })
 
-  const title = `${currentDictInfo.name} · ${isReviewMode ? '错词复习' : `第 ${currentChapter + 1} 章`}`
+  const title = `${currentDictInfo.name} · ${isReviewMode ? (searchParams.has('smartSession') ? '本段词汇练习' : '错词复习') : `第 ${currentChapter + 1} 章`}`
 
   return (
     <div className="wenyan-completion-stage fixed inset-0 z-50 overflow-y-auto px-6 py-8 backdrop-blur-[3px]">
@@ -136,7 +137,7 @@ const ResultScreen = () => {
           <section className="wenyan-surface relative w-full max-w-3xl overflow-hidden p-0">
             <div className="flex items-start justify-between gap-6 border-b border-[var(--wenyan-line-soft)] px-7 py-6">
               <div>
-                <p className="wenyan-muted text-[10px]">本次学习完成</p>
+                <p className="wenyan-muted text-[10px]">本次学习完成 · 记录已保存在本机</p>
                 <h2 className="mt-1 text-[18px] font-semibold tracking-[-0.02em] text-[var(--wenyan-ink)]">{title}</h2>
                 {wrongWords.length === 0 && (
                   <p className="mt-2 text-[11px] text-[var(--wenyan-success)]">表现不错！全对了！</p>
