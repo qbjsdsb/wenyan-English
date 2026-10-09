@@ -1,3 +1,4 @@
+import { dictionarySource } from '@/utils/dictionaryCache'
 import { CHAPTER_LENGTH } from '@/constants'
 import { currentChapterAtom, currentDictInfoAtom, reviewModeInfoAtom } from '@/store'
 import type { Word, WordWithIndex } from '@/typings/index'
@@ -8,6 +9,7 @@ import useSWR from 'swr'
 
 export type UseWordListResult = {
   words: WordWithIndex[]
+  fromCache: boolean
   isLoading: boolean
   error: Error | undefined
   retry: () => Promise<void>
@@ -66,6 +68,7 @@ export function useWordList(): UseWordListResult {
 
   return {
     words,
+    fromCache: !isFirstChapter && !isReviewMode && dictionarySource(import.meta.env.BASE_URL + currentDictInfo.url.replace(/^\/+/, '')) === 'cache',
     isLoading,
     error,
     retry: async () => { await mutate() },

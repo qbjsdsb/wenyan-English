@@ -1,3 +1,4 @@
+import EmptyState from '@/components/EmptyState'
 import DropdownExport from './DropdownExport'
 import ErrorRow from './ErrorRow'
 import type { ISortType } from './HeadWrongNumber'
@@ -22,6 +23,8 @@ export function ErrorBook() {
   const currentRowDetail = useAtomValue(currentRowDetailAtom)
   const { deleteWordRecord } = useDeleteWordRecord()
   const [reload, setReload] = useState(false)
+  const [loadError, setLoadError] = useState(false)
+  useEffect(() => { setCurrentPage((page) => Math.min(page, totalPages)) }, [totalPages])
 
   const setPage = (page: number) => {
     if (page < 1 || page > totalPages) return
@@ -44,7 +47,9 @@ export function ErrorBook() {
   }, [currentPage, sortedRecords])
 
   useEffect(() => {
+    let active = true
     setLoading(true)
+    setLoadError(false)
     db.wordRecords
       .where('wrongCount')
       .above(0)
@@ -62,9 +67,11 @@ export function ErrorBook() {
         groups.forEach((group) => {
           group.wrongCount = group.records.reduce((total, current) => total + current.wrongCount, 0)
         })
-        setGroupedRecords(groups)
+        if (active) setGroupedRecords(groups)
       })
-      .finally(() => setLoading(false))
+      .catch(() => { if (active) setLoadError(true) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
   }, [reload])
 
   const handleDelete = async (word: string, dict: string) => {
@@ -90,10 +97,10 @@ export function ErrorBook() {
           <section className="wenyan-surface flex min-h-[260px] items-center justify-center">
             <LoadingUI label="正在整理错词" />
           </section>
+        ) : loadError ? (
+          <section className="wenyan-surface p-7" role="alert"><p>暂时无法读取本机错词记录。</p><button className="wenyan-button-secondary mt-4" onClick={() => setReload((value) => !value)}>重新读取</button></section>
         ) : groupedRecords.length === 0 ? (
-          <div className="wenyan-muted flex min-h-[280px] items-center justify-center border-y border-[var(--wenyan-line-soft)] text-sm">
-            还没有错词记录
-          </div>
+          <EmptyState title="还没有错词记录" description="练习中拼错的词会留在这里，方便下一次回看。" />
         ) : (
           <div className="overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]">
             <div className="wenyan-muted grid grid-cols-[1.2fr_3fr_100px_140px_36px] items-center gap-4 border-b border-[var(--wenyan-line-soft)] px-4 py-3 text-[10px]">

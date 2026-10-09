@@ -1,4 +1,4 @@
-import { currentChapterAtom, currentDictIdAtom } from '@/store'
+import { currentChapterAtom, currentDictIdAtom, reviewModeInfoAtom } from '@/store'
 import type { Dictionary } from '@/typings'
 import { useAtom, useSetAtom } from 'jotai'
 import type React from 'react'
@@ -8,6 +8,7 @@ const DictionaryCard: React.FC<DictionaryCardProps> = ({ dictionary }) => {
   const buttonRef = useRef<HTMLButtonElement>(null)
   const [currentDictId, setCurrentDictId] = useAtom(currentDictIdAtom)
   const setCurrentChapter = useSetAtom(currentChapterAtom)
+  const setReview = useSetAtom(reviewModeInfoAtom)
   const selected = currentDictId === dictionary.id
 
   useEffect(() => {
@@ -15,7 +16,7 @@ const DictionaryCard: React.FC<DictionaryCardProps> = ({ dictionary }) => {
       const button = buttonRef.current
       const container = button.parentElement?.parentElement?.parentElement
       const halfHeight = button.getBoundingClientRect().height / 2
-      container?.scrollTo({ top: Math.max(button.offsetTop - container.offsetTop - halfHeight, 0), behavior: 'smooth' })
+      container?.scrollTo({ top: Math.max(button.offsetTop - container.offsetTop - halfHeight, 0), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -23,15 +24,12 @@ const DictionaryCard: React.FC<DictionaryCardProps> = ({ dictionary }) => {
   return (
     <button
       ref={buttonRef}
-      className={`${
-        selected
-          ? 'bg-black/[0.045] text-gray-950 dark:bg-white/[0.07] dark:text-gray-100'
-          : 'text-gray-700 hover:bg-black/[0.025] dark:text-gray-400 dark:hover:bg-white/[0.04]'
-      } group w-full rounded-lg px-3 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/50`}
+      aria-pressed={selected}
+      className={`wenyan-dictionary-choice ${selected ? 'is-selected' : ''}`}
       type="button"
       onClick={() => {
-        setCurrentDictId(dictionary.id)
-        setCurrentChapter(0)
+        setReview((old) => ({ ...old, isReviewMode: false }))
+        if (!selected) { setCurrentDictId(dictionary.id); setCurrentChapter(0) }
       }}
       title="选择词典"
     >

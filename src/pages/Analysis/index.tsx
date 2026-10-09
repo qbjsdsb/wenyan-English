@@ -1,3 +1,5 @@
+import EmptyState from '@/components/EmptyState'
+import { ignoresStudyKey } from '@/pages/Typing/keyboard'
 import HeatmapCharts from './components/HeatmapCharts'
 import KeyboardWithBarCharts from './components/KeyboardWithBarCharts'
 import LineCharts from './components/LineCharts'
@@ -18,9 +20,9 @@ const Analysis = () => {
   const [, setIsOpenDarkMode] = useAtom(isOpenDarkModeAtom)
 
   useHotkeys('ctrl+d', () => setIsOpenDarkMode((old) => !old), { enableOnFormTags: true, preventDefault: true }, [])
-  useHotkeys('enter,esc', () => navigate('/today'), { preventDefault: true })
+  useHotkeys('esc', () => navigate('/today'), { ignoreEventWhen: ignoresStudyKey, preventDefault: true })
 
-  const { isEmpty, exerciseRecord, wordRecord, wpmRecord, accuracyRecord, wrongTimeRecord } = useWordStats(
+  const { error, retry, isEmpty, exerciseRecord, wordRecord, wpmRecord, accuracyRecord, wrongTimeRecord } = useWordStats(
     dayjs().subtract(1, 'year').unix(),
     dayjs().unix(),
   )
@@ -41,10 +43,12 @@ const Analysis = () => {
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-14 pt-9">
         <div className="mb-7">
           <h1 className="wenyan-page-title">记录</h1>
-          <p className="wenyan-muted mt-2 text-sm">过去一年的练习情况</p>
+          <p className="wenyan-muted mt-2 text-sm">过去一年的拼写练习记录</p>
         </div>
 
-        {isEmpty === undefined ? (
+        {error ? (
+          <section className="wenyan-surface p-7" role="alert"><p>暂时无法读取本机学习记录。</p><button className="wenyan-button-secondary mt-4" onClick={retry}>重新读取</button></section>
+        ) : isEmpty === undefined ? (
           <section className="wenyan-surface flex min-h-[260px] items-center justify-center">
             <div className="flex flex-col items-center gap-3">
               <LoadingUI label="正在整理学习记录" />
@@ -52,9 +56,7 @@ const Analysis = () => {
             </div>
           </section>
         ) : isEmpty ? (
-          <div className="wenyan-muted flex min-h-[320px] items-center justify-center border-y border-[var(--wenyan-line-soft)] text-sm">
-            暂无练习数据
-          </div>
+          <EmptyState title="暂无练习数据" description="从今天的一小段开始。真实的拼写练习会逐渐留下记录，不必先填满图表。" />
         ) : (
           <>
             <section className="wenyan-report-summary mb-8 rounded-[var(--wenyan-radius-lg)] border border-[var(--wenyan-line-soft)] px-6 py-5">

@@ -8,7 +8,7 @@
   --wenyan-paper-focus: #f3f7fb;
   --wenyan-ink: #17191b;
   --wenyan-ink-secondary: #555b61;
-  --wenyan-ink-muted: #8a8f93;
+  --wenyan-ink-muted: #6d747b;
   --wenyan-line: rgba(23, 25, 27, 0.13);
   --wenyan-line-soft: rgba(23, 25, 27, 0.075);
   --wenyan-accent: #3d6f9d;
@@ -42,7 +42,7 @@ html.dark {
   --wenyan-paper-focus: #132335;
   --wenyan-ink: #f4f6f8;
   --wenyan-ink-secondary: #c0c7ce;
-  --wenyan-ink-muted: #7f8a94;
+  --wenyan-ink-muted: #9aa6b2;
   --wenyan-line: rgba(235, 242, 248, 0.15);
   --wenyan-line-soft: rgba(235, 242, 248, 0.08);
   --wenyan-accent: #78aee3;
@@ -508,3 +508,59 @@ html.dark .dark\:border-white\/12 {
 @media (prefers-reduced-motion: reduce) {
   .wenyan-recall-choice { transition: none; }
 }
+
+/* Calm shared states: readable in both desk themes, without new motion layers. */
+.wenyan-dictionary-choice {
+  display: block;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--wenyan-radius-md);
+  padding: 12px;
+  text-align: left;
+  color: var(--wenyan-ink-secondary);
+}
+.wenyan-dictionary-choice:hover { background: var(--wenyan-paper-muted); }
+.wenyan-dictionary-choice.is-selected {
+  border-color: color-mix(in srgb, var(--wenyan-accent) 30%, var(--wenyan-line));
+  background: var(--wenyan-accent-soft);
+  color: var(--wenyan-ink);
+}
+.wenyan-chapter-choice {
+  min-height: 104px;
+  border: 1px solid var(--wenyan-line-soft);
+  border-radius: var(--wenyan-radius-md);
+  padding: 16px;
+  background: var(--wenyan-paper-raised);
+  text-align: left;
+}
+.wenyan-chapter-choice:hover { border-color: var(--wenyan-accent); }
+.wenyan-chapter-choice.is-selected {
+  border-color: var(--wenyan-accent);
+  background: var(--wenyan-accent-soft);
+  box-shadow: inset 3px 0 0 var(--wenyan-accent);
+}
+.wenyan-empty-state {
+  display: flex;
+  min-height: 320px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 40px 24px;
+  border: 1px solid var(--wenyan-line-soft);
+  border-radius: var(--wenyan-radius-lg);
+  background: linear-gradient(145deg, var(--wenyan-paper-raised), var(--wenyan-paper));
+  text-align: center;
+}
+.wenyan-empty-mark {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: 1px solid var(--wenyan-line-soft);
+  border-radius: 16px;
+  background: var(--wenyan-paper);
+  color: var(--wenyan-accent);
+}
+summary { border-radius: var(--wenyan-radius-sm); }
+summary:focus-visible { outline: 2px solid var(--wenyan-accent); outline-offset: 5px; }
+input[type='search']::-webkit-search-cancel-button { cursor: pointer; }

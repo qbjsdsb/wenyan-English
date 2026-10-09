@@ -1,12 +1,13 @@
 import ChapterButton from './ChapterButton'
 import { CHAPTER_LENGTH } from '@/constants'
-import { currentChapterAtom, currentDictInfoAtom } from '@/store'
+import { currentChapterAtom, currentDictInfoAtom, reviewModeInfoAtom } from '@/store'
 import range from '@/utils/range'
-import { useAtom, useAtomValue } from 'jotai'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import type React from 'react'
 
 const ChapterGroup: React.FC<ChapterGroupProps> = ({ totalWords }) => {
   const [currentChapter, setCurrentChapter] = useAtom(currentChapterAtom)
+  const setReview = useSetAtom(reviewModeInfoAtom)
   const { id: dictID, chapterCount } = useAtomValue(currentDictInfoAtom)
 
   return (
@@ -17,7 +18,7 @@ const ChapterGroup: React.FC<ChapterGroupProps> = ({ totalWords }) => {
           key={`${dictID}-${index}`}
           selected={currentChapter === index}
           index={index}
-          onClick={() => setCurrentChapter(index)}
+          onClick={() => { setReview((old) => ({ ...old, isReviewMode: false })); setCurrentChapter(index) }}
         />
       ))}
     </div>

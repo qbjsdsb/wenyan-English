@@ -16,7 +16,7 @@ const utilityClass = (active = false) =>
     active
       ? 'bg-[var(--wenyan-accent-soft)] text-[var(--wenyan-accent)]'
       : 'text-[var(--wenyan-ink-muted)] hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]'
-  } grid h-[32px] w-[32px] place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors`
+  } grid h-[36px] w-[36px] place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors`
 
 export default function Header({ children }: PropsWithChildren) {
   const [dark, setDark] = useAtom(isOpenDarkModeAtom)
@@ -42,7 +42,7 @@ export default function Header({ children }: PropsWithChildren) {
                       isActive
                         ? 'bg-[var(--wenyan-accent-soft)] text-[var(--wenyan-accent)]'
                         : 'text-[var(--wenyan-ink-secondary)] hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]'
-                    } relative rounded-[var(--wenyan-radius-sm)] px-3 py-1.5 text-[13px] font-medium no-underline transition-colors`
+                    } relative rounded-[var(--wenyan-radius-sm)] px-3.5 py-2 text-[13px] font-medium no-underline transition-colors`
                   }
                 >
                   {label}
