@@ -46,8 +46,8 @@ jobs:
         run: node --experimental-strip-types scripts/check-mcp-authorization.mjs
       - name: Package MCP source
         run: |
-          mkdir -p test-results
-          node scripts/package-mcp-source.mjs > test-results/wenyan-mcp-deploy.json
+          mkdir -p .ci-artifacts
+          node scripts/package-mcp-source.mjs > .ci-artifacts/wenyan-mcp-deploy.json
       - name: Build
         run: yarn build
       - name: Install Chromium
@@ -62,4 +62,6 @@ jobs:
         if: always()
         with:
           name: wenyan-test-results
-          path: test-results/
+          path: |
+            test-results/
+            .ci-artifacts/
