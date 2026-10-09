@@ -102,7 +102,7 @@ export default function PracticeResume({ dictionaryId }: { dictionaryId: string 
         <span className="wenyan-muted text-xs">{pending?.length ?? 0} 段未结束</span>
       </div>
       <div className="mt-2 divide-y divide-[var(--wenyan-line-soft)]">
-        {(expanded ? pending : pending?.slice(0, 3))?.map((entry) => (
+        {(expanded ? pending : pending?.slice(0, 1))?.map((entry) => (
           <div key={`${entry.kind}:${entry.id}`} className="flex flex-wrap items-center justify-between gap-4 py-3">
             <div>
               <p className="text-sm">{entry.title}</p>
@@ -131,9 +131,9 @@ export default function PracticeResume({ dictionaryId }: { dictionaryId: string 
           </div>
         ))}
       </div>
-      {pending && pending.length > 3 && (
+      {pending && pending.length > 1 && (
         <button className="wenyan-link mt-2 text-xs" onClick={() => setExpanded(!expanded)}>
-          {expanded ? '收起' : `展开其余 ${pending.length - 3} 段`}
+          {expanded ? '收起' : `展开其余 ${pending.length - 1} 段`}
         </button>
       )}
       <p className="wenyan-muted mt-2 text-[11px]">结束只收起未完成进度，已经保存的练习记录会保留。</p>
