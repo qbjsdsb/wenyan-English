@@ -1,3 +1,4 @@
+import { ignoresStudyKey } from '@/pages/Typing/keyboard'
 import { TypingContext, TypingStateActionType } from '../../store'
 import type { TypingState } from '../../store/type'
 import PrevAndNextWord from '../PrevAndNextWord'
@@ -10,7 +11,7 @@ import { isSmartSessionHardStopReached } from '@/smart-session/runtime'
 import { isReviewModeAtom, isShowPrevAndNextWordAtom, loopWordConfigAtom, phoneticConfigAtom, reviewModeInfoAtom } from '@/store'
 import type { Word } from '@/typings'
 import { useAtomValue, useSetAtom } from 'jotai'
-import { useCallback, useContext, useMemo, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
@@ -152,6 +153,8 @@ export default function WordPanel() {
   )
   const [isShowTranslation, setIsHoveringTranslation] = useState(false)
 
+  useEffect(() => { if (!state.isTyping) setIsHoveringTranslation(false) }, [state.isTyping])
+
   const handleShowTranslation = useCallback((checked: boolean) => {
     setIsHoveringTranslation(checked)
   }, [])
@@ -161,8 +164,8 @@ export default function WordPanel() {
     () => {
       handleShowTranslation(true)
     },
-    { enableOnFormTags: true, preventDefault: true },
-    [],
+    { enabled: state.isTyping, ignoreEventWhen: ignoresStudyKey, preventDefault: true },
+    [state.isTyping],
   )
 
   useHotkeys(
@@ -170,8 +173,8 @@ export default function WordPanel() {
     () => {
       handleShowTranslation(false)
     },
-    { enableOnFormTags: true, keyup: true, preventDefault: true },
-    [],
+    { enabled: state.isTyping, ignoreEventWhen: ignoresStudyKey, keyup: true, preventDefault: true },
+    [state.isTyping],
   )
 
   const shouldShowTranslation = useMemo(() => {

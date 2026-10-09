@@ -1,3 +1,4 @@
+import { ignoresStudyKey } from '@/pages/Typing/keyboard'
 import type { WordUpdateAction } from '../InputHandler'
 import InputHandler from '../InputHandler'
 import Letter from './Letter'
@@ -47,6 +48,10 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
   const currentLanguageCategory = useAtomValue(currentDictInfoAtom).languageCategory
   const currentChapter = useAtomValue(currentChapterAtom)
 
+  const [wordSaveError, setWordSaveError] = useState(false)
+  const [saveRetry, setSaveRetry] = useState(0)
+  const [savingWord, setSavingWord] = useState(false)
+
   const [showTipAlert, setShowTipAlert] = useState(false)
   const wordPronunciationIconRef = useRef<WordPronunciationIconRef>(null)
 
@@ -65,6 +70,7 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
     newWordState.letterStates = new Array(headword.length).fill('normal')
     newWordState.startTime = getUtcStringForMixpanel()
     newWordState.randomLetterVisible = headword.split('').map(() => Math.random() > 0.4)
+    setWordSaveError(false)
     setWordState(newWordState)
   }, [word, setWordState])
 
@@ -72,7 +78,7 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
     (updateAction: WordUpdateAction) => {
       switch (updateAction.type) {
         case 'add':
-          if (wordState.hasWrong) return
+          if (wordState.hasWrong || wordState.isFinished) return
 
           if (updateAction.value === ' ') {
             updateAction.event.preventDefault()
@@ -90,8 +96,10 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
           console.warn('unknown update type', updateAction)
       }
     },
-    [wordState.hasWrong, setWordState],
+    [wordState.hasWrong, wordState.isFinished, setWordState],
   )
+
+  useEffect(() => { if (!state.isTyping) setIsHoveringWord(false) }, [state.isTyping])
 
   const handleHoverWord = useCallback((checked: boolean) => {
     setIsHoveringWord(checked)
@@ -102,8 +110,8 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
     () => {
       handleHoverWord(true)
     },
-    { enableOnFormTags: true, preventDefault: true },
-    [],
+    { enabled: state.isTyping, ignoreEventWhen: ignoresStudyKey, preventDefault: true },
+    [state.isTyping],
   )
 
   useHotkeys(
@@ -111,8 +119,8 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
     () => {
       handleHoverWord(false)
     },
-    { enableOnFormTags: true, keyup: true, preventDefault: true },
-    [],
+    { enabled: state.isTyping, ignoreEventWhen: ignoresStudyKey, keyup: true, preventDefault: true },
+    [state.isTyping],
   )
   useHotkeys(
     'ctrl+j',
@@ -236,23 +244,38 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
         clearTimeout(timer)
       }
     }
-  }, [wordState.hasWrong, setWordState])
+  }, [wordState.hasWrong, wordState.isFinished, setWordState])
 
   useEffect(() => {
     if (!wordState.isFinished) return
 
+    let active = true
+    let completionTimer: number | undefined
+    const startedAt = Date.now()
+    setSavingWord(true)
+    setWordSaveError(false)
     dispatch({ type: TypingStateActionType.SET_IS_SAVING_RECORD, payload: true })
-    saveWordRecord({
+    void saveWordRecord({
       word: word.name,
       wrongCount: wordState.wrongCount,
       letterTimeArray: wordState.letterTimeArray,
       letterMistake: wordState.letterMistake,
+    }).then(() => {
+      if (!active) return
+      setSavingWord(false)
+      // Keep the existing feedback duration, but never advance before the local commit.
+      completionTimer = window.setTimeout(onFinish, Math.max(0, 260 - (Date.now() - startedAt)))
+    }).catch(() => {
+      if (!active) return
+      setSavingWord(false)
+      setWordSaveError(true)
+      dispatch({ type: TypingStateActionType.SET_IS_TYPING, payload: false })
+      dispatch({ type: TypingStateActionType.SET_IS_SKIP, payload: false })
     })
-
-    const completionTimer = window.setTimeout(onFinish, 260)
-    return () => window.clearTimeout(completionTimer)
+    return () => { active = false; window.clearTimeout(completionTimer) }
+    // Retry only the failed atomic write; no new typing attempt is invented.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wordState.isFinished])
+  }, [wordState.isFinished, saveRetry])
 
   useEffect(() => {
     if (wordState.wrongCount >= 4) {
@@ -263,6 +286,12 @@ export default function WordComponent({ word, onFinish }: { word: Word; onFinish
   return (
     <>
       <InputHandler updateInput={updateInput} />
+      {wordSaveError && (
+        <div role="alert" className="wenyan-surface mb-4 max-w-md p-5 text-center">
+          <p className="text-sm leading-6 text-[var(--wenyan-danger)]">这个词的记录尚未保存，已暂停。请勿刷新或离开页面。</p>
+          <button disabled={savingWord} className="wenyan-button-secondary mt-3" onClick={() => setSaveRetry((value) => value + 1)}>重试保存单词</button>
+        </div>
+      )}
       <div
         lang={currentLanguageCategory !== 'code' ? currentLanguageCategory : 'en'}
         className="flex flex-col items-center justify-center pb-1 pt-4"

@@ -31,7 +31,7 @@ export function useWordList(): UseWordListResult {
   const { data: wordList, error, isLoading, mutate } = useSWR(
     isFirstChapter || isReviewMode ? null : currentDictInfo.url,
     wordListFetcher,
-    { shouldRetryOnError: false },
+    { shouldRetryOnError: false, revalidateOnFocus: false, revalidateOnReconnect: false },
   )
 
   const words: WordWithIndex[] = useMemo(() => {

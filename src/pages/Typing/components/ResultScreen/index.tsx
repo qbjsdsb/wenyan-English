@@ -136,7 +136,7 @@ const ResultScreen = () => {
           <section className="wenyan-surface relative w-full max-w-3xl overflow-hidden p-0">
             <div className="flex items-start justify-between gap-6 border-b border-[var(--wenyan-line-soft)] px-7 py-6">
               <div>
-                <p className="wenyan-muted text-[10px]">本次学习完成</p>
+                <p className="wenyan-muted text-[10px]">本次学习完成 · 记录已保存在本机</p>
                 <h2 className="mt-1 text-[18px] font-semibold tracking-[-0.02em] text-[var(--wenyan-ink)]">{title}</h2>
                 {wrongWords.length === 0 && (
                   <p className="mt-2 text-[11px] text-[var(--wenyan-success)]">表现不错！全对了！</p>
