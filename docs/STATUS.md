@@ -7,7 +7,8 @@
 ## 生产基线
 
 - 仓库：`qbjsdsb/wenyan-English`
-- 前端生产代码基线：`982cba3cba39ca8c4b4e6012643a9da7639c4eef`
+- 前端生产代码基线：`d47fe246a1034d5d2720294d14ce0f3711257129`
+  - PR #57 `Make vocabulary training discoverable and connected to learning evidence`，专项训练闭环
   - PR #56 `Make daily vocabulary practice recoverable and calmer`，合并 `39bcdf7`，最后仅指标文案/文档收口 `982cba3`
   - PR #54 `Add objective semantic evidence v1`
   - PR #55 `Refine library keyboard flow, calm motion and rendering cost`
@@ -17,7 +18,7 @@
 - #54 + #55 重放后的 PR CI #248：success
 - 上一生产基线 main CI #249：success
 - PR #56 CI #251：完整 success；新生产基线的自动 main CI 另见 run `37927645884`
-- GitHub Pages：最新部署 run `37927645763`，build + deploy success，源码 `982cba3`；旧 #50 对应 `3b20da3`
+- GitHub Pages：最新部署 run `37941059141`，build + deploy success，源码 `d47fe24`；此前 run `37927645763` 对应 `982cba3`
 - Supabase：`cmjhxvpkdeheujuteqoi`
 - 生产 Edge Function：`wenyan-english-mcp` **v15 ACTIVE**
 - MCP server contract 仍为 0.8.x；Coaching Context：`coaching-context-v1.5`
@@ -25,7 +26,7 @@
 - v15 部署固定到其部署时不可变源码 `3b20da3…`；PR #56 未改动 MCP/Edge Function 源码，前端本机恢复不要求重新部署后端。CI 同时生成 `ci-artifacts/wenyan-mcp-deploy.json`，其中包含完整 13 文件函数依赖闭包，作为后续完整源码部署的可复现产物。
 - v15 上线后，OAuth protected-resource discovery 已实时返回 HTTP 200，并报告正确 resource、Supabase Auth issuer、`openid` scope。
 
-本页之后如再出现 docs-only closure commit，前端运行时代码基线仍以上述 `982cba3…` 为准，后端源码仍为 `3b20da3…`，除非新的功能提交明确更新本节。
+本页之后如再出现 docs-only closure commit，前端运行时代码基线仍以上述 `d47fe24…` 为准，后端源码仍为 `3b20da3…`，除非新的功能提交明确更新本节。
 
 ## 2026-10-09 vocabulary focus / recovery（PR #56）
 
@@ -39,14 +40,15 @@
 - **Deployed / smoke verified**：Pages build + deploy success（run `37927645763`，源码 `982cba3`）；线上首页 HTTP 200，发布后的入口 bundle 包含新 typingCheckpoints 表。
 - **Real-user verified**：本轮尚未由用户本人走完真实学习；合成浏览器验收不等于个人学习验收。设计和代码均进入 PR #56；不将本机恢复称为跨设备恢复或完整离线 PWA。游标只在完成词时保存，用时恢复到最近已提交词的边界。
 
-## Vocabulary practice desk（PR #57，分支实施中）
+## Vocabulary practice desk（PR #57，已合并并部署）
 
 - Baseline：最新 main `6b3369197c15db9239b145f74216863a2655237d`。
 - Implemented：`/practice` 集中提供拼写 / 词义主动回想 / 参考释义四选一；当前章、已练、近 14 天最近一次仍拼错、仍模糊的词池；每段 6 / 12 个词，普通章节拼写沿用原完整章节。Today、主导航、暂停背词、拼写结束均有入口。
 - Implemented：manual semantic runs 用同一 sourceVersion 4/5 immutable fact + atomic cursor；新 origin 只区分本机运行，不改上传合同。手动词义段不会被 Smart Session 恢复或绑定云计划；既有 Smart 后续辨认恢复修正为正确路由。专项拼写使用真实 ReviewRecord，并带本机 owner 边界。
 - Implemented：词义证据在记录页和 Today 可见；回想、自评与客观辨认不混成掌握率。模糊池验证当前释义 hash，旧版本不继承。自评揭示后焦点回到题目，鼠标开启也能继续数字键操作。
+- Smoke verified：线上首页 HTTP 200，入口 `index-20786b24.js` 含 `/practice` 路由；生产发布 run 的 build / deploy 均已确认。
 - Designed / deferred：中文→英文辨认需要独立版本化的测量 / 云端 parser，暂不假装已实现；当前有提示/发音的默写仍只记录真实拼写条件。易混词依真实选错记录归入模糊池，不生成假混淆关系。
-- Tested：类型检查通过；改动源码定向 lint 无错误；semantic deterministic guards 通过。直接回想、客观辨认/刷新/账号隔离和最新/旧版本词池三条定向浏览器验收通过。浅/深色中文截图已检查。首个实现 checkpoint `07b0490` 的完整 CI #254（run `37939590743`）success。专项拼写的定向验收也通过（6.2s）：两词、随机偏好开启、保存首词后刷新、顺序与事实/游标正确。最终提交由自动 CI 收口；尚未 merged / deployed / real-user verified。阅读、MCP 与 Supabase 保持本轮 scope 之外。
+- Tested：类型检查通过；改动源码定向 lint 无错误；semantic deterministic guards 通过。直接回想、客观辨认/刷新/账号隔离和最新/旧版本词池三条定向浏览器验收通过。浅/深色中文截图已检查。首个实现 checkpoint `07b0490` 的完整 CI #254（run `37939590743`）success。专项拼写的定向验收也通过（6.2s）：两词、随机偏好开启、保存首词后刷新、顺序与事实/游标正确。最终 head `536a56d` 的完整 CI #255（run `37940889441`）也 success；已 merged 为 `d47fe24` 并 deployed（Pages run `37941059141` build + deploy success）；real-user verified 尚未完成。阅读、MCP 与 Supabase 保持本轮 scope 之外。
 
 ## 当前产品形态
 
