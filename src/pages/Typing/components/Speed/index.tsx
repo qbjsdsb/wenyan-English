@@ -8,12 +8,13 @@ export default function Speed() {
   const secondsString = seconds < 10 ? '0' + seconds : seconds + ''
   const minutesString = minutes < 10 ? '0' + minutes : minutes + ''
   const inputNumber = state.chapterData.correctCount + state.chapterData.wrongCount
+  const accuracy = inputNumber > 0 ? Math.round((state.chapterData.correctCount / inputNumber) * 100) : 0
   const hasActivity = state.isTyping || state.timerData.time > 0 || inputNumber > 0
 
   if (!hasActivity) return null
 
   const time = `${minutesString}:${secondsString}`
-  const detailLabel = `本次学习数据：时间 ${time}，输入 ${inputNumber}，WPM ${state.timerData.wpm}，正确 ${state.chapterData.correctCount}，正确率 ${state.timerData.accuracy}%`
+  const detailLabel = `本次学习数据：时间 ${time}，输入 ${inputNumber}，WPM ${state.timerData.wpm}，正确 ${state.chapterData.correctCount}，正确率 ${accuracy}%`
 
   return (
     <div
@@ -26,7 +27,7 @@ export default function Speed() {
       <span aria-hidden="true" className="opacity-35">·</span>
       <span className="tabular-nums"><strong className="font-medium text-[var(--wenyan-ink-secondary)]">{state.timerData.wpm}</strong> WPM</span>
       <span aria-hidden="true" className="opacity-35">·</span>
-      <span className="tabular-nums"><strong className="font-medium text-[var(--wenyan-ink-secondary)]">{state.timerData.accuracy}%</strong> 正确率</span>
+      <span className="tabular-nums"><strong className="font-medium text-[var(--wenyan-ink-secondary)]">{accuracy}%</strong> 正确率</span>
       {inputNumber > 0 && (
         <>
           <span aria-hidden="true" className="opacity-35">·</span>
