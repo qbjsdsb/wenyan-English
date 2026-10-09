@@ -220,7 +220,7 @@ const ResultScreen = () => {
 
             <div className="px-7 py-6">
               <p className="wenyan-muted mb-5 text-xs leading-6">
-                拼写无错只描述本次输入；是否理解词义，还需要单独回想。输入准确率 {state.timerData.accuracy}% · {state.timerData.wpm} 词/分钟
+                拼写无错只描述本次输入；是否理解词义，还需要单独回想。按键准确率 {state.timerData.accuracy}% · {state.timerData.wpm} 词/分钟
               </p>
               <div className="mb-3 flex items-center justify-between gap-4">
                 <div>

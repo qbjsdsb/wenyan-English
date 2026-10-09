@@ -25,7 +25,7 @@
 
 本页之后如再出现 docs-only closure commit，运行时代码基线仍以上述 `3b20da3…` 为准，除非新的功能提交明确更新本节。
 
-## 2026-10-09 vocabulary focus / recovery（PR #56，未上线）
+## 2026-10-09 vocabulary focus / recovery（PR #56）
 
 - **Baseline**：本轮从最新 main `572a609` 建立 `polish/vocabulary-focus-and-recovery`；上述生产基线未因本分支代码改变。
 - **Implemented**：普通英语章节的本机恢复（Dexie v8），单词事实与下一保存位置原子写入；账号/词书/章节/taskRun 隔离，严格内容签名、随机顺序、循环计数和记录引用验证。未完成的当前词重新输入；章节提交失败可以刷新恢复；重开只丢弃游标、不删除历史。
@@ -33,7 +33,8 @@
 - **Experience**：首字母直接开始且不丢失；Esc 暂停；隐藏窗口暂停；词表支持单词/释义搜索、当前位置、已练状态与继续按钮；原生发音按钮的名称/焦点完善；结果页区分已练词、拼写无错和输入准确率，支持仅练本次错词；反复输错给提示而不臆测“插件冲突”。
 - **Tested**：一次定向浏览器批次 7 通过、1 因测试读取逐字母 innerText 换行失败；修正为 textContent 后只重跑该用例并通过，覆盖随机/循环/账号/内容变化。类型检查通过；源码定向 lint 通过。无需反复运行全套测试。
 - **Visual / interaction QA**：词表浅深色、结果页中文截图已检查；首词中途重开与只练错词流程通过，页面无异常。CI #250 的算法/类型/构建通过，浏览器旧文案断言和过早读取 fixture 已修正；只重跑相关三项，全通过（26.9s）。
-- **Pending**：修正后常规 CI、合并、Pages 部署、真实用户验收。设计和代码均进入 PR #56；不将本机恢复称为跨设备恢复或完整离线 PWA。游标只在完成词时保存，用时恢复到最近已提交词的边界。
+- **Merged / tested**：PR #56 合并为 `39bcdf7b8c74f02c303bea7187bd61816b9b39a3`；CI #251（run `37926660281`）完整通过，包括算法、类型、构建、浏览器和 Pages 恢复。
+- **Pending**：新 Pages 部署与真实用户验收。设计和代码均进入 PR #56；不将本机恢复称为跨设备恢复或完整离线 PWA。游标只在完成词时保存，用时恢复到最近已提交词的边界。
 
 ## 当前产品形态
 
@@ -149,7 +150,7 @@ Agent 不得把这些证据压成一个没有依据的“掌握率”。
 3. **Reading 主闭环**：可信/private provider → content validation → eligible candidates → stage gate → Smart Session → Runner → facts → evidence → Coaching Context。
 4. **正式红宝书 provider**：在没有可信完整版本与 denominator 之前，`observedProgress` 必须保持 null。
 5. objective semantic 自动进入 Smart Session、跨设备 objective run 恢复，等待真实使用证据后再决定；当前不是 blocker。
-6. ordinary English chapter 的已提交词边界恢复在 PR #56 已实现，尚未合并/部署；当前未完成输入重输。Smart Session 使用独立 resume 路径。
+6. ordinary English chapter 的已提交词边界恢复已随 PR #56 合并；当前未完成输入重输。跨设备/多标签并发恢复未实现，Smart Session 使用独立 resume 路径。
 7. 当前 dictionary cache 不是完整 Service Worker / PWA，不承诺未加载内容的冷启动离线。
 8. FSRS 继续延后，直到 semantic/contextual evidence 足够可靠。
 9. 文学专业课继续冻结；未来开发前重新核对目标年份南京师大官方招生科目、考试范围和参考信息。

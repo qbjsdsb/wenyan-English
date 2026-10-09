@@ -14,7 +14,7 @@ export default function Speed() {
   if (!hasActivity) return null
 
   const time = `${minutesString}:${secondsString}`
-  const detailLabel = `本次学习数据：时间 ${time}，输入 ${inputNumber}，WPM ${state.timerData.wpm}，正确 ${state.chapterData.correctCount}，正确率 ${accuracy}%`
+  const detailLabel = `本次学习数据：时间 ${time}，输入 ${inputNumber}，WPM ${state.timerData.wpm}，正确 ${state.chapterData.correctCount}，按键准确率 ${accuracy}%`
 
   return (
     <div
@@ -27,11 +27,11 @@ export default function Speed() {
       <span aria-hidden="true" className="opacity-35">·</span>
       <span className="tabular-nums"><strong className="font-medium text-[var(--wenyan-ink-secondary)]">{state.timerData.wpm}</strong> WPM</span>
       <span aria-hidden="true" className="opacity-35">·</span>
-      <span className="tabular-nums"><strong className="font-medium text-[var(--wenyan-ink-secondary)]">{accuracy}%</strong> 正确率</span>
+      <span className="tabular-nums"><strong className="font-medium text-[var(--wenyan-ink-secondary)]">{accuracy}%</strong> 按键准确</span>
       {inputNumber > 0 && (
         <>
           <span aria-hidden="true" className="opacity-35">·</span>
-          <span className="tabular-nums">{state.chapterData.correctCount}/{inputNumber} 正确</span>
+          <span className="tabular-nums">{state.chapterData.correctCount}/{inputNumber} 正确按键</span>
         </>
       )}
     </div>

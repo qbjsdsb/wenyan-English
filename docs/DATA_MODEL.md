@@ -129,3 +129,6 @@ Future domain events should reuse the envelope, owner/sync/idempotency, session/
 The word record, immutable word fact and post-commit checkpoint share one Dexie transaction. Stored state carries committed record IDs, distinct practised indices and repetition count. Partial current-word input is deliberately not restored. Timer restores to the last committed boundary, not wall time. Restore checks owner/content/order/counters and referenced records; a changed source discards only the invalid cursor, never past facts. Restored state starts paused.
 
 A genuinely completed normal chapter clears its checkpoint in the same transaction as the chapter record/fact. A normal chapter ended through skips without practising every item does not produce a chapter completion; saved word attempts remain. Restart clears only execution state. Pending final-word checkpoint allows a failed chapter commit to recover after refresh without replaying word facts. This adds no Supabase schema, new sync payload or AI write capability.
+
+
+Completion compatibility note: the stricter normal-chapter guard applies to new client execution. Older v1/v2 chapter facts are not rewritten and may reflect the legacy end-of-chapter behavior, including skips. A historical chapter count alone is not proof that every item was attempted; item-level immutable facts remain the stronger evidence.
