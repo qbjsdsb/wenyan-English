@@ -46,7 +46,7 @@
 - Implemented：manual semantic runs 用同一 sourceVersion 4/5 immutable fact + atomic cursor；新 origin 只区分本机运行，不改上传合同。手动词义段不会被 Smart Session 恢复或绑定云计划；既有 Smart 后续辨认恢复修正为正确路由。专项拼写使用真实 ReviewRecord，并带本机 owner 边界。
 - Implemented：词义证据在记录页和 Today 可见；回想、自评与客观辨认不混成掌握率。模糊池验证当前释义 hash，旧版本不继承。自评揭示后焦点回到题目，鼠标开启也能继续数字键操作。
 - Designed / deferred：中文→英文辨认需要独立版本化的测量 / 云端 parser，暂不假装已实现；当前有提示/发音的默写仍只记录真实拼写条件。易混词依真实选错记录归入模糊池，不生成假混淆关系。
-- Validation：正在进行一次必要的类型、定向 lint 和核心浏览器验收。尚未 merged / deployed / real-user verified。阅读、MCP 与 Supabase 保持本轮 scope 之外。
+- Tested：类型检查通过；改动源码定向 lint 无错误；semantic deterministic guards 通过。直接回想、客观辨认/刷新/账号隔离和最新/旧版本词池三条定向浏览器验收通过。浅/深色中文截图已检查。首个实现 checkpoint `07b0490` 的完整 CI #254（run `37939590743`）success。专项拼写的定向验收也通过（6.2s）：两词、随机偏好开启、保存首词后刷新、顺序与事实/游标正确。最终提交由自动 CI 收口；尚未 merged / deployed / real-user verified。阅读、MCP 与 Supabase 保持本轮 scope 之外。
 
 ## 当前产品形态
 

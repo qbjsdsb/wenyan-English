@@ -63,7 +63,7 @@ export function buildSemanticDiscriminationQuestions(items: readonly SemanticIte
   if (!Number.isInteger(limit) || limit < 1 || limit > 12) throw new Error('invalid_semantic_discrimination_limit')
 
   const bySignature = new Map<string, SemanticItem>()
-  for (const item of [...items].sort((a, b) => a.contentId.localeCompare(b.contentId))) {
+  for (const item of [...items].sort((a, b) => (targetIds ? Number(targetIds.includes(b.contentId)) - Number(targetIds.includes(a.contentId)) : 0) || a.contentId.localeCompare(b.contentId))) {
     const signature = meaningSignature(item)
     if (!item.contentId || !/^sha256:[a-f0-9]{64}$/.test(item.contentVersion) || !item.word.trim() || !signature) continue
     if (!bySignature.has(signature)) bySignature.set(signature, item)

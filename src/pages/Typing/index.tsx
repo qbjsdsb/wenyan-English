@@ -196,7 +196,7 @@ const App: React.FC = () => {
       const initialIndex = isReviewMode && reviewModeInfo.reviewRecord?.index ? reviewModeInfo.reviewRecord.index : 0
       dispatch({
         type: TypingStateActionType.SETUP_CHAPTER,
-        payload: { words, shouldShuffle: randomConfig.isOpen, initialIndex, checkpoint: identity },
+        payload: { words, shouldShuffle: reviewModeInfo.reviewRecord?.origin === 'manual' && isReviewMode ? false : randomConfig.isOpen, initialIndex, checkpoint: identity },
       })
       setPreparingChapter(false)
     })()

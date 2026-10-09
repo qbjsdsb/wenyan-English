@@ -156,6 +156,7 @@ test('direct objective selection retains atomic facts and owner-safe resume', as
   await page.goto('/practice?mode=discrimination')
   await page.getByRole('button', { name: '开始选择词义' }).click()
   await expect(page).toHaveURL(/\/semantic-check\//)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^(alpha|beta|gamma|delta|epsilon)$/)
   const word = await page.getByRole('heading', { level: 1 }).textContent()
   await page.getByRole('button', { name: new RegExp(`meaning-${word}$`) }).click()
   await expect(page.getByText('选择正确', { exact: true })).toBeVisible()
@@ -167,6 +168,7 @@ test('direct objective selection retains atomic facts and owner-safe resume', as
     const facts = await db.learningEvents.toArray()
     window.__directCheck = { facts, focus: await getRecoverableSmartSessionFocusDictionary() }
   ` })
+  await page.waitForFunction(() => Boolean((window as unknown as { __directCheck: unknown }).__directCheck))
   const saved = await page.evaluate(() => (window as unknown as { __directCheck: { facts: { eventType: string; sourceVersion: number; payload: { isCorrect: boolean } }[]; focus?: string } }).__directCheck)
   expect(saved.facts).toHaveLength(1)
   expect(saved.facts[0].eventType).toBe('semantic_discrimination_attempted')
@@ -180,4 +182,62 @@ test('direct objective selection retains atomic facts and owner-safe resume', as
   await expect(page.getByRole('alert')).toContainText('不属于当前账号')
   await page.goto('/practice')
   await expect(page.getByRole('link', { name: '继续这一段' })).toHaveCount(0)
+})
+
+test('practice pools use latest owner facts and reject old definition uncertainty', async ({ page }) => {
+  await page.goto('/practice')
+  await page.addScriptTag({ type: 'module', content: `
+    import { selectPracticeWords, preparePracticeItems } from '/src/semantic/practice.ts'
+    import { semanticItem } from '/src/semantic/provider.ts'
+    import { createLearningEvent } from '/src/learning/types.ts'
+    const now = Date.now()
+    const words = [{ name: 'alpha', trans: ['A'] }, { name: 'beta', trans: ['B'] }]
+    const spelling = (id, word, wrongCount, occurredAt) => ({ ...createLearningEvent('word_attempted', { word, dict:'cet4', wrongCount }), id, occurredAt })
+    const old = spelling('old', 'alpha', 2, now - 2000)
+    const good = spelling('new', 'alpha', 0, now - 1000)
+    const bad = spelling('bad', 'beta', 1, now - 1000)
+    const errors = selectPracticeWords(words, [old, good, bad], 'cet4', 0, 'errors', 'spelling', now).candidates.map(w=>w.name)
+    const item = await semanticItem('cet4', words[0])
+    const payload = { domain:'english', activity:'semantic_recall', measurement:'self_report_after_reveal', direction:'en_to_meaning', contentId:item.contentId, contentVersion:item.contentVersion, dictionaryId:'cet4', word:'alpha', sessionId:'session', blockId:'block', cue:'word_only', responseMode:'mental_recall', answerRevealed:true, resumedAfterReveal:false, rating:'partial' }
+    const partial = { ...createLearningEvent('semantic_recall_attempted', payload, 4), occurredAt:now - 1000 }
+    const uncertain = selectPracticeWords(words, [partial], 'cet4', 0, 'uncertain', 'recall', now)
+    const exact = await preparePracticeItems(uncertain.candidates, 'cet4', 6, uncertain)
+    const changed = await preparePracticeItems([{name:'alpha', trans:['updated-A']}], 'cet4', 6, uncertain)
+    const recalled = {...partial, id:'later', occurredAt:now, payload:{...payload, rating:'recalled'}}
+    const cleared = selectPracticeWords(words, [partial,recalled], 'cet4', 0, 'uncertain', 'recall', now).candidates.length
+    window.__poolProof = { errors, exact:exact.length, changed:changed.length, cleared }
+  ` })
+  await page.waitForFunction(() => Boolean((window as unknown as { __poolProof: unknown }).__poolProof))
+  const proof = await page.evaluate(() => (window as unknown as { __poolProof: unknown }).__poolProof)
+  expect(proof).toEqual({ errors: ['beta'], exact: 1, changed: 0, cleared: 0 })
+})
+
+test('manual spelling commits fact with its resume cursor and keeps its selected order', async ({ page }) => {
+  await page.route('**/dicts/CET4_T.json', (route) => route.fulfill({ json: ['alpha','beta'].map((word) => ({ name:word, trans:[`meaning-${word}`], usphone:'', ukphone:'' })) }))
+  await page.addInitScript(() => localStorage.setItem('randomConfig', JSON.stringify({ isOpen: true })))
+  await page.goto('/practice?mode=spelling&pool=errors')
+  await page.addScriptTag({ type: 'module', content: `
+    import { db } from '/src/utils/db/index.ts'
+    import { createLearningEvent } from '/src/learning/types.ts'
+    for (const word of ['alpha','beta']) await db.learningEvents.add(createLearningEvent('word_attempted', { word, dict:'cet4', chapter:0, reviewMode:false, wrongCount:1, durationMs:10, timing:[], mistakes:{} }, 2))
+    window.__spellingPracticeSeeded = true
+  ` })
+  await page.waitForFunction(() => Boolean((window as unknown as { __spellingPracticeSeeded: boolean }).__spellingPracticeSeeded))
+  await page.getByRole('button', { name: '开始拼写训练' }).click()
+  await expect(page).toHaveURL(/practice=spelling/)
+  await expect(page.locator('.wenyan-word-stage .tooltip-info')).toContainText('alpha')
+  await page.keyboard.type('alpha', { delay: 35 })
+  await expect(page.locator('.wenyan-word-stage .tooltip-info')).toContainText('beta')
+  await page.reload()
+  await expect(page.locator('.wenyan-word-stage .tooltip-info')).toContainText('beta')
+  await page.keyboard.type('beta', { delay: 35 })
+  await expect(page.getByText('本次已练的词没有出现拼写错误。')).toBeVisible()
+  await page.addScriptTag({ type: 'module', content: `
+    import { db } from '/src/utils/db/index.ts'
+    window.__spellingPracticeProof = { events:await db.learningEvents.where('eventType').equals('word_attempted').toArray(), records:await db.reviewRecords.toArray() }
+  ` })
+  await page.waitForFunction(() => Boolean((window as unknown as { __spellingPracticeProof: unknown }).__spellingPracticeProof))
+  const proof = await page.evaluate(() => (window as unknown as { __spellingPracticeProof: { events: unknown[]; records: { index: number; origin: string; isFinished: boolean }[] } }).__spellingPracticeProof)
+  expect(proof.events).toHaveLength(4)
+  expect(proof.records[0]).toMatchObject({ index: 1, origin: 'manual', isFinished: true })
 })

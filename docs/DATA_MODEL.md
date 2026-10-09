@@ -132,3 +132,11 @@ A genuinely completed normal chapter clears its checkpoint in the same transacti
 
 
 Completion compatibility note: the stricter normal-chapter guard applies to new client execution. Older v1/v2 chapter facts are not rewritten and may reflect the legacy end-of-chapter behavior, including skips. A historical chapter count alone is not proof that every item was attempted; item-level immutable facts remain the stronger evidence.
+
+### Manual vocabulary practice (PR #57)
+
+`semanticRuns.origin = manual` distinguishes direct practice from Smart recovery; legacy rows omit it and remain compatible. Payloads/sourceVersion 4/5, owner isolation and atomic fact/cursor transactions are unchanged. Reference options can use current-chapter entries as distractors, but only the answered target produces a fact; viewing distractors does not count as learning. Recall versus recognition remains distinct.
+
+Direct spelling uses an existing ReviewRecord with optional `origin=manual` and `ownerUserId`. At each complete word, legacy spelling record, immutable fact and review cursor update share one transaction. The owner and expected review cursor are checked, preventing other-account or stale-tab writes. Presented order is frozen instead of re-shuffled on refresh. Partial-word/repetition input is not recovered; already persisted observations remain history. Navigated/skipped items do not synthesize manual chapter completion.
+
+Manual pools use current-owner immutable facts: learned requires a spelling observation; spelling errors require the latest attempt still incorrect within 14 days; semantic uncertainty uses the latest self-report/selection separately per content version. The current definition hash must match before an uncertain word is selected. No evidence is unknown, not weakness. Recognition success never clears a recall self-report, and vice versa. Automatic Smart spacing continues to use recall evidence; discrimination remains Coach evidence and a direct-practice uncertainty signal, not an FSRS rating.
