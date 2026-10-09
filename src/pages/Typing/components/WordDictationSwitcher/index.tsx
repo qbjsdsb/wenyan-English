@@ -1,3 +1,4 @@
+import { ignoresStudyKey } from '../../keyboard'
 import { wordDictationConfigAtom } from '@/store'
 import type { WordDictationType } from '@/typings'
 import { Listbox, Popover, Switch, Transition } from '@headlessui/react'
@@ -32,14 +33,16 @@ export default function WordDictationSwitcher() {
     setCurrentType(wordDictationTypeList.find((item) => item.type === wordDictationConfig.type) || wordDictationTypeList[0])
   }, [wordDictationConfig.type])
 
-  useHotkeys('ctrl+v', onToggleWordDictation, { enableOnFormTags: true, preventDefault: true }, [])
+  useHotkeys('ctrl+v', onToggleWordDictation, { ignoreEventWhen: ignoresStudyKey, preventDefault: true }, [])
 
   return (
     <Popover className="relative">
       {({ open }) => (
         <>
           <Popover.Button
-            className={`${open || wordDictationConfig.isOpen ? 'text-[var(--wenyan-accent)]' : 'text-[var(--wenyan-ink-muted)]'} grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors hover:bg-[var(--wenyan-paper-raised)] hover:text-[var(--wenyan-ink)]`}
+            className={`${
+              open || wordDictationConfig.isOpen ? 'text-[var(--wenyan-accent)]' : 'text-[var(--wenyan-ink-muted)]'
+            } grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors hover:bg-[var(--wenyan-paper-raised)] hover:text-[var(--wenyan-ink)]`}
             type="button"
             aria-label="开关默写模式"
           >
@@ -71,7 +74,9 @@ export default function WordDictationSwitcher() {
                     <div className="relative">
                       <Listbox.Button className="listbox-button w-full">
                         <span>{currentType.name}</span>
-                        <span><IconChevronDown className="focus:outline-none" /></span>
+                        <span>
+                          <IconChevronDown className="focus:outline-none" />
+                        </span>
                       </Listbox.Button>
                       <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
                         <Listbox.Options className="listbox-options w-full">
@@ -81,7 +86,9 @@ export default function WordDictationSwitcher() {
                                 <>
                                   <span>{item.name}</span>
                                   {selected && (
-                                    <span className="listbox-options-icon"><IconCheck className="focus:outline-none" /></span>
+                                    <span className="listbox-options-icon">
+                                      <IconCheck className="focus:outline-none" />
+                                    </span>
                                   )}
                                 </>
                               )}

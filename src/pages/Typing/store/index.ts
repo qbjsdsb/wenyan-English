@@ -1,3 +1,5 @@
+import { advanceCommittedWord } from '../checkpoint'
+import type { TypingCheckpointIdentity } from '../checkpoint'
 import type { TypingState, UserInputLog } from './type'
 import type { WordWithIndex } from '@/typings'
 import type { LetterMistakes } from '@/utils/db/record'
@@ -7,6 +9,8 @@ import shuffle from '@/utils/shuffle'
 import { createContext } from 'react'
 
 export const initialState: TypingState = {
+  runId: '',
+  wordExerciseCount: 0,
   chapterData: {
     words: [],
     index: 0,
@@ -14,6 +18,7 @@ export const initialState: TypingState = {
     correctCount: 0,
     wrongCount: 0,
     wordRecordIds: [],
+    completedWordIndexes: [],
     userInputLogs: [],
   },
   timerData: {
@@ -37,6 +42,8 @@ export const initialUserInputLog: UserInputLog = {
 }
 
 export enum TypingStateActionType {
+  RESTORE_CHAPTER = 'RESTORE_CHAPTER',
+  ADVANCE_COMMITTED_WORD = 'ADVANCE_COMMITTED_WORD',
   SETUP_CHAPTER = 'SETUP_CHAPTER',
   SET_IS_SKIP = 'SET_IS_SKIP',
   SET_IS_TYPING = 'SET_IS_TYPING',
@@ -62,7 +69,12 @@ export enum TypingStateActionType {
 }
 
 export type TypingStateAction =
-  | { type: TypingStateActionType.SETUP_CHAPTER; payload: { words: WordWithIndex[]; shouldShuffle: boolean; initialIndex?: number } }
+  | {
+      type: TypingStateActionType.SETUP_CHAPTER
+      payload: { words: WordWithIndex[]; shouldShuffle: boolean; initialIndex?: number; checkpoint?: TypingCheckpointIdentity }
+    }
+  | { type: TypingStateActionType.RESTORE_CHAPTER; payload: TypingState }
+  | { type: TypingStateActionType.ADVANCE_COMMITTED_WORD; loopTimes: number }
   | { type: TypingStateActionType.SET_IS_SKIP; payload: boolean }
   | { type: TypingStateActionType.SET_IS_TYPING; payload: boolean }
   | { type: TypingStateActionType.TOGGLE_IS_TYPING }
@@ -91,8 +103,14 @@ type Dispatch = (action: TypingStateAction) => void
 
 export const typingReducer = (state: TypingState, action: TypingStateAction) => {
   switch (action.type) {
+    case TypingStateActionType.RESTORE_CHAPTER:
+      return { ...action.payload, isTyping: false, isSavingRecord: false, isShowSkip: false }
+    case TypingStateActionType.ADVANCE_COMMITTED_WORD:
+      return advanceCommittedWord(state, action.loopTimes)
     case TypingStateActionType.SETUP_CHAPTER: {
       const newState = structuredClone(initialState)
+      newState.runId = action.payload.checkpoint?.runId ?? crypto.randomUUID()
+      newState.checkpoint = action.payload.checkpoint
       const words = action.payload.shouldShuffle ? shuffle(action.payload.words) : action.payload.words
       let initialIndex = action.payload.initialIndex ?? 0
       if (initialIndex >= words.length) {
@@ -174,6 +192,8 @@ export const typingReducer = (state: TypingState, action: TypingStateAction) => 
     }
     case TypingStateActionType.REPEAT_CHAPTER: {
       const newState = structuredClone(initialState)
+      newState.runId = crypto.randomUUID()
+      newState.checkpoint = state.checkpoint ? { ...state.checkpoint, runId: newState.runId } : undefined
       newState.chapterData.userInputLogs = state.chapterData.words.map((_, index) => ({ ...structuredClone(initialUserInputLog), index }))
       newState.isTyping = true
       newState.chapterData.words = action.shouldShuffle ? shuffle(state.chapterData.words) : state.chapterData.words
@@ -225,4 +245,8 @@ export const typingReducer = (state: TypingState, action: TypingStateAction) => 
   }
 }
 
-export const TypingContext = createContext<{ state: TypingState; dispatch: Dispatch } | null>(null)
+export const TypingContext = createContext<{
+  state: TypingState
+  dispatch: Dispatch
+  restartChapter?: (shouldShuffle: boolean) => Promise<void>
+} | null>(null)

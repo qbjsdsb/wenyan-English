@@ -1,16 +1,4 @@
-import { ignoresStudyKey } from './keyboard'
-import Header from '@/components/Header'
-import Tooltip from '@/components/Tooltip'
-import { idDictionaryMap } from '@/resources/dictionary'
-import { currentChapterAtom, currentDictIdAtom, isReviewModeAtom, randomConfigAtom, reviewModeInfoAtom } from '@/store'
-import { IsDesktop, isLegal } from '@/utils'
-import { useSaveChapterRecord } from '@/utils/db'
-import { useMixPanelChapterLogUploader } from '@/utils/mixpanel'
-import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import type React from 'react'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { useImmerReducer } from 'use-immer'
+import { isValidTypingCheckpoint, typingCheckpointId, typingContentSignature } from './checkpoint'
 import { DictChapterButton } from './components/DictChapterButton'
 import ResultScreen from './components/ResultScreen'
 import Speed from './components/Speed'
@@ -19,11 +7,28 @@ import Switcher from './components/Switcher'
 import WordList from './components/WordList'
 import WordPanel from './components/WordPanel'
 import { useWordList } from './hooks/useWordList'
+import { ignoresStudyKey } from './keyboard'
 import { TypingContext, TypingStateActionType, initialState, typingReducer } from './store'
+import Header from '@/components/Header'
+import Tooltip from '@/components/Tooltip'
+import { idDictionaryMap } from '@/resources/dictionary'
+import { currentChapterAtom, currentDictIdAtom, isReviewModeAtom, randomConfigAtom, reviewModeInfoAtom } from '@/store'
+import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
+import { IsDesktop, isLegal } from '@/utils'
+import { db, useSaveChapterRecord } from '@/utils/db'
+import { useMixPanelChapterLogUploader } from '@/utils/mixpanel'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai'
+import type React from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { useImmerReducer } from 'use-immer'
 
 const App: React.FC = () => {
   const [state, dispatch] = useImmerReducer(typingReducer, structuredClone(initialState))
-  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [preparingChapter, setPreparingChapter] = useState(true)
+  const isLoading = preparingChapter || state.chapterData.words.length === 0
+  const [ownerUserId, setOwnerUserId] = useState(getLocalLearningOwnerId)
+  const [recoveryMessage, setRecoveryMessage] = useState('')
   const { words, fromCache, error: wordListError, retry: retryWordList } = useWordList()
   const [retryingWords, setRetryingWords] = useState(false)
 
@@ -58,6 +63,35 @@ const App: React.FC = () => {
 
   const reviewModeInfo = useAtomValue(reviewModeInfoAtom)
   const isReviewMode = useAtomValue(isReviewModeAtom)
+  const checkpointEnabled = !isReviewMode && !searchParams.has('smartSession') && idDictionaryMap[currentDictId]?.language === 'en'
+  const taskRunId = searchParams.get('taskRun')
+
+  useEffect(() => {
+    const changed = () => {
+      dispatch({ type: TypingStateActionType.SET_IS_TYPING, payload: false })
+      setOwnerUserId(getLocalLearningOwnerId())
+    }
+    window.addEventListener('wenyan-learning-owner-changed', changed)
+    return () => window.removeEventListener('wenyan-learning-owner-changed', changed)
+  }, [dispatch])
+
+  const restartChapter = useCallback(
+    async (shouldShuffle: boolean) => {
+      if (state.isSavingRecord) return
+      setPreparingChapter(true)
+      dispatch({ type: TypingStateActionType.SET_IS_TYPING, payload: false })
+      try {
+        if (state.checkpoint) await db.typingCheckpoints.delete(state.checkpoint.id)
+        setRecoveryMessage('')
+        dispatch({ type: TypingStateActionType.REPEAT_CHAPTER, shouldShuffle })
+      } catch {
+        setRecoveryMessage('暂时无法重新开始。已保存的进度仍在，请检查本机存储后重试。')
+      } finally {
+        setPreparingChapter(false)
+      }
+    },
+    [dispatch, state.isSavingRecord, state.checkpoint],
+  )
 
   useEffect(() => {
     if (!IsDesktop()) {
@@ -85,20 +119,31 @@ const App: React.FC = () => {
       dispatch({ type: TypingStateActionType.SET_IS_TYPING, payload: false })
     }
     window.addEventListener('blur', onBlur)
+    const onVisibility = () => {
+      if (document.hidden) onBlur()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
 
     return () => {
       window.removeEventListener('blur', onBlur)
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [dispatch])
 
   useEffect(() => {
-    state.chapterData.words?.length > 0 ? setIsLoading(false) : setIsLoading(true)
-  }, [state.chapterData.words])
-
-  useEffect(() => {
+    if (['en', 'de', 'romaji'].includes(idDictionaryMap[currentDictId]?.language)) return
     if (!state.isTyping && !state.isFinished && !state.isSavingRecord) {
       const onKeyDown = (e: KeyboardEvent) => {
-        if (!ignoresStudyKey(e) && !isLoading && !wordListError && e.key !== 'Enter' && (isLegal(e.key) || e.key === ' ') && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        if (
+          !ignoresStudyKey(e) &&
+          !isLoading &&
+          !wordListError &&
+          e.key !== 'Enter' &&
+          (isLegal(e.key) || e.key === ' ') &&
+          !e.altKey &&
+          !e.ctrlKey &&
+          !e.metaKey
+        ) {
           e.preventDefault()
           dispatch({ type: TypingStateActionType.SET_IS_TYPING, payload: true })
         }
@@ -107,19 +152,60 @@ const App: React.FC = () => {
 
       return () => window.removeEventListener('keydown', onKeyDown)
     }
-  }, [state.isTyping, state.isFinished, state.isSavingRecord, isLoading, wordListError, dispatch])
+  }, [state.isTyping, state.isFinished, state.isSavingRecord, isLoading, wordListError, dispatch, currentDictId])
 
   useEffect(() => {
-    if (words !== undefined) {
+    if (!words.length) return
+    let active = true
+    setPreparingChapter(true)
+    setRecoveryMessage('')
+    void (async () => {
+      const identity = checkpointEnabled
+        ? {
+            id: typingCheckpointId(ownerUserId, currentDictId, currentChapter, taskRunId),
+            runId: crypto.randomUUID(),
+            ownerUserId,
+            dictId: currentDictId,
+            chapter: currentChapter,
+            taskRunId,
+            contentSignature: typingContentSignature(words),
+          }
+        : undefined
+      if (identity) {
+        try {
+          const saved = await db.typingCheckpoints.get(identity.id)
+          if (saved && isValidTypingCheckpoint(saved, words, ownerUserId)) {
+            const records = await db.wordRecords.bulkGet(saved.state.chapterData.wordRecordIds)
+            if (records.every((record) => record && record.dict === currentDictId && record.chapter === currentChapter)) {
+              if (!active) return
+              dispatch({ type: TypingStateActionType.RESTORE_CHAPTER, payload: saved.state })
+              setRecoveryMessage('已恢复上次保存的位置。未完成的词从头输入，已保存的记录仍然保留。')
+              setPreparingChapter(false)
+              return
+            }
+          }
+          if (saved) {
+            await db.typingCheckpoints.delete(identity.id)
+            if (active) setRecoveryMessage('词库或本机进度发生变化，本章从头开始；之前的学习记录仍然保留。')
+          }
+        } catch {
+          if (active) setRecoveryMessage('暂时无法读取上次的位置。本章从头开始，完成单词后仍会尝试保存。')
+        }
+      }
+      if (!active) return
       const initialIndex = isReviewMode && reviewModeInfo.reviewRecord?.index ? reviewModeInfo.reviewRecord.index : 0
-
       dispatch({
         type: TypingStateActionType.SETUP_CHAPTER,
-        payload: { words, shouldShuffle: randomConfig.isOpen, initialIndex },
+        payload: { words, shouldShuffle: randomConfig.isOpen, initialIndex, checkpoint: identity },
       })
+      setPreparingChapter(false)
+    })()
+    return () => {
+      active = false
     }
+    // Preference changes apply on the next restart, not by resetting live progress.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [words])
+  }, [words, checkpointEnabled, ownerUserId, currentDictId, currentChapter, taskRunId])
 
   useEffect(() => {
     if (!state.isFinished) {
@@ -150,10 +236,14 @@ const App: React.FC = () => {
     <Tooltip content="跳过该词">
       <button
         aria-label="Skip"
+        disabled={state.isSavingRecord}
         className={`${
           state.isShowSkip ? 'opacity-100' : 'pointer-events-none w-0 px-0 opacity-0'
         } rounded-[var(--wenyan-radius-sm)] px-2.5 py-1.5 text-xs text-[var(--wenyan-ink-muted)] transition-all hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]`}
-        onClick={skipWord}
+        onClick={(event) => {
+          skipWord()
+          event.currentTarget.blur()
+        }}
       >
         跳过
       </button>
@@ -161,15 +251,26 @@ const App: React.FC = () => {
   )
 
   return (
-    <TypingContext.Provider value={{ state: state, dispatch }}>
+    <TypingContext.Provider value={{ state, dispatch, restartChapter }}>
       {state.isFinished && chapterSaved && <ResultScreen />}
       {state.isFinished && !chapterSaved && (
         <div className="wenyan-completion-stage fixed inset-0 z-50 grid place-items-center px-6">
           <section className="wenyan-surface w-full max-w-md p-8" aria-label="保存学习记录">
             <h2 className="text-xl font-semibold">这一段练习结束了</h2>
-            {saveError ? <p role="alert" className="mt-4 text-sm leading-6 text-[var(--wenyan-danger)]">{saveError}</p> :
-              <p role="status" className="wenyan-muted mt-4 text-sm">正在把学习记录保存到本机…</p>}
-            {saveError && <button disabled={savingChapter} className="wenyan-button-primary mt-6" onClick={() => void persistChapter()}>重试保存</button>}
+            {saveError ? (
+              <p role="alert" className="mt-4 text-sm leading-6 text-[var(--wenyan-danger)]">
+                {saveError}
+              </p>
+            ) : (
+              <p role="status" className="wenyan-muted mt-4 text-sm">
+                正在把学习记录保存到本机…
+              </p>
+            )}
+            {saveError && (
+              <button disabled={savingChapter} className="wenyan-button-primary mt-6" onClick={() => void persistChapter()}>
+                重试保存
+              </button>
+            )}
           </section>
         </div>
       )}
@@ -178,13 +279,22 @@ const App: React.FC = () => {
         {state.isTyping ? (
           <div className="wenyan-focus-bar">
             <div className="mx-auto flex h-12 w-full max-w-5xl items-center justify-between px-6 text-[11px] text-[var(--wenyan-ink-muted)]">
-              <Link to="/today" aria-label="今日学习" className="wenyan-brand text-[14px] font-semibold no-underline opacity-80 transition-opacity hover:opacity-100">
+              <Link
+                to="/today"
+                aria-label="今日学习"
+                className="wenyan-brand text-[14px] font-semibold no-underline opacity-80 transition-opacity hover:opacity-100"
+              >
                 Wenyan
               </Link>
               <div className="flex items-center gap-2.5">
-                <span>{idDictionaryMap[currentDictId]?.name} · {isReviewMode ? (searchParams.has('smartSession') ? '本段词汇练习' : '错词复习') : `第 ${currentChapter + 1} 章`}</span>
+                <span>
+                  {idDictionaryMap[currentDictId]?.name} ·{' '}
+                  {isReviewMode ? (searchParams.has('smartSession') ? '本段词汇练习' : '错词复习') : `第 ${currentChapter + 1} 章`}
+                </span>
                 {state.chapterData.words.length > 0 && (
-                  <span className="wenyan-mono text-[10px] text-[var(--wenyan-ink-secondary)]">{Math.min(state.chapterData.index + 1, state.chapterData.words.length)} / {state.chapterData.words.length}</span>
+                  <span className="wenyan-mono text-[10px] text-[var(--wenyan-ink-secondary)]">
+                    {Math.min(state.chapterData.index + 1, state.chapterData.words.length)} / {state.chapterData.words.length}
+                  </span>
                 )}
                 <span aria-hidden="true" className="mx-0.5 h-3 w-px bg-[var(--wenyan-line-soft)]" />
                 <WordList inline />
@@ -210,20 +320,44 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {fromCache && !state.isTyping && <p role="status" className="wenyan-muted text-center text-xs">正在使用本机保存的词库，可以继续练习。</p>}
+          {fromCache && !state.isTyping && (
+            <p role="status" className="wenyan-muted text-center text-xs">
+              正在使用本机保存的词库，可以继续练习。
+            </p>
+          )}
+          {!state.isTyping && !isLoading && recoveryMessage && (
+            <p role="status" className="wenyan-recovery-note mx-auto mt-2 max-w-lg text-center text-xs leading-6">
+              {recoveryMessage}
+            </p>
+          )}
           <div className="relative flex flex-1 flex-col items-center">
             <div className="flex min-h-[430px] w-full flex-1 items-center justify-center">
               {wordListError ? (
                 <div role="alert" className="flex max-w-md flex-col items-center gap-4 text-center">
                   <h2 className="text-lg font-medium text-[var(--wenyan-ink)]">词库暂时无法加载</h2>
                   <p className="wenyan-muted text-sm">{wordListError.message}</p>
-                  <button type="button" disabled={retryingWords} className="wenyan-button-secondary" onClick={() => {
-                    setRetryingWords(true)
-                    void retryWordList().catch(() => undefined).finally(() => setRetryingWords(false))
-                  }}>{retryingWords ? '正在重试…' : '重新加载词库'}</button>
+                  <button
+                    type="button"
+                    disabled={retryingWords}
+                    className="wenyan-button-secondary"
+                    onClick={() => {
+                      setRetryingWords(true)
+                      void retryWordList()
+                        .catch(() => undefined)
+                        .finally(() => setRetryingWords(false))
+                    }}
+                  >
+                    {retryingWords ? '正在重试…' : '重新加载词库'}
+                  </button>
                 </div>
               ) : isLoading ? (
-                <div role="status" className="flex flex-col items-center gap-4"><span aria-hidden="true" className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--wenyan-line)] border-r-transparent" /><span className="wenyan-muted text-sm">正在准备这一章的单词…</span></div>
+                <div role="status" className="flex flex-col items-center gap-4">
+                  <span
+                    aria-hidden="true"
+                    className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--wenyan-line)] border-r-transparent"
+                  />
+                  <span className="wenyan-muted text-sm">正在准备这一章的单词…</span>
+                </div>
               ) : (
                 !state.isFinished && <WordPanel />
               )}

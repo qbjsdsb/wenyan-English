@@ -1,12 +1,12 @@
-import { ignoresStudyKey } from '@/pages/Typing/keyboard'
 import { TypingContext, TypingStateActionType } from '../../store'
-import type { TypingState } from '../../store/type'
 import PrevAndNextWord from '../PrevAndNextWord'
 import Progress from '../Progress'
 import Phonetic from './components/Phonetic'
 import Translation from './components/Translation'
 import WordComponent from './components/Word'
 import { usePrefetchPronunciationSound } from '@/hooks/usePronunciation'
+import { advanceCommittedWord } from '@/pages/Typing/checkpoint'
+import { ignoresStudyKey } from '@/pages/Typing/keyboard'
 import { isSmartSessionHardStopReached } from '@/smart-session/runtime'
 import { isReviewModeAtom, isShowPrevAndNextWordAtom, loopWordConfigAtom, phoneticConfigAtom, reviewModeInfoAtom } from '@/store'
 import type { Word } from '@/typings'
@@ -19,8 +19,6 @@ export default function WordPanel() {
   const { state, dispatch } = useContext(TypingContext)!
   const phoneticConfig = useAtomValue(phoneticConfigAtom)
   const isShowPrevAndNextWord = useAtomValue(isShowPrevAndNextWordAtom)
-  const [wordComponentKey, setWordComponentKey] = useState(0)
-  const [currentWordExerciseCount, setCurrentWordExerciseCount] = useState(0)
   const { times: loopWordTimes } = useAtomValue(loopWordConfigAtom)
   const currentWord = state.chapterData.words[state.chapterData.index]
   const nextWord = state.chapterData.words[state.chapterData.index + 1] as Word | undefined
@@ -42,29 +40,13 @@ export default function WordPanel() {
 
   usePrefetchPronunciationSound(nextWord?.name)
 
-  const reloadCurrentWordComponent = useCallback(() => {
-    setWordComponentKey((old) => old + 1)
-  }, [])
-
-  const updateReviewRecord = useCallback(
-    (state: TypingState) => {
-      setReviewModeInfo((old) => ({
-        ...old,
-        reviewRecord: old.reviewRecord ? { ...old.reviewRecord, index: state.chapterData.index } : undefined,
-      }))
-    },
-    [setReviewModeInfo],
-  )
-
   const stopAtHardBoundary = useCallback(
     (nextReviewIndex: number) => {
       if (!smartSessionId || !isSmartSessionHardStopReached(smartSessionId)) return false
       if (isReviewMode) {
         setReviewModeInfo((old) => ({
           ...old,
-          reviewRecord: old.reviewRecord
-            ? { ...old.reviewRecord, index: nextReviewIndex, isFinished: false }
-            : undefined,
+          reviewRecord: old.reviewRecord ? { ...old.reviewRecord, index: nextReviewIndex, isFinished: false } : undefined,
         }))
       }
       dispatch({ type: TypingStateActionType.SET_IS_TYPING, payload: false })
@@ -75,51 +57,22 @@ export default function WordPanel() {
   )
 
   const onFinish = useCallback(() => {
-    const isLastWord = state.chapterData.index >= state.chapterData.words.length - 1
-    const isLastExercise = currentWordExerciseCount >= loopWordTimes - 1
-    const genuinelyFinished = isLastWord && isLastExercise
-
-    if (!genuinelyFinished) {
-      const nextReviewIndex = isLastExercise ? state.chapterData.index + 1 : state.chapterData.index
-      if (stopAtHardBoundary(nextReviewIndex)) return
+    const next = advanceCommittedWord(state, loopWordTimes)
+    if (!next.isFinished && stopAtHardBoundary(next.chapterData.index)) return
+    dispatch({ type: TypingStateActionType.ADVANCE_COMMITTED_WORD, loopTimes: loopWordTimes })
+    if (isReviewMode) {
+      setReviewModeInfo((old) => ({
+        ...old,
+        reviewRecord: old.reviewRecord
+          ? {
+              ...old.reviewRecord,
+              index: next.chapterData.index,
+              isFinished: next.isFinished,
+            }
+          : undefined,
+      }))
     }
-
-    if (!genuinelyFinished) {
-      if (!isLastExercise) {
-        setCurrentWordExerciseCount((old) => old + 1)
-        dispatch({ type: TypingStateActionType.LOOP_CURRENT_WORD })
-        reloadCurrentWordComponent()
-      } else {
-        setCurrentWordExerciseCount(0)
-        if (isReviewMode) {
-          dispatch({
-            type: TypingStateActionType.NEXT_WORD,
-            payload: {
-              updateReviewRecord,
-            },
-          })
-        } else {
-          dispatch({ type: TypingStateActionType.NEXT_WORD })
-        }
-      }
-    } else {
-      dispatch({ type: TypingStateActionType.FINISH_CHAPTER })
-      if (isReviewMode) {
-        setReviewModeInfo((old) => ({ ...old, reviewRecord: old.reviewRecord ? { ...old.reviewRecord, isFinished: true } : undefined }))
-      }
-    }
-  }, [
-    state.chapterData.index,
-    state.chapterData.words.length,
-    currentWordExerciseCount,
-    loopWordTimes,
-    stopAtHardBoundary,
-    dispatch,
-    reloadCurrentWordComponent,
-    isReviewMode,
-    updateReviewRecord,
-    setReviewModeInfo,
-  ])
+  }, [state, loopWordTimes, stopAtHardBoundary, dispatch, isReviewMode, setReviewModeInfo])
 
   const onSkipWord = useCallback(
     (type: 'prev' | 'next') => {
@@ -140,7 +93,7 @@ export default function WordPanel() {
       e.preventDefault()
       onSkipWord('prev')
     },
-    { preventDefault: true },
+    { enabled: state.isTyping, ignoreEventWhen: ignoresStudyKey, preventDefault: true },
   )
 
   useHotkeys(
@@ -149,11 +102,13 @@ export default function WordPanel() {
       e.preventDefault()
       onSkipWord('next')
     },
-    { preventDefault: true },
+    { enabled: state.isTyping, ignoreEventWhen: ignoresStudyKey, preventDefault: true },
   )
   const [isShowTranslation, setIsHoveringTranslation] = useState(false)
 
-  useEffect(() => { if (!state.isTyping) setIsHoveringTranslation(false) }, [state.isTyping])
+  useEffect(() => {
+    if (!state.isTyping) setIsHoveringTranslation(false)
+  }, [state.isTyping])
 
   const handleShowTranslation = useCallback((checked: boolean) => {
     setIsHoveringTranslation(checked)
@@ -193,8 +148,16 @@ export default function WordPanel() {
       <div className="flex w-full flex-grow flex-col items-center justify-center px-8 pt-8">
         {currentWord && (
           <div className="wenyan-fade-in relative flex w-full justify-center">
-            <div className={`relative flex flex-col items-center transition-transform duration-200 ${state.isTyping ? '-translate-y-3' : '-translate-y-1'}`}>
-              <WordComponent word={currentWord} onFinish={onFinish} key={wordComponentKey} />
+            <div
+              className={`relative flex flex-col items-center transition-transform duration-200 ${
+                state.isTyping ? '-translate-y-3' : '-translate-y-1'
+              }`}
+            >
+              <WordComponent
+                word={currentWord}
+                onFinish={onFinish}
+                key={`${state.runId}:${state.chapterData.index}:${state.wordExerciseCount}`}
+              />
               {phoneticConfig.isOpen && <Phonetic word={currentWord} />}
               <Translation
                 trans={currentWord.trans.join('；')}
@@ -204,7 +167,9 @@ export default function WordPanel() {
               />
               {!state.isTyping && (
                 <p className="mt-3 select-none text-center text-[11px] font-medium tracking-[0.02em] text-[var(--wenyan-accent)]">
-                  {state.isSavingRecord ? '先保存当前词，再继续' : `按任意键${state.timerData.time ? '继续' : '开始'}`}
+                  {state.isSavingRecord
+                    ? '先保存当前词，再继续'
+                    : `按任意键${state.chapterData.wordCount || state.timerData.time ? '继续' : '开始'}`}
                 </p>
               )}
             </div>

@@ -120,3 +120,12 @@ Content identity is dictionary + normalized surface, independent of array ordina
 Dexie v7 adds semanticRuns without touching legacy tables. Reveal is persisted before rendering; fact and run cursor commit in one transaction. Failed storage leaves the current item in place. Only all real ratings finish a run; stopping sets runtime endedAt and does not synthesize completion. The existing owner-scoped sync queue ingests v4 facts. Restore validates measurement fields before moving the cursor. Old clients encountering v4 stop restoration and require update; do not silently skip new facts. Existing chapter Cloud Plan completion rules remain unchanged.
 
 Future domain events should reuse the envelope, owner/sync/idempotency, session/plan references and versioned content identity. Keep separately typed domain payloads: neither an essay nor a literary concept belongs in WordAttemptedPayload. Do not retrofit historical rows or assign missing domain semantics by guesswork.
+
+
+## Device-local vocabulary checkpoint (Dexie v8, PR #56)
+
+`typingCheckpoints: &id,updatedAt` is mutable execution state, not a learning event and not part of cloud sync. Key = JSON tuple `[ownerUserId|null, dictionaryId, chapter, taskRunId|null]`; each attempt has a fresh runId. Exact content signature covers ordered source indices, names, reference meanings, phonetics and notation; the stored presentation order is preserved and validated against that source. Ordinary English chapters only; Smart Session and review retain their existing resume mechanisms.
+
+The word record, immutable word fact and post-commit checkpoint share one Dexie transaction. Stored state carries committed record IDs, distinct practised indices and repetition count. Partial current-word input is deliberately not restored. Timer restores to the last committed boundary, not wall time. Restore checks owner/content/order/counters and referenced records; a changed source discards only the invalid cursor, never past facts. Restored state starts paused.
+
+A genuinely completed normal chapter clears its checkpoint in the same transaction as the chapter record/fact. A normal chapter ended through skips without practising every item does not produce a chapter completion; saved word attempts remain. Restart clears only execution state. Pending final-word checkpoint allows a failed chapter commit to recover after refresh without replaying word facts. This adds no Supabase schema, new sync payload or AI write capability.

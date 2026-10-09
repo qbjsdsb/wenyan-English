@@ -1,3 +1,4 @@
+import type { TypingCheckpointIdentity } from '../checkpoint'
 import type { WordWithIndex } from '@/typings'
 import type { LetterMistakes } from '@/utils/db/record'
 
@@ -16,6 +17,7 @@ export type ChapterData = {
   userInputLogs: UserInputLog[]
   // 本章节用户输入的单词的 record id 列表
   wordRecordIds: number[]
+  completedWordIndexes: number[]
 }
 
 export type UserInputLog = {
@@ -42,6 +44,9 @@ export type WrongWordData = {
 }
 
 export type TypingState = {
+  runId: string
+  checkpoint?: TypingCheckpointIdentity
+  wordExerciseCount: number
   chapterData: ChapterData
   timerData: TimerData
   isTyping: boolean
