@@ -1,21 +1,23 @@
 # 当前状态 / 续接入口
 
-更新：2026-10-09。
+更新：2026-10-10。
 
 本页只保留 **当前已核实的生产事实、不可破坏边界和下一步缺口**。历史阶段、旧 SHA、旧 PR 状态请看 Git history 与对应专题文档；不要把下方内容与旧聊天记忆混用。
 
-## 当前分支：练习连续性（PR #58）
+## 练习连续性（PR #58，已合并并部署）
 
 - **Implemented**：记住专项模式/词组/数量；未完成练习统一展示、继续、结束；结束保留事实且不虚构完成。词义练习返回保留原选择，单段结果不再被 14 天窗口截断，近期统计窗口保持不变。
 - **Recovery**：专项拼写进入前读取 IndexedDB 权威游标，避免异常刷新重练已保存词；界面缓存不能覆盖该游标；已结束练习拒绝新的提交。旧错词复习不再误接管专项练习。
 - **Tested**：类型检查、定向 lint 无错误；3 条关键浏览器路径通过，覆盖旧结果窗口、选择保留、结束保留事实、正常/异常缓存刷新恢复。首次异常缓存测试误走普通章节入口，修正 fixture 为专项错词后单独通过；没有因此反复跑全套。
-- **Merged / deployed**：尚未；生产基线仍见下节。没有数据库迁移、MCP 合同或生产后端变更。
+- **Merged / deployed**：PR #58 已 squash merge 为 `6d9c755bcbcfde3de13a2202e4c30dbec0a7e4f8`。PR head CI #259 success；main CI #260（run `37962039997`）success；GitHub Pages run `37962040059` build + deploy success，部署源码为同一 `6d9c755…`。
+- **Backend**：没有数据库迁移、MCP 合同或生产后端变更；生产 Edge Function 继续保持 v15。
 - **Limits**：进度恢复仍为本机；没有新增训练模式；真实用户验证待完成。
 
 ## 生产基线
 
 - 仓库：`qbjsdsb/wenyan-English`
-- 前端生产代码基线：`d47fe246a1034d5d2720294d14ce0f3711257129`
+- 前端生产代码基线：`6d9c755bcbcfde3de13a2202e4c30dbec0a7e4f8`
+  - PR #58 `Make vocabulary practice resume naturally`，专项训练连续性 / 恢复收口
   - PR #57 `Make vocabulary training discoverable and connected to learning evidence`，专项训练闭环
   - PR #56 `Make daily vocabulary practice recoverable and calmer`，合并 `39bcdf7`，最后仅指标文案/文档收口 `982cba3`
   - PR #54 `Add objective semantic evidence v1`
@@ -26,15 +28,16 @@
 - #54 + #55 重放后的 PR CI #248：success
 - 上一生产基线 main CI #249：success
 - PR #56 CI #251：完整 success；新生产基线的自动 main CI 另见 run `37927645884`
-- GitHub Pages：最新部署 run `37941059141`，build + deploy success，源码 `d47fe24`；此前 run `37927645763` 对应 `982cba3`
+- PR #58 head CI #259：success；main CI #260（run `37962039997`）：success
+- GitHub Pages：最新部署 run `37962040059`，build + deploy success，源码 `6d9c755`；此前 run `37941059141` 对应 `d47fe24`
 - Supabase：`cmjhxvpkdeheujuteqoi`
 - 生产 Edge Function：`wenyan-english-mcp` **v15 ACTIVE**
 - MCP server contract 仍为 0.8.x；Coaching Context：`coaching-context-v1.5`
 - `verify_jwt=false` 仍为有意配置：Edge Function 自己校验 Supabase OAuth JWT 的 JWKS / issuer / audience / session / client / authenticated identity；这不代表匿名开放。
-- v15 部署固定到其部署时不可变源码 `3b20da3…`；PR #56 未改动 MCP/Edge Function 源码，前端本机恢复不要求重新部署后端。CI 同时生成 `ci-artifacts/wenyan-mcp-deploy.json`，其中包含完整 13 文件函数依赖闭包，作为后续完整源码部署的可复现产物。
+- v15 部署固定到其部署时不可变源码 `3b20da3…`；PR #56 / #57 / #58 未改动 MCP/Edge Function 源码，前端本机恢复与专项连续性不要求重新部署后端。CI 同时生成 `ci-artifacts/wenyan-mcp-deploy.json`，其中包含完整 13 文件函数依赖闭包，作为后续完整源码部署的可复现产物。
 - v15 上线后，OAuth protected-resource discovery 已实时返回 HTTP 200，并报告正确 resource、Supabase Auth issuer、`openid` scope。
 
-本页之后如再出现 docs-only closure commit，前端运行时代码基线仍以上述 `d47fe24…` 为准，后端源码仍为 `3b20da3…`，除非新的功能提交明确更新本节。
+本页之后如再出现 docs-only closure commit，前端运行时代码基线仍以上述 `6d9c755…` 为准，后端源码仍为 `3b20da3…`，除非新的功能提交明确更新本节。
 
 ## 2026-10-09 vocabulary focus / recovery（PR #56）
 
