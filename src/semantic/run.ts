@@ -1,8 +1,11 @@
 import type { SmartSessionRuntime } from '../smart-session/runtime'
+import type { SemanticDiscriminationQuestion } from './discrimination'
 import type { SemanticItem } from './core'
 
 export interface SemanticRun {
   id: string
+  /** Existing rows omit mode and are recall runs. */
+  mode?: 'recall' | 'discrimination'
   sessionCheckpoint?: SmartSessionRuntime
   ownerUserId?: string
   sessionId: string
@@ -10,6 +13,7 @@ export interface SemanticRun {
   startedAt: number
   hardStopAt?: number
   items: SemanticItem[]
+  discriminationQuestions?: SemanticDiscriminationQuestion[]
   index: number
   revealedIndex?: number
   completedAt?: number

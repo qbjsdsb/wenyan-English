@@ -52,6 +52,59 @@ test('Today selects semantic recall, preserves reveal on reload, and writes only
   expect(result.runs[0].index).toBe(1)
 })
 
+test('completed recall can create an objectively scored reference-discrimination fact', async ({ page }) => {
+  const words = [
+    { name: 'alpha', trans: ['阿尔法，开端'], usphone: '', ukphone: '' },
+    { name: 'beta', trans: ['贝塔，第二'], usphone: '', ukphone: '' },
+    { name: 'gamma', trans: ['伽马，第三'], usphone: '', ukphone: '' },
+    { name: 'delta', trans: ['德尔塔，变化量'], usphone: '', ukphone: '' },
+  ]
+  await page.unroute('**/dicts/CET4_T.json')
+  await page.route('**/dicts/CET4_T.json', (route) => route.fulfill({ json: words }))
+  await page.goto('/today')
+  await page.addScriptTag({ type: 'module', content: `
+    import { db } from '/src/utils/db/index.ts'
+    import { createLearningEvent } from '/src/learning/types.ts'
+    for (const word of ['alpha', 'beta', 'gamma', 'delta']) {
+      await db.learningEvents.add(createLearningEvent('word_attempted', {
+        word, dict: 'cet4', chapter: 0, reviewMode: false, wrongCount: 0, durationMs: 100, timing: [], mistakes: {}
+      }))
+    }
+    window.__objectiveSemanticSeeded = true
+  ` })
+  await page.waitForFunction(() => (window as unknown as { __objectiveSemanticSeeded: boolean }).__objectiveSemanticSeeded)
+  await page.reload()
+  await expect(page.getByText('回想 4 个熟悉单词的词义')).toBeVisible()
+  await page.getByRole('button', { name: '开始学习', exact: true }).click()
+  for (let index = 0; index < 4; index += 1) {
+    await page.getByRole('button', { name: /查看释义/ }).click()
+    await page.getByRole('button', { name: '3 想起了' }).click()
+  }
+  await expect(page.getByRole('button', { name: '开始辨认' })).toBeVisible()
+  await page.getByRole('button', { name: '开始辨认' }).click()
+  await expect(page).toHaveURL(/\/semantic-check\//)
+  await expect(page.getByRole('heading', { name: 'alpha' })).toBeVisible()
+  await page.getByRole('button', { name: /阿尔法，开端/ }).click()
+  await expect(page.getByText('选择正确')).toBeVisible()
+  await page.addScriptTag({ type: 'module', content: `
+    import { db } from '/src/utils/db/index.ts'
+    const facts = await db.learningEvents.where('eventType').equals('semantic_discrimination_attempted').toArray()
+    const runs = await db.semanticRuns.toArray()
+    window.__objectiveSemanticResult = { facts, runs }
+  ` })
+  await page.waitForFunction(() => !!(window as unknown as { __objectiveSemanticResult: unknown }).__objectiveSemanticResult)
+  const result = await page.evaluate(() => (window as unknown as { __objectiveSemanticResult: {
+    facts: { sourceVersion: number; payload: { measurement: string; isCorrect: boolean; options: unknown[] } }[]
+    runs: { mode?: string; index: number }[]
+  } }).__objectiveSemanticResult)
+  expect(result.facts).toHaveLength(1)
+  expect(result.facts[0].sourceVersion).toBe(5)
+  expect(result.facts[0].payload.measurement).toBe('reference_meaning_discrimination')
+  expect(result.facts[0].payload.isCorrect).toBe(true)
+  expect(result.facts[0].payload.options).toHaveLength(4)
+  expect(result.runs.some((run) => run.mode === 'discrimination' && run.index === 1)).toBe(true)
+})
+
 test('failed local commit preserves progress; another owner cannot read or rate the run', async ({ page }) => {
   await page.goto('/today')
   await page.addScriptTag({ type: 'module', content: `

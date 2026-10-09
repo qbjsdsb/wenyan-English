@@ -89,3 +89,60 @@ test('new learning events inherit only the locally authenticated owner marker', 
   expect(result.anonymous).toBeNull()
   expect(result.owned).toBe('user-a')
 })
+
+test('sourceVersion 5 objective semantic facts restore through the cloud-pull parser', async ({ page }) => {
+  await page.route('**/*.supabase.co/**', (route) => route.abort())
+  await page.goto('/today')
+
+  await page.addScriptTag({
+    type: 'module',
+    content: `
+      import { db } from '/src/utils/db/index.ts'
+      import { storePulledLearningEventPage } from '/src/sync/pullLearningEvents.ts'
+
+      await db.learningEvents.clear()
+      await db.learningSyncCursors.clear()
+      const versions = ['1', '2', '3', '4'].map((digit) => 'sha256:' + digit.repeat(64))
+      const row = {
+        id: '55555555-5555-4555-8555-555555555555',
+        event_type: 'semantic_discrimination_attempted',
+        occurred_at: '2026-10-09T00:00:00.000Z',
+        created_at: '2026-10-09T00:00:01.000Z',
+        source: 'wenyan-english',
+        source_version: 5,
+        payload: {
+          domain: 'english', activity: 'semantic_discrimination', measurement: 'reference_meaning_discrimination', direction: 'en_to_meaning',
+          contentId: 'semantic:cet4:alpha', contentVersion: versions[0], dictionaryId: 'cet4', word: 'alpha',
+          sessionId: 'session', blockId: 'block', cue: 'word_only', responseMode: 'single_choice',
+          options: ['alpha', 'beta', 'gamma', 'delta'].map((word, index) => ({ contentId: 'semantic:cet4:' + word, contentVersion: versions[index] })),
+          selectedContentId: 'semantic:cet4:alpha', correctContentId: 'semantic:cet4:alpha', isCorrect: true,
+        },
+      }
+      const inserted = await storePulledLearningEventPage('user-a', [row])
+      const stored = await db.learningEvents.get(row.id)
+      const cursor = await db.learningSyncCursors.get('user-a')
+      window.__objectivePullResult = {
+        inserted,
+        eventType: stored?.eventType,
+        sourceVersion: stored?.sourceVersion,
+        owner: stored?.ownerUserId,
+        syncState: stored?.syncState,
+        measurement: stored?.payload?.measurement,
+        isCorrect: stored?.payload?.isCorrect,
+        cursorEventId: cursor?.eventId,
+      }
+    `,
+  })
+
+  const result = (await waitForResult(page, '__objectivePullResult')) as Record<string, unknown>
+  expect(result).toEqual({
+    inserted: 1,
+    eventType: 'semantic_discrimination_attempted',
+    sourceVersion: 5,
+    owner: 'user-a',
+    syncState: 'synced',
+    measurement: 'reference_meaning_discrimination',
+    isCorrect: true,
+    cursorEventId: '55555555-5555-4555-8555-555555555555',
+  })
+})
