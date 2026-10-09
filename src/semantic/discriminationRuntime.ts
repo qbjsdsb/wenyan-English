@@ -47,11 +47,13 @@ export async function loadSemanticDiscriminationRun(id: string) {
 export async function saveSemanticDiscriminationAnswer(id: string, index: number, selectedContentId: string) {
   return db.transaction('rw', db.semanticRuns, db.learningEvents, async () => {
     const run = await loadSemanticDiscriminationRun(id)
+    const questions = run.discriminationQuestions
+    if (!questions) throw new Error('题目已经不可用。')
     if (run.index !== index || run.completedAt !== undefined || run.endedAt !== undefined) {
       throw new Error('进度已改变，请重新打开这一段。')
     }
     if (run.hardStopAt !== undefined && Date.now() >= run.hardStopAt) throw new Error('本次学习已到时间上限。')
-    const question = run.discriminationQuestions?.[index]
+    const question = questions[index]
     if (!question) throw new Error('题目已经不可用。')
     if (!question.options.some((option) => option.contentId === selectedContentId)) throw new Error('所选释义不在当前题目中。')
 
@@ -80,7 +82,7 @@ export async function saveSemanticDiscriminationAnswer(id: string, index: number
     const next: SemanticRun = {
       ...run,
       index: index + 1,
-      completedAt: index + 1 === run.discriminationQuestions.length ? fact.occurredAt : undefined,
+      completedAt: index + 1 === questions.length ? fact.occurredAt : undefined,
     }
     await db.semanticRuns.put(next)
     return { run: next, payload }
