@@ -10,16 +10,21 @@ import {
   reviewModeInfoAtom,
   wordDictationConfigAtom,
 } from '@/store'
-import { Transition } from '@headlessui/react'
+import { db } from '@/utils/db'
+import { ReviewRecord } from '@/utils/db/record'
+import { Dialog, Transition } from '@headlessui/react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { useCallback, useContext, useEffect, useMemo } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import IexportWords from '~icons/icon-park-outline/excel'
 import IconX from '~icons/tabler/x'
 
 const ResultScreen = () => {
-  const { state, dispatch } = useContext(TypingContext)!
+  const { state, dispatch, restartChapter } = useContext(TypingContext)!
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [startingReview, setStartingReview] = useState(false)
+  const [reviewError, setReviewError] = useState('')
   const setWordDictationConfig = useSetAtom(wordDictationConfigAtom)
   const currentDictInfo = useAtomValue(currentDictInfoAtom)
   const [currentChapter, setCurrentChapter] = useAtom(currentChapterAtom)
@@ -69,6 +74,11 @@ const ResultScreen = () => {
   }, [state.chapterData.userInputLogs, state.chapterData.words])
 
   const isLastChapter = useMemo(() => currentChapter >= currentDictInfo.chapterCount - 1, [currentChapter, currentDictInfo])
+  const practisedCount = state.chapterData.completedWordIndexes.length
+  const unpractisedCount = state.chapterData.words.length - practisedCount
+  const firstTryCorrect = state.chapterData.completedWordIndexes.filter(
+    (index) => state.chapterData.userInputLogs[index]?.wrongCount === 0,
+  ).length
 
   const timeString = useMemo(() => {
     const seconds = state.timerData.time
@@ -82,14 +92,16 @@ const ResultScreen = () => {
   const repeatButtonHandler = useCallback(async () => {
     if (isReviewMode) return
     setWordDictationConfig((old) => (old.isOpen && old.openBy === 'auto' ? { ...old, isOpen: false } : old))
-    dispatch({ type: TypingStateActionType.REPEAT_CHAPTER, shouldShuffle: randomConfig.isOpen })
-  }, [isReviewMode, setWordDictationConfig, dispatch, randomConfig.isOpen])
+    if (restartChapter) await restartChapter(randomConfig.isOpen)
+    else dispatch({ type: TypingStateActionType.REPEAT_CHAPTER, shouldShuffle: randomConfig.isOpen })
+  }, [isReviewMode, setWordDictationConfig, dispatch, randomConfig.isOpen, restartChapter])
 
   const dictationButtonHandler = useCallback(async () => {
     if (isReviewMode) return
     setWordDictationConfig((old) => ({ ...old, isOpen: true, openBy: 'auto' }))
-    dispatch({ type: TypingStateActionType.REPEAT_CHAPTER, shouldShuffle: randomConfig.isOpen })
-  }, [isReviewMode, setWordDictationConfig, dispatch, randomConfig.isOpen])
+    if (restartChapter) await restartChapter(randomConfig.isOpen)
+    else dispatch({ type: TypingStateActionType.REPEAT_CHAPTER, shouldShuffle: randomConfig.isOpen })
+  }, [isReviewMode, setWordDictationConfig, dispatch, randomConfig.isOpen, restartChapter])
 
   const nextButtonHandler = useCallback(() => {
     if (isReviewMode) return
@@ -100,14 +112,25 @@ const ResultScreen = () => {
     }
   }, [dispatch, isLastChapter, isReviewMode, setCurrentChapter, setWordDictationConfig])
 
-  const exitButtonHandler = useCallback(() => {
-    if (isReviewMode) {
-      setCurrentChapter(0)
-      setReviewModeInfo((old) => ({ ...old, isReviewMode: false }))
-    } else {
-      dispatch({ type: TypingStateActionType.REPEAT_CHAPTER, shouldShuffle: false })
+  const returnToday = useCallback(() => {
+    if (isReviewMode) setReviewModeInfo({ isReviewMode: false, reviewRecord: undefined })
+    navigate('/today')
+  }, [isReviewMode, setReviewModeInfo, navigate])
+
+  const reviewWrongWords = async () => {
+    if (startingReview) return
+    setStartingReview(true)
+    setReviewError('')
+    try {
+      const reviewRecord = new ReviewRecord(currentDictInfo.id, wrongWords)
+      reviewRecord.id = await db.reviewRecords.add(reviewRecord)
+      setReviewModeInfo({ isReviewMode: true, reviewRecord })
+      navigate('/')
+    } catch {
+      setReviewError('暂时无法准备错词练习，原有记录仍然保留。请重试。')
+      setStartingReview(false)
     }
-  }, [dispatch, isReviewMode, setCurrentChapter, setReviewModeInfo])
+  }
 
   const onNavigateToGallery = useCallback(() => {
     setCurrentChapter(0)
@@ -115,17 +138,41 @@ const ResultScreen = () => {
     navigate('/gallery')
   }, [navigate, setCurrentChapter, setReviewModeInfo])
 
-  useHotkeys('enter', nextButtonHandler, { preventDefault: true })
-  useHotkeys('space', (event) => {
-    event.stopPropagation()
-    repeatButtonHandler()
-  }, { preventDefault: true })
-  useHotkeys('shift+enter', dictationButtonHandler, { preventDefault: true })
+  const ignoresResultKey = (event: KeyboardEvent) =>
+    event.isComposing ||
+    event.repeat ||
+    !(event.target instanceof HTMLElement) ||
+    !panelRef.current?.contains(event.target) ||
+    Boolean(event.target.closest('button, a, input, textarea, select, [contenteditable="true"]'))
+  useHotkeys(
+    'enter',
+    () => {
+      if (isReviewMode || isLastChapter) returnToday()
+      else nextButtonHandler()
+    },
+    { ignoreEventWhen: ignoresResultKey, preventDefault: true },
+  )
+  useHotkeys(
+    'space',
+    (event) => {
+      event.stopPropagation()
+      repeatButtonHandler()
+    },
+    { ignoreEventWhen: ignoresResultKey, preventDefault: true },
+  )
+  useHotkeys('shift+enter', dictationButtonHandler, { ignoreEventWhen: ignoresResultKey, preventDefault: true })
 
-  const title = `${currentDictInfo.name} · ${isReviewMode ? (searchParams.has('smartSession') ? '本段词汇练习' : '错词复习') : `第 ${currentChapter + 1} 章`}`
+  const title = `${currentDictInfo.name} · ${
+    isReviewMode ? (searchParams.has('smartSession') ? '本段词汇练习' : '错词复习') : `第 ${currentChapter + 1} 章`
+  }`
 
   return (
-    <div className="wenyan-completion-stage fixed inset-0 z-50 overflow-y-auto px-6 py-8 backdrop-blur-[3px]">
+    <Dialog
+      open
+      initialFocus={panelRef}
+      onClose={returnToday}
+      className="wenyan-completion-stage fixed inset-0 z-50 overflow-y-auto px-6 py-8 backdrop-blur-[3px]"
+    >
       <Transition
         appear
         show
@@ -134,20 +181,25 @@ const ResultScreen = () => {
         enterTo="opacity-100 translate-y-0 scale-100"
       >
         <div className="flex min-h-full items-center justify-center">
-          <section className="wenyan-surface relative w-full max-w-3xl overflow-hidden p-0">
+          <Dialog.Panel ref={panelRef} tabIndex={-1} className="wenyan-surface relative w-full max-w-3xl overflow-hidden p-0 outline-none">
             <div className="flex items-start justify-between gap-6 border-b border-[var(--wenyan-line-soft)] px-7 py-6">
               <div>
-                <p className="wenyan-muted text-[10px]">本次学习完成 · 记录已保存在本机</p>
-                <h2 className="mt-1 text-[18px] font-semibold tracking-[-0.02em] text-[var(--wenyan-ink)]">{title}</h2>
-                {wrongWords.length === 0 && (
-                  <p className="mt-2 text-[11px] text-[var(--wenyan-success)]">表现不错！全对了！</p>
+                <p className="wenyan-muted text-xs">{unpractisedCount ? '本段练习结束' : '本次学习完成'} · 记录已保存在本机</p>
+                <Dialog.Title as="h2" className="mt-1 text-[18px] font-semibold tracking-[-0.02em] text-[var(--wenyan-ink)]">
+                  {title}
+                </Dialog.Title>
+                {wrongWords.length === 0 && practisedCount > 0 && (
+                  <p className="mt-2 text-xs text-[var(--wenyan-success)]">本次已练的词没有出现拼写错误。</p>
+                )}
+                {unpractisedCount > 0 && (
+                  <p className="wenyan-muted mt-2 text-xs">{unpractisedCount} 个词尚未完成输入，可以再练一遍补上。</p>
                 )}
               </div>
               <button
                 type="button"
                 aria-label="关闭结果页"
                 className="grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] text-[var(--wenyan-ink-muted)] hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]"
-                onClick={exitButtonHandler}
+                onClick={returnToday}
               >
                 <IconX className="h-4 w-4" />
               </button>
@@ -155,9 +207,9 @@ const ResultScreen = () => {
 
             <div className="grid grid-cols-3 divide-x divide-[var(--wenyan-line-soft)] border-b border-[var(--wenyan-line-soft)] px-7 py-5">
               {[
-                [`${state.timerData.accuracy}%`, '正确率'],
+                [`${practisedCount} / ${state.chapterData.words.length}`, '已练单词'],
+                [`${firstTryCorrect} / ${practisedCount}`, '拼写无错'],
                 [timeString, '用时'],
-                [String(state.timerData.wpm), 'WPM'],
               ].map(([value, label]) => (
                 <div key={label} className="text-center">
                   <div className="text-[22px] font-semibold tabular-nums tracking-[-0.02em] text-[var(--wenyan-ink)]">{value}</div>
@@ -167,10 +219,15 @@ const ResultScreen = () => {
             </div>
 
             <div className="px-7 py-6">
+              <p className="wenyan-muted mb-5 text-xs leading-6">
+                拼写无错只描述本次输入；是否理解词义，还需要单独回想。输入准确率 {state.timerData.accuracy}% · {state.timerData.wpm} 词/分钟
+              </p>
               <div className="mb-3 flex items-center justify-between gap-4">
                 <div>
                   <h3 className="text-sm font-semibold text-[var(--wenyan-ink)]">错词</h3>
-                  <p className="wenyan-muted mt-1 text-[10px]">{wrongWords.length ? `${wrongWords.length} 个词需要再看一眼` : '本章没有错词'}</p>
+                  <p className="wenyan-muted mt-1 text-xs">
+                    {wrongWords.length ? `${wrongWords.length} 个词出现过拼写错误` : '本段没有拼写错词'}
+                  </p>
                 </div>
                 {!isReviewMode && (
                   <div className="flex items-center gap-2 text-[var(--wenyan-ink-muted)]">
@@ -191,7 +248,7 @@ const ResultScreen = () => {
 
               <div className="min-h-[92px] rounded-[var(--wenyan-radius-md)] bg-[var(--wenyan-paper-muted)] p-4">
                 {wrongWords.length ? (
-                  <div className="flex max-h-40 flex-wrap content-start gap-2 overflow-y-auto customized-scrollbar">
+                  <div className="customized-scrollbar flex max-h-40 flex-wrap content-start gap-2 overflow-y-auto">
                     {wrongWords.map((word, index) => (
                       <WordChip key={`${index}-${word.name}`} word={word} />
                     ))}
@@ -201,32 +258,57 @@ const ResultScreen = () => {
                 )}
               </div>
             </div>
+            {reviewError && (
+              <p role="alert" className="px-7 pb-4 text-sm text-[var(--wenyan-danger)]">
+                {reviewError}
+              </p>
+            )}
 
             <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--wenyan-line-soft)] px-7 py-4">
-              <button type="button" aria-label="返回今日学习" className="wenyan-button-secondary" onClick={() => navigate('/today')}>返回今天</button>
+              <button type="button" aria-label="返回今日学习" className="wenyan-button-secondary" onClick={returnToday}>
+                返回今天
+              </button>
               {!isReviewMode && (
                 <>
                   <Tooltip content="快捷键：Shift + Enter">
-                    <button aria-label="默写本章节" className="wenyan-button-secondary" type="button" onClick={dictationButtonHandler}>默写本章</button>
+                    <button aria-label="默写本章节" className="wenyan-button-secondary" type="button" onClick={dictationButtonHandler}>
+                      默写本章
+                    </button>
                   </Tooltip>
                   <Tooltip content="快捷键：Space">
-                    <button aria-label="重复本章节" className="wenyan-button-secondary" type="button" onClick={repeatButtonHandler}>再练一遍</button>
+                    <button aria-label="重复本章节" className="wenyan-button-secondary" type="button" onClick={repeatButtonHandler}>
+                      再练一遍
+                    </button>
                   </Tooltip>
                 </>
               )}
               {!isLastChapter && !isReviewMode && (
                 <Tooltip content="快捷键：Enter">
-                  <button aria-label="下一章节" className="wenyan-button-primary" type="button" onClick={nextButtonHandler}>下一章</button>
+                  <button
+                    aria-label="下一章节"
+                    className={wrongWords.length && !searchParams.has('smartSession') ? 'wenyan-button-secondary' : 'wenyan-button-primary'}
+                    type="button"
+                    onClick={nextButtonHandler}
+                  >
+                    下一章
+                  </button>
                 </Tooltip>
               )}
+              {wrongWords.length > 0 && !searchParams.has('smartSession') && (
+                <button disabled={startingReview} type="button" className="wenyan-button-primary" onClick={() => void reviewWrongWords()}>
+                  {startingReview ? '正在准备…' : `只练这 ${wrongWords.length} 个错词`}
+                </button>
+              )}
               {isReviewMode && (
-                <button aria-label="练习其他章节" className="wenyan-button-primary" type="button" onClick={onNavigateToGallery}>选择其他章节</button>
+                <button aria-label="练习其他章节" className="wenyan-button-primary" type="button" onClick={onNavigateToGallery}>
+                  选择其他章节
+                </button>
               )}
             </div>
-          </section>
+          </Dialog.Panel>
         </div>
       </Transition>
-    </div>
+    </Dialog>
   )
 }
 

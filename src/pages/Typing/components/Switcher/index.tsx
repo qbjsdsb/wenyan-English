@@ -1,3 +1,4 @@
+import { ignoresStudyKey } from '../../keyboard'
 import { TypingContext, TypingStateActionType } from '../../store'
 import AnalysisButton from '../AnalysisButton'
 import ErrorBookButton from '../ErrorBookButton'
@@ -23,19 +24,16 @@ export default function Switcher() {
     if (dispatch) dispatch({ type: TypingStateActionType.TOGGLE_TRANS_VISIBLE })
   }
 
-  useHotkeys(
-    'ctrl+shift+v',
-    () => changeTransVisibleState(),
-    { enableOnFormTags: true, preventDefault: true },
-    [],
-  )
+  useHotkeys('ctrl+shift+v', () => changeTransVisibleState(), { ignoreEventWhen: ignoresStudyKey, preventDefault: true }, [])
 
   return (
     <Popover className="relative">
       {({ open }) => (
         <>
           <Popover.Button
-            className={`${open ? 'bg-[var(--wenyan-paper-muted)] text-[var(--wenyan-ink)]' : ''} wenyan-button-secondary inline-flex items-center gap-2 !px-3.5`}
+            className={`${
+              open ? 'bg-[var(--wenyan-paper-muted)] text-[var(--wenyan-ink)]' : ''
+            } wenyan-button-secondary inline-flex items-center gap-2 !px-3.5`}
           >
             <SlidersHorizontal aria-hidden="true" size={14} strokeWidth={1.75} />
             <span>学习设置</span>
@@ -58,16 +56,26 @@ export default function Switcher() {
 
               <div className="mb-3 flex items-center justify-between border-b border-[var(--wenyan-line-soft)] pb-3">
                 <span className="wenyan-muted text-xs">发音与音标</span>
-                <div className="wenyan-study-settings"><PronunciationSwitcher /></div>
+                <div className="wenyan-study-settings">
+                  <PronunciationSwitcher />
+                </div>
               </div>
 
               <div className="wenyan-study-settings grid grid-cols-4 gap-2 rounded-[var(--wenyan-radius-md)] bg-[var(--wenyan-paper-muted)] p-2">
-                <Tooltip content="音效设置"><SoundSwitcher /></Tooltip>
-                <Tooltip content="设置单个单词循环"><LoopWordSwitcher /></Tooltip>
-                <Tooltip content={`开关默写模式（${CTRL} + V）`}><WordDictationSwitcher /></Tooltip>
+                <Tooltip content="音效设置">
+                  <SoundSwitcher />
+                </Tooltip>
+                <Tooltip content="设置单个单词循环">
+                  <LoopWordSwitcher />
+                </Tooltip>
+                <Tooltip content={`开关默写模式（${CTRL} + V）`}>
+                  <WordDictationSwitcher />
+                </Tooltip>
                 <Tooltip content={`开关释义显示（${CTRL} + Shift + V）`}>
                   <button
-                    className={`${state?.isTransVisible ? 'text-[var(--wenyan-accent)]' : 'text-[var(--wenyan-ink-muted)]'} grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors hover:bg-[var(--wenyan-paper-raised)] hover:text-[var(--wenyan-ink)]`}
+                    className={`${
+                      state?.isTransVisible ? 'text-[var(--wenyan-accent)]' : 'text-[var(--wenyan-ink-muted)]'
+                    } grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors hover:bg-[var(--wenyan-paper-raised)] hover:text-[var(--wenyan-ink)]`}
                     type="button"
                     onClick={(e) => {
                       changeTransVisibleState()
@@ -78,10 +86,18 @@ export default function Switcher() {
                     {state?.isTransVisible ? <IconLanguage /> : <IconLanguageOff />}
                   </button>
                 </Tooltip>
-                <Tooltip content="错词本"><ErrorBookButton /></Tooltip>
-                <Tooltip content="查看数据统计"><AnalysisButton /></Tooltip>
-                <Tooltip content="指法图示"><HandPositionIllustration /></Tooltip>
-                <Tooltip content="更多设置"><Setting /></Tooltip>
+                <Tooltip content="错词本">
+                  <ErrorBookButton />
+                </Tooltip>
+                <Tooltip content="查看数据统计">
+                  <AnalysisButton />
+                </Tooltip>
+                <Tooltip content="指法图示">
+                  <HandPositionIllustration />
+                </Tooltip>
+                <Tooltip content="更多设置">
+                  <Setting />
+                </Tooltip>
               </div>
             </Popover.Panel>
           </Transition>

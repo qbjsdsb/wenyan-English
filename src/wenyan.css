@@ -564,3 +564,32 @@ input[type='search']::-webkit-search-cancel-button { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .wenyan-dialog[data-state] { animation: none; }
 }
+
+/* Vocabulary tools stay quieter than the word itself. */
+.wenyan-recovery-note { color: var(--wenyan-ink-secondary); }
+.wenyan-word-list-item {
+  border: 1px solid transparent;
+  border-radius: var(--wenyan-radius-sm);
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+.wenyan-word-list-item.is-current {
+  border-color: color-mix(in srgb, var(--wenyan-accent) 24%, var(--wenyan-line-soft));
+  background: var(--wenyan-accent-soft);
+}
+.wenyan-sound-button {
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--wenyan-radius-sm);
+  transition: color 140ms ease, background-color 140ms ease;
+}
+.wenyan-sound-button:hover { color: var(--wenyan-accent); background: var(--wenyan-paper-muted); }
+.wenyan-sound-button:focus-visible { outline: 2px solid var(--wenyan-accent); outline-offset: 3px; }
+.wenyan-input-tip {
+  border: 1px solid var(--wenyan-line-soft);
+  border-radius: var(--wenyan-radius-md);
+  background: var(--wenyan-paper-raised);
+  box-shadow: var(--wenyan-shadow);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wenyan-word-list-item, .wenyan-sound-button { transition: none; }
+}

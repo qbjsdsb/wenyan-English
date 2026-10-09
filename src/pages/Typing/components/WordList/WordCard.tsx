@@ -1,33 +1,47 @@
-import type { WordPronunciationIconRef } from '@/components/WordPronunciationIcon'
 import { WordPronunciationIcon } from '@/components/WordPronunciationIcon'
 import { currentDictInfoAtom } from '@/store'
 import type { Word } from '@/typings'
 import { useAtomValue } from 'jotai'
-import { useCallback, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
-export default function WordCard({ word, isActive }: { word: Word; isActive: boolean }) {
-  const wordPronunciationIconRef = useRef<WordPronunciationIconRef>(null)
+export default function WordCard({
+  word,
+  isActive,
+  completed,
+  index,
+}: {
+  word: Word
+  isActive: boolean
+  completed: boolean
+  index: number
+}) {
   const currentLanguage = useAtomValue(currentDictInfoAtom).language
-
-  const handlePlay = useCallback(() => {
-    wordPronunciationIconRef.current?.play()
-  }, [])
+  const item = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (isActive) item.current?.scrollIntoView({ block: 'nearest' })
+  }, [isActive])
 
   return (
     <div
-      className={`mb-2 flex cursor-pointer select-text items-center rounded-xl p-4 shadow focus:outline-none ${
-        isActive ? 'bg-indigo-50 dark:bg-indigo-800 dark:bg-opacity-20' : 'bg-white dark:bg-gray-700 dark:bg-opacity-20'
-      }   `}
-      key={word.name}
-      onClick={handlePlay}
+      ref={item}
+      aria-current={isActive ? 'step' : undefined}
+      className={`wenyan-word-list-item flex select-text items-start gap-3 px-3 py-4 ${isActive ? 'is-current' : ''}`}
     >
-      <div className="flex-1">
-        <p className="select-all font-mono text-xl font-normal leading-6 dark:text-gray-50">
-          {['romaji', 'hapin'].includes(currentLanguage) ? word.notation : word.name}
-        </p>
-        <div className="mt-2 max-w-sm font-sans text-sm text-gray-400">{word.trans.join('；')}</div>
+      <span aria-hidden="true" className="wenyan-muted wenyan-mono w-5 shrink-0 pt-1 text-right text-[10px]">
+        {String(index + 1).padStart(2, '0')}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <p className="wenyan-mono select-all text-lg font-medium leading-6 text-[var(--wenyan-ink)]">
+            {['romaji', 'hapin'].includes(currentLanguage) ? word.notation : word.name}
+          </p>
+          <span className={`text-[10px] ${isActive ? 'text-[var(--wenyan-accent)]' : 'text-[var(--wenyan-ink-muted)]'}`}>
+            {isActive ? '当前位置' : completed ? '已练' : '待练'}
+          </span>
+        </div>
+        <p className="wenyan-muted mt-2 text-sm leading-6">{word.trans.join('；')}</p>
       </div>
-      <WordPronunciationIcon word={word} lang={currentLanguage} className="h-8 w-8" ref={wordPronunciationIconRef} />
+      <WordPronunciationIcon word={word} lang={currentLanguage} className="h-8 w-8 shrink-0" />
     </div>
   )
 }

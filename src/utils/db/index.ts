@@ -1,18 +1,28 @@
-import type { SemanticRun } from '@/semantic/run'
-import type { ChapterCompletedPayload, LearningEventRecord, LearningSyncCursor, PlanTaskFactContext, WordAttemptedPayload } from '@/learning/types'
+import type { IChapterRecord, IReviewRecord, IRevisionDictRecord, IWordRecord, LetterMistakes } from './record'
+import { ChapterRecord, ReviewRecord, WordRecord } from './record'
+import type {
+  ChapterCompletedPayload,
+  LearningEventRecord,
+  LearningSyncCursor,
+  PlanTaskFactContext,
+  WordAttemptedPayload,
+} from '@/learning/types'
 import { createLearningEvent } from '@/learning/types'
+import { advanceCommittedWord } from '@/pages/Typing/checkpoint'
+import type { TypingCheckpoint } from '@/pages/Typing/checkpoint'
 import { TypingContext, TypingStateActionType } from '@/pages/Typing/store'
 import type { TypingState } from '@/pages/Typing/store/type'
 import type { StoredStudyPlan, StudyPlanRun } from '@/plans/types'
-import { currentChapterAtom, currentDictIdAtom, isReviewModeAtom, wordDictationConfigAtom } from '@/store'
+import type { SemanticRun } from '@/semantic/run'
+import { currentChapterAtom, currentDictIdAtom, isReviewModeAtom, loopWordConfigAtom, wordDictationConfigAtom } from '@/store'
+import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
 import type { Table } from 'dexie'
 import Dexie from 'dexie'
 import { useAtomValue } from 'jotai'
 import { useCallback, useContext } from 'react'
-import type { IChapterRecord, IReviewRecord, IRevisionDictRecord, IWordRecord, LetterMistakes } from './record'
-import { ChapterRecord, ReviewRecord, WordRecord } from './record'
 
 class RecordDB extends Dexie {
+  typingCheckpoints!: Table<TypingCheckpoint, string>
   semanticRuns!: Table<SemanticRun, string>
   wordRecords!: Table<IWordRecord, number>
   chapterRecords!: Table<IChapterRecord, number>
@@ -53,6 +63,7 @@ class RecordDB extends Dexie {
     this.version(6).stores({
       learningSyncCursors: '&userId',
     })
+    this.version(8).stores({ typingCheckpoints: '&id,updatedAt' })
   }
 }
 
@@ -97,7 +108,19 @@ export function useSaveChapterRecord() {
         chapterData: { correctCount, wrongCount, userInputLogs, wordCount, words, wordRecordIds },
         timerData: { time },
       } = typingState
-      const correctWordIndexes = userInputLogs.filter((log) => log.correctCount > 0 && log.wrongCount === 0).map((log) => log.index)
+      // Reaching the end by navigation/skips is not genuine chapter completion.
+      if (!isRevision && typingState.chapterData.completedWordIndexes.length !== words.length) {
+        if (typingState.checkpoint) {
+          await db.transaction('rw', db.typingCheckpoints, async () => {
+            const checkpoint = await db.typingCheckpoints.get(typingState.checkpoint!.id)
+            if (checkpoint?.runId === typingState.runId) await db.typingCheckpoints.delete(checkpoint.id)
+          })
+        }
+        return
+      }
+      const correctWordIndexes = userInputLogs
+        .filter((log) => typingState.chapterData.completedWordIndexes.includes(log.index) && log.wrongCount === 0)
+        .map((log) => log.index)
 
       const chapter = isRevision ? -1 : currentChapter
       const chapterRecord = new ChapterRecord(
@@ -124,40 +147,52 @@ export function useSaveChapterRecord() {
         firstTryCorrectCount: correctWordIndexes.length,
       })
 
-      await db.transaction('rw', db.chapterRecords, db.learningEvents, db.wordRecords, db.studyPlans, db.studyPlanRuns, async () => {
-        await db.chapterRecords.add(chapterRecord)
+      await db.transaction(
+        'rw',
+        [db.chapterRecords, db.learningEvents, db.wordRecords, db.studyPlans, db.studyPlanRuns, db.typingCheckpoints],
+        async () => {
+          if (typingState.checkpoint && typingState.checkpoint.ownerUserId !== getLocalLearningOwnerId())
+            throw new Error('学习账号已变化，请重新打开练习。')
+          await db.chapterRecords.add(chapterRecord)
 
-        let completedRun: StudyPlanRun | undefined
-        if (!isRevision && chapter >= 0) {
-          const taskContext = await getActiveChapterTaskContext(taskRunId, event.occurredAt, dictID, chapter)
-          if (taskContext) {
-            const records = await db.wordRecords.bulkGet(wordRecordIds ?? [])
-            const completedWords = new Map<string, number>()
-            records.forEach((record) => {
-              if (record && record.dict === dictID && record.chapter === chapter) {
-                completedWords.set(record.word, (completedWords.get(record.word) ?? 0) + 1)
+          let completedRun: StudyPlanRun | undefined
+          if (!isRevision && chapter >= 0) {
+            const taskContext = await getActiveChapterTaskContext(taskRunId, event.occurredAt, dictID, chapter)
+            if (taskContext) {
+              const records = await db.wordRecords.bulkGet(wordRecordIds ?? [])
+              const completedWords = new Map<string, number>()
+              records.forEach((record) => {
+                if (record && record.dict === dictID && record.chapter === chapter) {
+                  completedWords.set(record.word, (completedWords.get(record.word) ?? 0) + 1)
+                }
+              })
+              const allWordsPractised =
+                words.length > 0 &&
+                words.every((word) => {
+                  const count = completedWords.get(word.name) ?? 0
+                  completedWords.set(word.name, count - 1)
+                  return count > 0
+                })
+              const previous = await db.studyPlanRuns.where('planId').equals(taskContext.run.planId).toArray()
+              const alreadyCompleted = previous.some((item) => item.taskId === taskContext.run.taskId && item.completionEventId)
+              if (allWordsPractised && !alreadyCompleted) {
+                event.sourceVersion = 2
+                event.payload = { ...event.payload, ...taskContext.context }
+                completedRun = taskContext.run
               }
-            })
-            const allWordsPractised = words.length > 0 && words.every((word) => {
-              const count = completedWords.get(word.name) ?? 0
-              completedWords.set(word.name, count - 1)
-              return count > 0
-            })
-            const previous = await db.studyPlanRuns.where('planId').equals(taskContext.run.planId).toArray()
-            const alreadyCompleted = previous.some((item) => item.taskId === taskContext.run.taskId && item.completionEventId)
-            if (allWordsPractised && !alreadyCompleted) {
-              event.sourceVersion = 2
-              event.payload = { ...event.payload, ...taskContext.context }
-              completedRun = taskContext.run
             }
           }
-        }
 
-        await db.learningEvents.add(event)
-        if (completedRun) {
-          await db.studyPlanRuns.update(completedRun.id, { completedAt: event.occurredAt, completionEventId: event.id })
-        }
-      })
+          await db.learningEvents.add(event)
+          if (completedRun) {
+            await db.studyPlanRuns.update(completedRun.id, { completedAt: event.occurredAt, completionEventId: event.id })
+          }
+          if (typingState.checkpoint) {
+            const checkpoint = await db.typingCheckpoints.get(typingState.checkpoint.id)
+            if (checkpoint?.runId === typingState.runId) await db.typingCheckpoints.delete(checkpoint.id)
+          }
+        },
+      )
     },
     [currentChapter, dictID, isRevision],
   )
@@ -175,8 +210,9 @@ export function useSaveWordRecord() {
   const currentChapter = useAtomValue(currentChapterAtom)
   const dictID = useAtomValue(currentDictIdAtom)
   const wordDictationConfig = useAtomValue(wordDictationConfigAtom)
+  const { times: loopTimes } = useAtomValue(loopWordConfigAtom)
 
-  const { dispatch } = useContext(TypingContext) ?? {}
+  const { state, dispatch } = useContext(TypingContext) ?? {}
 
   const saveWordRecord = useCallback(
     async ({
@@ -218,15 +254,26 @@ export function useSaveWordRecord() {
 
       let dbID = -1
       try {
-        dbID = await db.transaction('rw', db.wordRecords, db.learningEvents, db.studyPlans, db.studyPlanRuns, async () => {
-          const wordRecordId = await db.wordRecords.add(wordRecord)
-          if (!isRevision && chapter >= 0) {
-            const taskContext = await getActiveChapterTaskContext(taskRunId, event.occurredAt, dictID, chapter)
-            if (taskContext) event.payload = { ...event.payload, ...taskContext.context }
-          }
-          await db.learningEvents.add(event)
-          return wordRecordId
-        })
+        dbID = await db.transaction(
+          'rw',
+          [db.wordRecords, db.learningEvents, db.studyPlans, db.studyPlanRuns, db.typingCheckpoints],
+          async () => {
+            if (state?.checkpoint && state.checkpoint.ownerUserId !== getLocalLearningOwnerId())
+              throw new Error('学习账号已变化，请重新打开练习。')
+            const wordRecordId = await db.wordRecords.add(wordRecord)
+            if (!isRevision && chapter >= 0) {
+              const taskContext = await getActiveChapterTaskContext(taskRunId, event.occurredAt, dictID, chapter)
+              if (taskContext) event.payload = { ...event.payload, ...taskContext.context }
+            }
+            await db.learningEvents.add(event)
+            if (state?.checkpoint) {
+              const next = advanceCommittedWord(state, loopTimes)
+              next.chapterData.wordRecordIds.push(wordRecordId)
+              await db.typingCheckpoints.put({ ...state.checkpoint, schemaVersion: 1, updatedAt: Date.now(), state: next })
+            }
+            return wordRecordId
+          },
+        )
       } catch (error) {
         console.error('保存单词记录与学习事实失败：', error)
         throw error
@@ -237,7 +284,7 @@ export function useSaveWordRecord() {
         dispatch({ type: TypingStateActionType.SET_IS_SAVING_RECORD, payload: false })
       }
     },
-    [currentChapter, dictID, dispatch, isRevision, wordDictationConfig.isOpen, wordDictationConfig.type],
+    [currentChapter, dictID, dispatch, isRevision, wordDictationConfig.isOpen, wordDictationConfig.type, loopTimes, state],
   )
 
   return saveWordRecord

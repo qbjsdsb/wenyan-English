@@ -35,9 +35,13 @@ export default function PrevAndNextWord({ type }: LastAndNextWordProps) {
     <Tooltip content={`${label} · ${shortCutKey}`}>
       <button
         type="button"
-        onClick={onClickWord}
+        disabled={state.isSavingRecord}
+        onClick={(event) => {
+          onClickWord()
+          event.currentTarget.blur()
+        }}
         aria-label={`${label} ${headWord}`}
-        className="group flex max-w-[220px] select-none items-center gap-2 rounded-md px-2 py-1 text-[var(--wenyan-ink-muted)] opacity-35 transition-all hover:bg-[color-mix(in_srgb,var(--wenyan-paper-raised)_46%,transparent)] hover:text-[var(--wenyan-ink-secondary)] hover:opacity-90 focus-visible:opacity-100"
+        className="opacity-35 group flex max-w-[220px] select-none items-center gap-2 rounded-md px-2 py-1 text-[var(--wenyan-ink-muted)] transition-all hover:bg-[color-mix(in_srgb,var(--wenyan-paper-raised)_46%,transparent)] hover:text-[var(--wenyan-ink-secondary)] hover:opacity-90 focus-visible:opacity-100"
       >
         {type === 'prev' && <IconPrev className="h-3.5 w-3.5 shrink-0" />}
         <span className="text-[9px] tracking-[0.06em]">{label}</span>
