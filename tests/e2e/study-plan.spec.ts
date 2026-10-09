@@ -58,7 +58,7 @@ test('a plan launches the right chapter and only real completed practice updates
     await page.keyboard.type(word, { delay: 35 })
     await page.waitForTimeout(320)
   }
-  await expect(page.getByText('表现不错！全对了！')).toBeVisible()
+  await expect(page.getByText('本次已练的词没有出现拼写错误。')).toBeVisible()
   await page.getByRole('button', { name: '返回今日学习' }).click()
   await expect(page.getByText('已完成 ✓', { exact: true })).toBeVisible()
 
@@ -109,7 +109,7 @@ test('a different chapter cannot complete the assigned task', async ({ page }) =
   await expect(page.getByText('按任意键开始', { exact: true })).toBeVisible()
   await page.keyboard.press('Enter')
   await page.keyboard.type('test', { delay: 50 })
-  await expect(page.getByText('表现不错！全对了！')).toBeVisible()
+  await expect(page.getByText('本次已练的词没有出现拼写错误。')).toBeVisible()
   await page.getByRole('button', { name: '返回今日学习' }).click()
   await expect(page.getByText('已完成 ✓', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '重新开始' })).toBeVisible()

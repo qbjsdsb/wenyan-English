@@ -112,7 +112,7 @@ test.describe('Practice', () => {
     await pressWords(page, chapter1)
 
     await expect(await page.getByText('100%').isVisible()).toBeTruthy
-    await expect(await page.getByText('表现不错！全对了！').isVisible()).toBeTruthy()
+    await expect(await page.getByText('本次已练的词没有出现拼写错误。').isVisible()).toBeTruthy()
 
     await page.getByRole('button', { name: '下一章节' }).click()
 

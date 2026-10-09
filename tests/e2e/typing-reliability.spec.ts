@@ -171,6 +171,7 @@ test('random order and repetition boundary survive reload; owner and content cha
     localStorage.setItem('loopWordConfig', JSON.stringify({ times: 3 }))
   })
   await page.reload()
+  await expect(page.locator('.wenyan-word-stage .tooltip-info')).toHaveText(/^(alpha|beta)$/)
   const word = (await page.locator('.wenyan-word-stage .tooltip-info').textContent())!.trim()
   await page.keyboard.type(word, { delay: 35 })
   await expect(page.locator('.wenyan-word-stage .wenyan-letter-correct')).toHaveCount(0)
@@ -180,13 +181,13 @@ test('random order and repetition boundary survive reload; owner and content cha
     import { db } from '/src/utils/db/index.ts'
     const read = async () => {
       const cp = (await db.typingCheckpoints.toArray())[0]
-      if (cp) document.body.dataset.repeat = String(cp.state.wordExerciseCount)
+      return cp?.state.wordExerciseCount ?? -1
     }
     window.readCheckpoint = read
     await read()
   `,
   })
-  await expect(page.locator('body')).toHaveAttribute('data-repeat', '1')
+  await expect.poll(() => page.evaluate('window.readCheckpoint()')).toBe(1)
   await page.reload()
   await expect(page.getByText('已恢复上次保存的位置。', { exact: false })).toBeVisible()
   await expect(page.locator('.wenyan-word-stage .tooltip-info')).toHaveText(word)
