@@ -96,7 +96,7 @@ const App: React.FC = () => {
   }, [state.chapterData.words])
 
   useEffect(() => {
-    if (!state.isTyping && !state.isFinished) {
+    if (!state.isTyping && !state.isFinished && !state.isSavingRecord) {
       const onKeyDown = (e: KeyboardEvent) => {
         if (!ignoresStudyKey(e) && !isLoading && !wordListError && e.key !== 'Enter' && (isLegal(e.key) || e.key === ' ') && !e.altKey && !e.ctrlKey && !e.metaKey) {
           e.preventDefault()
@@ -107,7 +107,7 @@ const App: React.FC = () => {
 
       return () => window.removeEventListener('keydown', onKeyDown)
     }
-  }, [state.isTyping, state.isFinished, isLoading, wordListError, dispatch])
+  }, [state.isTyping, state.isFinished, state.isSavingRecord, isLoading, wordListError, dispatch])
 
   useEffect(() => {
     if (words !== undefined) {
@@ -182,7 +182,7 @@ const App: React.FC = () => {
                 Wenyan
               </Link>
               <div className="flex items-center gap-2.5">
-                <span>{idDictionaryMap[currentDictId]?.name} · 第 {currentChapter + 1} 章</span>
+                <span>{idDictionaryMap[currentDictId]?.name} · {isReviewMode ? (searchParams.has('smartSession') ? '本段词汇练习' : '错词复习') : `第 ${currentChapter + 1} 章`}</span>
                 {state.chapterData.words.length > 0 && (
                   <span className="wenyan-mono text-[10px] text-[var(--wenyan-ink-secondary)]">{Math.min(state.chapterData.index + 1, state.chapterData.words.length)} / {state.chapterData.words.length}</span>
                 )}

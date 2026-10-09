@@ -12,14 +12,14 @@ export default function StartButton({ isLoading }: { isLoading: boolean }) {
   const randomConfig = useAtomValue(randomConfigAtom)
 
   const onToggleIsTyping = useCallback(() => {
-    !isLoading && dispatch({ type: TypingStateActionType.TOGGLE_IS_TYPING })
-  }, [isLoading, dispatch])
+    !isLoading && !state.isSavingRecord && dispatch({ type: TypingStateActionType.TOGGLE_IS_TYPING })
+  }, [isLoading, state.isSavingRecord, dispatch])
 
   const onClickRestart = useCallback(() => {
     dispatch({ type: TypingStateActionType.REPEAT_CHAPTER, shouldShuffle: randomConfig.isOpen })
   }, [dispatch, randomConfig.isOpen])
 
-  useHotkeys('enter', onToggleIsTyping, { enabled: !isLoading && !state.isFinished, ignoreEventWhen: ignoresStudyKey, preventDefault: true }, [onToggleIsTyping])
+  useHotkeys('enter', onToggleIsTyping, { enabled: !isLoading && !state.isFinished && !state.isSavingRecord, ignoreEventWhen: ignoresStudyKey, preventDefault: true }, [onToggleIsTyping])
 
   return (
     <div className="flex items-center gap-1.5">
@@ -27,7 +27,7 @@ export default function StartButton({ isLoading }: { isLoading: boolean }) {
         <button
           className={`${state.isTyping ? 'wenyan-button-secondary' : 'wenyan-button-primary'} inline-flex items-center gap-2 px-4 disabled:cursor-not-allowed disabled:opacity-40`}
           type="button"
-          disabled={isLoading}
+          disabled={isLoading || state.isSavingRecord}
           onClick={(event) => { onToggleIsTyping(); event.currentTarget.blur() }}
           aria-label={state.isTyping ? '暂停' : '开始'}
         >

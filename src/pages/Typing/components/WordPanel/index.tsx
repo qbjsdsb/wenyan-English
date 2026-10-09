@@ -204,14 +204,14 @@ export default function WordPanel() {
               />
               {!state.isTyping && (
                 <p className="mt-3 select-none text-center text-[11px] font-medium tracking-[0.02em] text-[var(--wenyan-accent)]">
-                  按任意键{state.timerData.time ? '继续' : '开始'}
+                  {state.isSavingRecord ? '先保存当前词，再继续' : `按任意键${state.timerData.time ? '继续' : '开始'}`}
                 </p>
               )}
             </div>
           </div>
         )}
       </div>
-      <Progress className={`mb-7 mt-auto transition-opacity duration-200 ${state.isTyping ? 'opacity-65' : 'opacity-0'}`} />
+      <Progress className={`mb-7 mt-auto transition-opacity duration-200 ${state.isTyping ? 'opacity-65' : 'opacity-90'}`} />
     </div>
   )
 }

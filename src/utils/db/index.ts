@@ -230,12 +230,11 @@ export function useSaveWordRecord() {
       } catch (error) {
         console.error('保存单词记录与学习事实失败：', error)
         throw error
-      } finally {
-        dispatch?.({ type: TypingStateActionType.SET_IS_SAVING_RECORD, payload: false })
       }
 
       if (dispatch) {
         dbID > 0 && dispatch({ type: TypingStateActionType.ADD_WORD_RECORD_ID, payload: dbID })
+        dispatch({ type: TypingStateActionType.SET_IS_SAVING_RECORD, payload: false })
       }
     },
     [currentChapter, dictID, dispatch, isRevision, wordDictationConfig.isOpen, wordDictationConfig.type],

@@ -14,7 +14,7 @@ import { Transition } from '@headlessui/react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { useCallback, useContext, useEffect, useMemo } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import IexportWords from '~icons/icon-park-outline/excel'
 import IconX from '~icons/tabler/x'
 
@@ -25,6 +25,7 @@ const ResultScreen = () => {
   const [currentChapter, setCurrentChapter] = useAtom(currentChapterAtom)
   const randomConfig = useAtomValue(randomConfigAtom)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const setReviewModeInfo = useSetAtom(reviewModeInfoAtom)
   const isReviewMode = useAtomValue(isReviewModeAtom)
 
@@ -121,7 +122,7 @@ const ResultScreen = () => {
   }, { preventDefault: true })
   useHotkeys('shift+enter', dictationButtonHandler, { preventDefault: true })
 
-  const title = `${currentDictInfo.name} · ${isReviewMode ? '错词复习' : `第 ${currentChapter + 1} 章`}`
+  const title = `${currentDictInfo.name} · ${isReviewMode ? (searchParams.has('smartSession') ? '本段词汇练习' : '错词复习') : `第 ${currentChapter + 1} 章`}`
 
   return (
     <div className="wenyan-completion-stage fixed inset-0 z-50 overflow-y-auto px-6 py-8 backdrop-blur-[3px]">
