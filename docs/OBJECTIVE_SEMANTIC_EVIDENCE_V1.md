@@ -18,7 +18,7 @@ A correct result means only:
 
 > the learner selected the current dictionary reference for this cue among the presented alternatives.
 
-It does **not** prove free recall, contextual comprehension, production ability,熟词僻义 coverage, collocation knowledge, or global semantic mastery.
+It does **not** prove free recall, contextual comprehension, production ability, 熟词僻义 coverage, collocation knowledge, or global semantic mastery.
 
 ## Safety / epistemic rules
 
@@ -29,10 +29,11 @@ It does **not** prove free recall, contextual comprehension, production ability,
 - No objective check when fewer than 4 safely distinct references are available.
 - Option identity/version is persisted so the historical fact remains interpretable if dictionaries later change.
 - Historical facts are append-only; AI may only influence future intent.
+- Objective discrimination and self-report recall remain separate evidence channels in Coaching Context.
 
 ## Fact shape
 
-New event: `semantic_discrimination_attempted`.
+New event: `semantic_discrimination_attempted`, source version 5.
 
 Payload keeps:
 
@@ -49,31 +50,51 @@ Payload keeps:
 
 ## Derived evidence
 
-Keep objective and self-report evidence separate. Objective evidence may expose:
+Objective evidence is exposed separately from self-report semantic evidence as `derived.semanticDiscriminationEvidence`.
+
+It contains only bounded descriptive evidence:
 
 - attempts
 - correct / incorrect
 - distinct versioned items
 - recent incorrect item references
 - excluded malformed facts
+- 14-day coverage metadata
 
-Interpretation must explicitly say this is reference discrimination, not semantic mastery.
+Interpretation explicitly says this is reference discrimination, not semantic mastery.
 
-## Vertical slice target
+## Implemented vertical slice
 
-1. deterministic option builder from existing versioned semantic items;
-2. immutable local fact with objective score;
-3. sync-compatible event type;
-4. bounded derived evidence next to self-report semantic evidence;
-5. usable keyboard-first learning surface;
-6. expose the objective evidence to Coaching Context without collapsing epistemic levels;
-7. targeted deterministic/browser tests only.
+1. **Deterministic option builder** — `src/semantic/discrimination.ts` uses only existing versioned semantic items, rejects unsafe/duplicate meaning references, requires four distinct references and uses stable ordering without random/AI-generated content.
+2. **Immutable local fact** — `semantic_discrimination_attempted` sourceVersion 5 persists exact option identities/versions, selected reference and verified score.
+3. **Atomic progress** — fact write and discrimination cursor advancement share one Dexie transaction; a failed write cannot silently advance the exercise.
+4. **Sync compatibility** — the generic learning-event queue/ingest path already accepts the new event type and source version; no database schema migration is required.
+5. **Keyboard-first surface** — `/semantic-check/:runId` supports 1–4 selection, feedback, reload recovery, owner isolation and hard-stop inheritance.
+6. **Natural entry** — a completed semantic-recall block offers the objective check only when at least four safely distinct versioned references exist and session time remains.
+7. **Coaching Context v1.5** — MCP reads sourceVersion 5 objective facts separately from sourceVersion 4 self-report facts, includes both in the snapshot fingerprint, and keeps explicit epistemic boundaries.
+8. **Targeted validation** — deterministic semantic guardrails, cloud adapter expectations and Playwright semantic flow cover the new contract. Full repository CI remains the merge gate.
+
+## Runtime boundary
+
+The objective check is an optional follow-up to a completed Smart Session semantic-recall block. v1 intentionally does **not** make `semantic_discrimination` a new Smart Session planner purpose/activity. This avoids widening executor semantics before enough real evidence exists to justify automatic scheduling.
+
+Refreshing the objective page resumes at the next unanswered item. Leaving the objective page for Today does not yet create a separate Smart Session resume card; the objective facts already saved remain valid and immutable.
+
+## Production boundary
+
+Before merge/deploy:
+
+- full CI must pass;
+- the updated `wenyan-english-mcp` source must be deployed and smoke-checked before claiming Coaching Context v1.5 production availability;
+- no fake user learning facts may be inserted for validation.
 
 ## Deferred
 
 - contextual sentence meaning;
--熟词僻义-specific provider;
+- 熟词僻义-specific provider;
 - collocation / phrase recall;
 - Chinese→English production;
+- automatic Smart Session scheduling of objective discrimination;
+- cross-device objective-run continuation;
 - FSRS;
 - literature evidence models.
