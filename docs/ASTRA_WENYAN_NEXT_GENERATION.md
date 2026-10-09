@@ -154,3 +154,12 @@ This incremental patch makes search results a flat, complete list rather than hi
 Validation already completed: targeted lint/typecheck, corrected gallery browser flow, Chinese light/dark screenshot inspection. Normal CI should run once for this consolidated PR. Do not rerun unrelated local suites. This patch is implemented/tested locally, not yet merged/deployed/real-user verified at checkpoint. No backend, permission, schema or learning-truth changes.
 
 Next ordinary continuation: inspect this PR's CI; resolve only actual regressions, then merge and verify Pages on its resulting SHA. Preserve the distinction between the previously deployed PR #53 and this follow-up. Remaining valuable work: durable ordinary-chapter cursor recovery with content-version/completion constraints, and genuine user semantic completion → sync → MCP evidence verification. Do not represent cached dictionaries as a full offline PWA, or restored page navigation as learning completion.
+
+
+## Vocabulary focus and recovery — 2026-10-09 continuation
+
+Fresh main `572a609` includes PR #54/#55 and their production closure. New branch `polish/vocabulary-focus-and-recovery`. User requested vocabulary only, limited quota, no repeated full test runs. Reading and backend development are excluded.
+
+Primary product decision: ordinary chapter recovery should resume at a committed word boundary, never fabricate a completed attempt or keep unsaved keystrokes as truth. Add a small local Dexie checkpoint alongside existing word fact transactions, scoped to learning owner, dictionary, chapter and optional task run. Validate exact content signature/order and retain committed record IDs for genuine completion checks. Interrupted current-word input starts again; random order and repeat progress are preserved. A checkpoint is mutable execution state, not a synced learning fact or cross-device backup. Chapter commit removes it atomically; failure leaves a recoverable final boundary. Restart discards only the checkpoint, never history.
+
+Additional scope: a quiet searchable word drawer with clear current position, truthful result feedback distinguishing key accuracy / practiced words / skipped words, guarded completion shortcuts, non-disruptive pause and sound controls. No scoring/mastery invention or decorative keystroke cost. Implementation and validation ledger will be updated in the next checkpoint.
