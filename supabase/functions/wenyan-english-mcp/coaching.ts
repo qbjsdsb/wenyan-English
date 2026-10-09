@@ -9,6 +9,7 @@ import type {
   StageReminderPreference,
 } from '../../../src/coaching/types.ts'
 import type { SessionConstraints } from '../../../src/smart-session/types.ts'
+import { readObjectiveSemanticFacts } from './objectiveSemantic.ts'
 
 const PAGE_SIZE = 500
 const MAX_WORD_FACTS = 5000
@@ -478,12 +479,13 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
   const receivedAtOrBefore = new Date(now).toISOString()
 
   // Learning facts are required. Intent, durable preferences and executor availability are optional enrichments and fail soft.
-  const [wordData, intentData, preferenceData, executionData, semanticData] = await Promise.all([
+  const [wordData, intentData, preferenceData, executionData, semanticData, objectiveSemanticData] = await Promise.all([
     readWordFacts(options, receivedAtOrBefore),
     readIntents(options),
     readPreferences(options),
     readExecutionAvailability(options),
     readSemanticFacts(options, now),
+    readObjectiveSemanticFacts(options, now),
   ])
 
   const canonicalIntents = [...intentData.intents]
@@ -512,6 +514,8 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
     preferenceReadStatus: preferenceData.status,
     semanticStatus: semanticData.status,
     semanticRows: semanticData.fingerprintRows,
+    objectiveSemanticStatus: objectiveSemanticData.status,
+    objectiveSemanticRows: objectiveSemanticData.fingerprintRows,
     executionAvailabilityStatus: executionData.status,
     executionAvailability: executionData.snapshot,
   })
@@ -572,15 +576,20 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
       semanticEvidence: { status: semanticData.status, summary: semanticData.evidence,
         coverage: { windowDays: 14, maxRows: 500, rowsRead: semanticData.rowsRead, truncated: semanticData.truncated,
           invalidRowsExcluded: semanticData.excluded, localOnlyPossible: true } },
+      semanticDiscriminationEvidence: { status: objectiveSemanticData.status, summary: objectiveSemanticData.evidence,
+        coverage: { windowDays: 14, maxRows: 500, rowsRead: objectiveSemanticData.rowsRead, truncated: objectiveSemanticData.truncated,
+          invalidRowsExcluded: objectiveSemanticData.excluded, localOnlyPossible: true } },
     },
     agent: {
-      epistemicLevels: { observed: 'Immutable event records; semantic ratings are reports, not verified correctness.',
-        derived: 'Versioned deterministic aggregation with bounded coverage.',
+      epistemicLevels: {
+        observed: 'Immutable event records. Semantic recall ratings are self-reports; semantic discrimination correctness is verified only against the four presented versioned dictionary references.',
+        derived: 'Versioned deterministic aggregation with bounded coverage. Objective discrimination remains separate from self-report recall and is not a mastery score.',
         userStatement: 'Intent rationale marked user_statement; not a measured learning fact.',
         recommendation: 'Future intent and Coach advice; never evidence of completion.',
-        unknown: 'Unavailable, unsynced or missing evidence is unknown, not zero ability.' },
+        unknown: 'Unavailable, unsynced or missing evidence is unknown, not zero ability.',
+      },
       execution: buildAgentExecutionGuidance(executionData),
-      semanticAction: 'Use preferredActivities=["semantic_recall"] for a reversible day/session vocabulary activity; do not change long-term stage. Only recommend automatic execution when executionCapabilities.semanticRecall is available; otherwise ask the user to open the updated website. If no known words with references are eligible, explain availability rather than treating spelling as semantic success.',
+      semanticAction: 'Use preferredActivities=["semantic_recall"] for a reversible day/session vocabulary activity; do not change long-term stage. Only recommend automatic execution when executionCapabilities.semanticRecall is available; otherwise ask the user to open the updated website. Treat semanticDiscriminationEvidence as objective reference-choice evidence only, never as free recall, contextual comprehension, production ability or semantic mastery.',
     },
     runtime: {
       deviceScope: 'latest_owner_report_not_bound_to_command_target_device',
@@ -619,6 +628,9 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
       ...context.uncertainty,
       'snapshot_query_refs_are_descriptive_not_replay_handles',
       ...(semanticData.status === 'available' ? ['semantic_self_report_is_not_objective_correctness'] : ['semantic_evidence_unavailable']),
+      ...(objectiveSemanticData.status === 'available'
+        ? ['semantic_discrimination_correctness_is_not_free_recall_or_semantic_mastery']
+        : ['semantic_discrimination_evidence_unavailable']),
       ...(intentData.status === 'available' ? [] : ['active_learning_intent_not_visible_in_this_snapshot']),
       ...(preferenceData.status === 'available' ? [] : ['learning_stage_preference_not_visible_in_this_snapshot']),
       ...(executionData.status === 'fresh'
@@ -627,12 +639,13 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
             ? 'execution_availability_is_stale_do_not_use_for_current_executor_capacity'
             : 'current_executor_capacity_not_visible_in_this_snapshot']),
     ]),
-    toolVersion: 'coaching-context-v1.4',
+    toolVersion: 'coaching-context-v1.5',
     requestId: crypto.randomUUID(),
     adapter: {
       source:
         'owner-scoped synced cloud learning_events; durable Learning Preferences and active Learning Intent when authorized and available; optional short-lived deterministic executor availability',
       semanticReadStatus: semanticData.status,
+      semanticDiscriminationReadStatus: objectiveSemanticData.status,
       wordRowsRead: wordData.rowCount,
       invalidRowsExcluded: wordData.invalidRows,
       maxWordFacts: MAX_WORD_FACTS,
@@ -653,6 +666,16 @@ export async function buildCloudCoachingContext(options: CoachingAdapterOptions)
           receivedAtOrBefore,
           order: 'occurred_at.desc,id.desc',
           maxRows: MAX_WORD_FACTS,
+        },
+        semanticRecallFacts: {
+          eventType: 'semantic_recall_attempted',
+          maxRows: 500,
+          atomicWithWordFacts: false,
+        },
+        semanticDiscriminationFacts: {
+          eventType: 'semantic_discrimination_attempted',
+          maxRows: 500,
+          atomicWithWordFacts: false,
         },
         intents: {
           status: intentData.status,
