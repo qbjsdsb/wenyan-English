@@ -39,6 +39,15 @@
 - **Deployed / smoke verified**：Pages build + deploy success（run `37927645763`，源码 `982cba3`）；线上首页 HTTP 200，发布后的入口 bundle 包含新 typingCheckpoints 表。
 - **Real-user verified**：本轮尚未由用户本人走完真实学习；合成浏览器验收不等于个人学习验收。设计和代码均进入 PR #56；不将本机恢复称为跨设备恢复或完整离线 PWA。游标只在完成词时保存，用时恢复到最近已提交词的边界。
 
+## Vocabulary practice desk（PR #57，分支实施中）
+
+- Baseline：最新 main `6b3369197c15db9239b145f74216863a2655237d`。
+- Implemented：`/practice` 集中提供拼写 / 词义主动回想 / 参考释义四选一；当前章、已练、近 14 天最近一次仍拼错、仍模糊的词池；每段 6 / 12 个词，普通章节拼写沿用原完整章节。Today、主导航、暂停背词、拼写结束均有入口。
+- Implemented：manual semantic runs 用同一 sourceVersion 4/5 immutable fact + atomic cursor；新 origin 只区分本机运行，不改上传合同。手动词义段不会被 Smart Session 恢复或绑定云计划；既有 Smart 后续辨认恢复修正为正确路由。专项拼写使用真实 ReviewRecord，并带本机 owner 边界。
+- Implemented：词义证据在记录页和 Today 可见；回想、自评与客观辨认不混成掌握率。模糊池验证当前释义 hash，旧版本不继承。自评揭示后焦点回到题目，鼠标开启也能继续数字键操作。
+- Designed / deferred：中文→英文辨认需要独立版本化的测量 / 云端 parser，暂不假装已实现；当前有提示/发音的默写仍只记录真实拼写条件。易混词依真实选错记录归入模糊池，不生成假混淆关系。
+- Validation：正在进行一次必要的类型、定向 lint 和核心浏览器验收。尚未 merged / deployed / real-user verified。阅读、MCP 与 Supabase 保持本轮 scope 之外。
+
 ## 当前产品形态
 
 Wenyan English 已进入：

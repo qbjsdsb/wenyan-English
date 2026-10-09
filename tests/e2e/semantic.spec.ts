@@ -130,3 +130,54 @@ test('failed local commit preserves progress; another owner cannot read or rate 
   expect(await page.evaluate(() => (window as unknown as { __semanticSafety: unknown }).__semanticSafety))
     .toEqual({ failed: true, index: 0, facts: 0, isolated: true })
 })
+
+test('manual vocabulary desk launches recall directly and is not captured by Smart Session', async ({ page }) => {
+  await page.goto('/practice')
+  await expect(page.getByRole('heading', { name: '专项训练' })).toBeVisible()
+  await page.getByRole('button', { name: '开始词义回想' }).click()
+  await expect(page).toHaveURL(/\/semantic\//)
+  await page.getByRole('button', { name: /查看释义/ }).click()
+  await page.keyboard.press('2') // reveal click must release focus to enable numeric rating
+  await expect(page.getByRole('heading', { name: '这一段，已经留下记录。' })).toBeVisible()
+  await expect(page.getByText('想起 0 · 部分 1 · 没想起 0')).toBeVisible()
+  await page.getByRole('button', { name: '回到专项训练', exact: true }).click()
+  await page.getByText('词义模糊', { exact: true }).click()
+  await page.getByRole('button', { name: '开始词义回想' }).click()
+  await page.getByRole('link', { name: 'Wenyan', exact: true }).click()
+  await expect(page.getByText(/继续刚才的词义回想/)).toHaveCount(0)
+  await page.goto('/practice')
+  await expect(page.getByRole('link', { name: '继续这一段' })).toBeVisible()
+  await page.getByRole('link', { name: '记录', exact: true }).click()
+  await expect(page.getByRole('region', { name: '词义训练记录' })).toContainText('部分 1')
+})
+
+test('direct objective selection retains atomic facts and owner-safe resume', async ({ page }) => {
+  await page.route('**/dicts/CET4_T.json', (route) => route.fulfill({ json: ['alpha', 'beta', 'gamma', 'delta', 'epsilon'].map((word) => ({ name: word, trans: [`meaning-${word}`], usphone: '', ukphone: '' })) }))
+  await page.goto('/practice?mode=discrimination')
+  await page.getByRole('button', { name: '开始选择词义' }).click()
+  await expect(page).toHaveURL(/\/semantic-check\//)
+  const word = await page.getByRole('heading', { level: 1 }).textContent()
+  await page.getByRole('button', { name: new RegExp(`meaning-${word}$`) }).click()
+  await expect(page.getByText('选择正确', { exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByText('2 / 5', { exact: true })).toBeVisible()
+  await page.addScriptTag({ type: 'module', content: `
+    import { db } from '/src/utils/db/index.ts'
+    import { getRecoverableSmartSessionFocusDictionary } from '/src/smart-session/runtime.ts'
+    const facts = await db.learningEvents.toArray()
+    window.__directCheck = { facts, focus: await getRecoverableSmartSessionFocusDictionary() }
+  ` })
+  const saved = await page.evaluate(() => (window as unknown as { __directCheck: { facts: { eventType: string; sourceVersion: number; payload: { isCorrect: boolean } }[]; focus?: string } }).__directCheck)
+  expect(saved.facts).toHaveLength(1)
+  expect(saved.facts[0].eventType).toBe('semantic_discrimination_attempted')
+  expect(saved.facts[0].sourceVersion).toBe(5)
+  expect(saved.facts[0].payload.isCorrect).toBe(true)
+  expect(saved.focus).toBeUndefined()
+  await page.addScriptTag({ type: 'module', content: `
+    import { setLocalLearningOwnerId } from '/src/sync/localLearningOwner.ts'
+    setLocalLearningOwnerId('different-owner')
+  ` })
+  await expect(page.getByRole('alert')).toContainText('不属于当前账号')
+  await page.goto('/practice')
+  await expect(page.getByRole('link', { name: '继续这一段' })).toHaveCount(0)
+})

@@ -6,6 +6,8 @@ export interface SemanticRun {
   id: string
   /** Existing rows omit mode and are recall runs. */
   mode?: 'recall' | 'discrimination'
+  /** Legacy rows remain Smart-compatible. Manual work never acquires Smart constraints. */
+  origin?: 'manual'
   sessionCheckpoint?: SmartSessionRuntime
   ownerUserId?: string
   sessionId: string

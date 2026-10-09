@@ -1,4 +1,5 @@
 import Header from '@/components/Header'
+import { useLearningOwner } from '@/hooks/useLearningOwner'
 import type { WordAttemptedPayload } from '@/learning/types'
 import { createLearningEvent } from '@/learning/types'
 import { syncCloudPlanToLocal } from '@/plans/cloud'
@@ -26,6 +27,7 @@ function planSource(plan: StoredStudyPlan) {
 }
 
 export default function TodayPage() {
+  const owner = useLearningOwner()
   const dict = useAtomValue(currentDictInfoAtom)
   const [chapter, setChapter] = useAtom(currentChapterAtom)
   const setDict = useSetAtom(currentDictIdAtom)
@@ -78,7 +80,8 @@ export default function TodayPage() {
       db.studyPlanRuns.toArray(),
       db.learningEvents.where('syncState').anyOf('pending', 'failed').count(),
     ])
-    const attempts = events.filter((event) => event.eventType === 'word_attempted')
+    const visibleEvents = events.filter((event) => event.ownerUserId === owner)
+    const attempts = visibleEvents.filter((event) => event.eventType === 'word_attempted')
     const correct = attempts.filter((event) => (event.payload as WordAttemptedPayload).wrongCount === 0).length
     const visiblePlans = plans.filter((plan) => plan.origin !== 'cloud' || plan.cloudStatus !== 'archived')
     return {
@@ -87,10 +90,11 @@ export default function TodayPage() {
       pending,
       attempts: attempts.length,
       correct,
-      semantic: events.filter((event) => event.eventType === 'semantic_recall_attempted').length,
-      chapters: events.filter((event) => event.eventType === 'chapter_completed').length,
+      semantic: visibleEvents.filter((event) => event.eventType === 'semantic_recall_attempted').length,
+      recognition: visibleEvents.filter((event) => event.eventType === 'semantic_discrimination_attempted').length,
+      chapters: visibleEvents.filter((event) => event.eventType === 'chapter_completed').length,
     }
-  }, [today])
+  }, [today, owner])
 
   const handleImport = async () => {
     setBusy(true)
@@ -171,6 +175,10 @@ export default function TodayPage() {
         </div>
 
         <SmartSessionDock />
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-[var(--wenyan-line-soft)] pb-5">
+          <div><h2 className="text-sm font-medium">想集中练一种？</h2><p className="wenyan-muted mt-1 text-xs">拼写、词义回想、选择词义；也可以只巩固错词或模糊词。</p></div>
+          <Link className="wenyan-button-secondary" to="/practice">进入专项训练</Link>
+        </div>
 
         <section aria-label="今日概况" className="wenyan-overview-surface mb-10 grid grid-cols-2 items-center gap-6 px-6 py-5 sm:grid-cols-4 lg:grid-cols-[minmax(0,1fr)_repeat(4,88px)]">
           <div className="col-span-2 min-w-0 sm:col-span-4 lg:col-span-1">
@@ -187,7 +195,7 @@ export default function TodayPage() {
             [data?.attempts ?? '—', '拼写次数', 'text-[var(--wenyan-accent)]'],
             [data && data.attempts ? `${Math.round((data.correct / data.attempts) * 100)}%` : '—', '拼写无错', 'text-[var(--wenyan-success)]'],
             [data?.semantic ?? '—', '词义回想', 'text-[var(--wenyan-accent)]'],
-            [data?.chapters ?? '—', '完成章节', 'text-[var(--wenyan-warm)]'],
+            [data?.recognition ?? '—', '词义辨认', 'text-[var(--wenyan-warm)]'],
           ].map(([value, label, tone], index) => (
             <div key={label} className="border-l border-[var(--wenyan-line-soft)] pl-5 text-right">
               <div className={`wenyan-metric-value wenyan-mono text-[22px] font-semibold tracking-[-0.035em] ${tone}`} style={{ animationDelay: `${index * 45}ms` }}>{value}</div>

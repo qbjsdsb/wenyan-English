@@ -9,15 +9,17 @@ import { FriendLinks } from './pages/FriendLinks'
 import MobilePage from './pages/Mobile'
 import TypingPage from './pages/Typing'
 import WenyanControlRuntime from '@/control/WenyanControlRuntime'
-import { isOpenDarkModeAtom } from '@/store'
+import { isOpenDarkModeAtom, reviewModeInfoAtom } from '@/store'
+import { useLearningOwner } from '@/hooks/useLearningOwner'
 import { startLearningSync } from '@/sync/syncLearningEvents'
 import 'animate.css'
-import { useAtomValue } from 'jotai'
+import { useAtom, useAtomValue } from 'jotai'
 import React, { Suspense, lazy, useEffect, useState } from 'react'
 import 'react-app-polyfill/stable'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
+const PracticePage = lazy(() => import('./pages/Practice'))
 const AnalysisPage = lazy(() => import('./pages/Analysis'))
 const GalleryPage = lazy(() => import('./pages/Gallery-N'))
 const OAuthConsentPage = lazy(() => import('./pages/OAuthConsent'))
@@ -29,6 +31,13 @@ const TodayPage = lazy(() => import('./pages/Today'))
 const SyncPage = lazy(() => import('./pages/Sync'))
 
 function Root() {
+  const owner = useLearningOwner()
+  const [review, setReview] = useAtom(reviewModeInfoAtom)
+  useEffect(() => {
+    if (review.reviewRecord?.origin === 'manual' && review.reviewRecord.ownerUserId !== owner) {
+      setReview({ isReviewMode: false, reviewRecord: undefined })
+    }
+  }, [owner, review, setReview])
   const darkMode = useAtomValue(isOpenDarkModeAtom)
   useEffect(() => {
     darkMode ? document.documentElement.classList.add('dark') : document.documentElement.classList.remove('dark')
@@ -60,6 +69,7 @@ function Root() {
             ) : (
               <>
                 <Route index element={<TypingPage />} />
+                <Route path="/practice" element={<PracticePage />} />
                 <Route path="/today" element={<TodayPage />} />
                 <Route path="/semantic/:runId" element={<SemanticPage />} />
                 <Route path="/semantic-check/:runId" element={<SemanticCheckPage />} />

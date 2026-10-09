@@ -116,6 +116,8 @@ export class ChapterRecord implements IChapterRecord {
 }
 
 export interface IReviewRecord {
+  origin?: 'manual'
+  ownerUserId?: string
   id?: number
   dict: string
   // 当前练习进度
@@ -129,6 +131,9 @@ export interface IReviewRecord {
 }
 
 export class ReviewRecord implements IReviewRecord {
+  /** Direct practice only; legacy review records retain their existing contract. */
+  origin?: 'manual'
+  ownerUserId?: string
   id?: number
   dict: string
   index: number

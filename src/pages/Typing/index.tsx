@@ -289,7 +289,7 @@ const App: React.FC = () => {
               <div className="flex items-center gap-2.5">
                 <span>
                   {idDictionaryMap[currentDictId]?.name} ·{' '}
-                  {isReviewMode ? (searchParams.has('smartSession') ? '本段词汇练习' : '错词复习') : `第 ${currentChapter + 1} 章`}
+                  {isReviewMode ? (searchParams.has('smartSession') ? '本段词汇练习' : (reviewModeInfo.reviewRecord?.origin === 'manual' ? '专项拼写' : '错词复习')) : `第 ${currentChapter + 1} 章`}
                 </span>
                 {state.chapterData.words.length > 0 && (
                   <span className="wenyan-mono text-[10px] text-[var(--wenyan-ink-secondary)]">
@@ -310,7 +310,7 @@ const App: React.FC = () => {
         <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-6">
           {!state.isTyping && (
             <div className="wenyan-setup-bar my-4 flex items-center justify-between gap-6 px-4 py-3">
-              <DictChapterButton />
+              <div className="flex items-center gap-4"><DictChapterButton /><Link to="/practice" className="wenyan-link text-xs">换一种训练</Link></div>
               <div className="flex items-center gap-1.5">
                 <WordList inline />
                 <Switcher />

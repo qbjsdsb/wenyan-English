@@ -1,3 +1,4 @@
+import { useSemanticEvidence } from '@/semantic/useEvidence'
 import type { SemanticRun } from '@/semantic/run'
 import type { RecallRating } from '@/semantic/core'
 import { buildSemanticDiscriminationQuestions } from '@/semantic/discrimination'
@@ -10,6 +11,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 export default function SemanticPage() {
   const { runId = '' } = useParams()
   const navigate = useNavigate()
+  const evidence = useSemanticEvidence(runId)
   const [run, setRun] = useState<SemanticRun>()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -36,7 +38,7 @@ export default function SemanticPage() {
     window.addEventListener('storage', changed)
     return () => { window.removeEventListener('wenyan-learning-owner-changed', changed); window.removeEventListener('storage', changed) }
   }, [restore])
-  useEffect(() => { focus.current?.focus() }, [run?.index])
+  useEffect(() => { focus.current?.focus() }, [run?.index, run?.revealedIndex])
   useEffect(() => {
     if (run?.hardStopAt === undefined) return
     const timer = window.setTimeout(() => setStopped(true), Math.max(0, run.hardStopAt - Date.now()))
@@ -83,6 +85,8 @@ export default function SemanticPage() {
   }, [navigate, run])
 
   const revealed = run?.revealedIndex === run?.index && Boolean(run)
+  const returnPath = run?.origin === 'manual' ? '/practice' : '/today'
+  const returnLabel = run?.origin === 'manual' ? '回到专项训练' : '回到今天'
   const completed = run?.completedAt !== undefined || run?.endedAt !== undefined
   const canObjectiveCheck = Boolean(
     run?.completedAt !== undefined
@@ -94,7 +98,7 @@ export default function SemanticPage() {
       if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return
       const target = event.target as HTMLElement | null
       if (target?.closest('button, a, input, textarea, select, [contenteditable="true"]')) return
-      if (event.key === 'Escape') { event.preventDefault(); navigate('/today'); return }
+      if (event.key === 'Escape') { event.preventDefault(); navigate(returnPath); return }
       if (completed || busy || error) return
       if (!revealed && (event.key === ' ' || event.key === 'Enter')) { event.preventDefault(); void reveal() }
       if (revealed && ['1', '2', '3'].includes(event.key)) {
@@ -103,14 +107,14 @@ export default function SemanticPage() {
     }
     window.addEventListener('keydown', keydown)
     return () => window.removeEventListener('keydown', keydown)
-  }, [busy, completed, error, navigate, rate, reveal, revealed])
+  }, [busy, completed, error, navigate, rate, reveal, revealed, returnPath])
 
   const item = run?.items[run.index]
   return (
     <div className="wenyan-studio-shell min-h-screen text-[var(--wenyan-ink)]">
       <header className="mx-auto flex h-20 max-w-4xl items-center justify-between px-8">
         <Link className="wenyan-brand text-xl no-underline" to="/today">Wenyan</Link>
-        <Link className="wenyan-link text-sm" to="/today">{completed ? '回到今天' : '暂停，回到今天'}</Link>
+        <Link className="wenyan-link text-sm" to={returnPath}>{completed ? returnLabel : `暂停，${returnLabel}`}</Link>
       </header>
       <main className="mx-auto max-w-3xl px-5 py-6 sm:px-8 sm:py-10">
         <p className="wenyan-kicker">词义回想</p>
@@ -121,6 +125,8 @@ export default function SemanticPage() {
           <section className="wenyan-focus-surface mt-8 p-6 sm:p-10">
             <h1 ref={focus} tabIndex={-1} className="text-3xl outline-none">{completed ? '这一段，已经留下记录。' : '到时间了，今天先到这里。'}</h1>
             <p className="wenyan-muted mt-5">已保存 {run.index} 个词的自评。它们会帮助下一次安排，不代表已经完全掌握。</p>
+            {evidence?.recall && <p className="mt-4 text-sm">想起 {evidence.recall.selfReported.recalled} · 部分 {evidence.recall.selfReported.partial} · 没想起 {evidence.recall.selfReported.notRecalled}</p>}
+            {run.origin === 'manual' && Boolean(evidence?.recall?.revisit.length) && <Link className="wenyan-link mt-4 inline-block text-sm" to="/practice?pool=uncertain&mode=recall">下次优先练模糊词 →</Link>}
             {completed && canObjectiveCheck && (
               <div className="mt-7 rounded-[var(--wenyan-radius-sm)] border border-[var(--wenyan-line-soft)] p-4">
                 <p className="text-sm font-medium">再做一小段参考释义辨认</p>
@@ -128,7 +134,7 @@ export default function SemanticPage() {
                 <button disabled={busy} className="wenyan-button-primary mt-4" onClick={() => void startObjectiveCheck()}>{busy ? '正在准备…' : '开始辨认'}</button>
               </div>
             )}
-            <button className={`${canObjectiveCheck ? 'wenyan-button-secondary' : 'wenyan-button-primary'} mt-5`} onClick={async () => { await endSemanticRun(run.id); navigate('/today') }}>回到今天</button>
+            <button className={`${canObjectiveCheck ? 'wenyan-button-secondary' : 'wenyan-button-primary'} mt-5`} disabled={busy} onClick={async () => { setBusy(true); try { await endSemanticRun(run.id); navigate(returnPath) } catch { setError('暂时无法结束这一段，请重试。'); setBusy(false) } }}>{returnLabel}</button>
           </section>
         ) : run && item && (
           <section className="wenyan-focus-surface mt-8 p-6 sm:p-10">

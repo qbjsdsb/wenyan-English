@@ -21,6 +21,7 @@ export async function createSemanticDiscriminationRunFromRecall(recallRunId: str
   const run: SemanticRun = {
     id,
     mode: 'discrimination',
+    origin: recall.origin,
     sessionCheckpoint: recall.sessionCheckpoint,
     ownerUserId: recall.ownerUserId,
     sessionId: recall.sessionId,
