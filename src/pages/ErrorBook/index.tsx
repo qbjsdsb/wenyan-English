@@ -55,15 +55,17 @@ export function ErrorBook() {
       .above(0)
       .toArray()
       .then((records) => {
-        const groups: groupedWordRecords[] = []
+        const byWord = new Map<string, groupedWordRecords>()
         records.forEach((record) => {
-          let group = groups.find((item) => item.word === record.word && item.dict === record.dict)
+          const key = JSON.stringify([record.dict, record.word])
+          let group = byWord.get(key)
           if (!group) {
             group = { word: record.word, dict: record.dict, records: [], wrongCount: 0 }
-            groups.push(group)
+            byWord.set(key, group)
           }
           group.records.push(record as WordRecord)
         })
+        const groups = Array.from(byWord.values())
         groups.forEach((group) => {
           group.wrongCount = group.records.reduce((total, current) => total + current.wrongCount, 0)
         })

@@ -25,7 +25,7 @@ export default function Chapter({
       const container = button.parentElement?.parentElement?.parentElement
       container?.scroll({
         top: button.offsetTop - container.offsetTop - 300,
-        behavior: 'smooth',
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
       })
     }
   }, [checked])
@@ -34,7 +34,9 @@ export default function Chapter({
     <button
       ref={ref}
       type="button"
-      className={`relative flex h-16 w-40 cursor-pointer flex-col items-start justify-center rounded-[var(--wenyan-radius-sm)] border px-3 py-2 text-left transition-colors ${
+      aria-label={`开始第 ${index + 1} 章`}
+      aria-current={checked ? 'step' : undefined}
+      className={`wenyan-chapter-choice relative flex min-h-[76px] w-full cursor-pointer flex-col items-start justify-center rounded-[var(--wenyan-radius-sm)] border px-3 py-2 text-left transition-colors ${
         checked
           ? 'border-[color-mix(in_srgb,var(--wenyan-accent)_38%,var(--wenyan-line))] bg-[var(--wenyan-accent-soft)]'
           : 'border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper)] hover:border-[var(--wenyan-line)] hover:bg-[var(--wenyan-paper-muted)]'

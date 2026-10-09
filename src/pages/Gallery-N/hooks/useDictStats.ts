@@ -26,11 +26,11 @@ interface IDictStats {
 
 async function getDictStats(dict: string): Promise<IDictStats> {
   const records: IChapterRecord[] = await db.chapterRecords.where({ dict }).toArray()
-  const allChapter = records.map(({ chapter }) => chapter).filter((item) => item !== null) as number[]
-  const uniqueChapter = allChapter.filter((value, index, self) => {
-    return self.indexOf(value) === index
-  })
-  const exercisedChapterCount = uniqueChapter.length
+  // Review blocks use chapter -1 and are not an extra completed dictionary chapter.
+  const allChapter = records.map(({ chapter }) => chapter).filter((chapter): chapter is number =>
+    typeof chapter === 'number' && Number.isInteger(chapter) && chapter >= 0)
+  const uniqueChapter = new Set(allChapter)
+  const exercisedChapterCount = uniqueChapter.size
 
   return { exercisedChapterCount }
 }

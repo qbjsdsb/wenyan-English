@@ -18,7 +18,7 @@ interface Props {
 
 export default function DictionaryComponent({ dictionary, withTopBorder = false }: Props) {
   const currentDictID = useAtomValue(currentDictIdAtom)
-  const divRef = useRef<HTMLDivElement>(null)
+  const divRef = useRef<HTMLButtonElement>(null)
   const entry = useIntersectionObserver(divRef, {})
   const isVisible = !!entry?.isIntersecting
   const dictStats = useDictStats(dictionary.id, isVisible)
@@ -32,13 +32,13 @@ export default function DictionaryComponent({ dictionary, withTopBorder = false 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <div
+        <button
+          type="button"
+          aria-label={`选择词书：${dictionary.name}`}
           ref={divRef}
           className={`${withTopBorder ? 'border-t border-[var(--wenyan-line-soft)]' : ''} ${
             isSelected ? 'bg-[color-mix(in_srgb,var(--wenyan-accent-soft)_58%,transparent)]' : ''
-          } group flex min-h-[76px] w-full cursor-pointer items-center gap-4 px-3 py-3.5 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--wenyan-paper-muted)_78%,transparent)] focus:outline-none`}
-          role="button"
-          tabIndex={0}
+          } group flex min-h-[76px] w-full cursor-pointer items-center gap-4 px-3 py-3.5 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--wenyan-paper-muted)_78%,transparent)] wenyan-library-choice`}
         >
           <span
             aria-hidden="true"
@@ -55,7 +55,7 @@ export default function DictionaryComponent({ dictionary, withTopBorder = false 
             <TooltipProvider>
               <Tooltip delayDuration={400}>
                 <TooltipTrigger asChild>
-                  <p className="wenyan-muted mt-1 max-w-2xl truncate text-[11px] leading-5">{dictionary.description}</p>
+                  <p className="wenyan-muted mt-1 max-w-2xl truncate text-xs leading-5">{dictionary.description}</p>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>{dictionary.description}</p>
@@ -74,10 +74,10 @@ export default function DictionaryComponent({ dictionary, withTopBorder = false 
 
           <div className="wenyan-muted flex shrink-0 items-center gap-4 text-[11px]">
             <span className="wenyan-mono">{dictionary.length} 词</span>
-            {progress > 0 && <span className="wenyan-mono tabular-nums">{progress}%</span>}
+            {progress > 0 && <span className="wenyan-mono tabular-nums" title="有练习记录的章节占比，不代表词义掌握">已练 {progress}% 章节</span>}
             <ChevronRight aria-hidden="true" size={14} strokeWidth={1.6} className="transition-transform group-hover:translate-x-0.5" />
           </div>
-        </div>
+        </button>
       </DialogTrigger>
       <DialogContent className="w-[54rem] max-w-[calc(100vw-64px)] !rounded-[var(--wenyan-radius-lg)] border-[var(--wenyan-line)] bg-[var(--wenyan-paper-raised)] text-[var(--wenyan-ink)] shadow-[var(--wenyan-shadow)]">
         <DictDetail dictionary={dictionary} />

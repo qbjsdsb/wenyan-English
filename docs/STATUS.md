@@ -1,15 +1,23 @@
 # 当前状态 / 续接入口
 
-更新：2026-10-08。续接前仍须核对远端 `main`、开放 PR、CI、GitHub Pages 与 Supabase 实际部署版本；本页只记录已经核实的持久状态，不把聊天记忆当事实，也不保存用户真实学习明细。
+更新：2026-10-09。续接前仍须核对远端 `main`、开放 PR、CI、GitHub Pages 与 Supabase 实际部署版本；本页只记录已经核实的持久状态，不把聊天记忆当事实，也不保存用户真实学习明细。
+
+## 2026-10-09 calm motion / library flow（最新状态）
+
+- **Baseline / merged / deployed**：远端 main `89b726c421eef3056e3a9a343bf26b2d326d76bd` 已包含 PR #52、#53；该 SHA 的 Wenyan CI 与 Pages 部署均为 success（Actions runs `37885456551` / `37885456486`）。下方各阶段“尚未合并”的记录是历史快照。
+- **Implemented**：分支 `polish/calm-motion-and-library-flow` 在此基线上继续完善实际 Gallery-N：搜索结果直接展示所有匹配词书，原生词书按钮、章节动作名称、弹窗标题/描述、继续学习入口；复习块不计入章节覆盖率。
+- **Experience / performance**：共享弹窗采用主题表面与 160ms 入场 / 100ms 退出；搜索结果仅短暂入场，支持 reduced motion；保留输入反馈，移除两层大面积背景 blur；错词分组改为 Map 单次遍历。未做 FPS / 输入延迟测量。
+- **Tested**：本地定向 lint、TypeScript、词库浏览器回归通过；检查词库、章节弹窗、错词空页、同步页中文浅深色截图。沿用既有 CI，不反复运行完整本地测试。
+- **Not yet merged / deployed / real-user verified**：本节新增改动待本分支 PR 的常规 CI 与合并；截图与合成浏览器用例不代表真实用户验收。数据库、学习事实与云端权限未改变。
 
 ## 2026-10-09 whole-study surfaces / local dictionary fallback
 
 - **Merged**：PR #52 经完整 CI #219 全绿后合并；main `7f49d084318dc2007e0ce3a4cfa00ce40c1e7197`。Pages 部署结果仍须单独核对。
 - **Implemented**：词库搜索、清楚的选中状态、统一按钮/表面/浅深色文字对比度、更大的导航点击区；记录与错词页统一空状态和返回学习入口；同步登录表单支持 Enter / 邮箱校验，异常释放忙碌状态。
-- **Fixed**：词库选择显式退出遗留 review mode，重复选择当前词书不再重置章节；记录页非空数据缺少 isEmpty=false 导致一直 loading；读取失败有重试；统计避免零时长 Infinity；查询包含当前秒；错词最后一页删除后页码收敛。
+- **Fixed**：实际 /gallery 路由为 Gallery-N，保留其已有正常章节退出 review mode 的行为并加入回归；修复 Enter 在词书按钮上被全局返回抢占；记录页非空数据缺少 isEmpty=false 导致一直 loading；读取失败有重试；统计避免零时长 Infinity；查询包含当前秒；错词最后一页删除后页码收敛。
 - **Local content**：已验证的公开词库缓存最多 8 本，下载失败/离线时验证缓存再回退；坏缓存不能开始学习；缓存拒绝/配额失败不阻止有效在线内容。词汇页面明确标注缓存来源。
 - **Boundary**：这不是 Service Worker/PWA，不承诺未加载过的词库或整个网站冷启动离线。未实现普通章节精确刷新恢复，未改变学习事实/schema/权限。
-- **Validation**：TypeScript 已通过首轮；定向浏览器测试及浅深色截图进行中。本节只表示已实现，尚未合并/部署本轮分支 `polish/whole-study-surfaces`。
+- **Validation / superseded**：初次 CI #221 的词库用例暴露旧 Gallery 并非实际路由，已撤回旧页改动并在 Gallery-N 修复。PR #53 后续合并至 `89b726c`，CI 与 Pages 均成功；本轮追加的键盘、轻动效与分组优化状态见上方最新节。
 
 ## 2026-10-09 vocabulary reliability checkpoint
 

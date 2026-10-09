@@ -50,7 +50,7 @@ test('gallery search preserves navigation and explicitly leaves old review mode'
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/gallery/)
   await page.getByRole('button', { name: /2025考研英语词汇hongbao书/ }).click()
-  await page.getByRole('button', { name: /第 1 章/ }).click()
+  await page.getByRole('button', { name: '开始第 1 章', exact: true }).click()
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByText('fixture-alpha', { exact: true })).toBeVisible()
   await expect(page.getByText('old-review-content', { exact: true })).toHaveCount(0)
