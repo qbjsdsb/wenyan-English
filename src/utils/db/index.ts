@@ -14,7 +14,7 @@ import { TypingContext, TypingStateActionType } from '@/pages/Typing/store'
 import type { TypingState } from '@/pages/Typing/store/type'
 import type { StoredStudyPlan, StudyPlanRun } from '@/plans/types'
 import type { SemanticRun } from '@/semantic/run'
-import { currentChapterAtom, currentDictIdAtom, isReviewModeAtom, loopWordConfigAtom, wordDictationConfigAtom } from '@/store'
+import { currentChapterAtom, currentDictIdAtom, isReviewModeAtom, loopWordConfigAtom, reviewModeInfoAtom, wordDictationConfigAtom } from '@/store'
 import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
 import type { Table } from 'dexie'
 import Dexie from 'dexie'
@@ -100,6 +100,8 @@ async function getActiveChapterTaskContext(
 export function useSaveChapterRecord() {
   const currentChapter = useAtomValue(currentChapterAtom)
   const isRevision = useAtomValue(isReviewModeAtom)
+  const review = useAtomValue(reviewModeInfoAtom).reviewRecord
+  const manualReview = isRevision && review?.origin === 'manual' ? review : undefined
   const dictID = useAtomValue(currentDictIdAtom)
 
   const saveChapterRecord = useCallback(
@@ -108,8 +110,9 @@ export function useSaveChapterRecord() {
         chapterData: { correctCount, wrongCount, userInputLogs, wordCount, words, wordRecordIds },
         timerData: { time },
       } = typingState
+      if (manualReview && manualReview.ownerUserId !== getLocalLearningOwnerId()) throw new Error('学习账号已变化，请重新打开练习。')
       // Reaching the end by navigation/skips is not genuine chapter completion.
-      if (!isRevision && typingState.chapterData.completedWordIndexes.length !== words.length) {
+      if ((!isRevision || manualReview) && typingState.chapterData.completedWordIndexes.length !== words.length) {
         if (typingState.checkpoint) {
           await db.transaction('rw', db.typingCheckpoints, async () => {
             const checkpoint = await db.typingCheckpoints.get(typingState.checkpoint!.id)
@@ -151,6 +154,7 @@ export function useSaveChapterRecord() {
         'rw',
         [db.chapterRecords, db.learningEvents, db.wordRecords, db.studyPlans, db.studyPlanRuns, db.typingCheckpoints],
         async () => {
+          if (manualReview && manualReview.ownerUserId !== getLocalLearningOwnerId()) throw new Error('学习账号已变化，请重新打开练习。')
           if (typingState.checkpoint && typingState.checkpoint.ownerUserId !== getLocalLearningOwnerId())
             throw new Error('学习账号已变化，请重新打开练习。')
           await db.chapterRecords.add(chapterRecord)
@@ -194,7 +198,7 @@ export function useSaveChapterRecord() {
         },
       )
     },
-    [currentChapter, dictID, isRevision],
+    [currentChapter, dictID, isRevision, manualReview],
   )
 
   return saveChapterRecord
@@ -207,6 +211,8 @@ export type WordKeyLogger = {
 
 export function useSaveWordRecord() {
   const isRevision = useAtomValue(isReviewModeAtom)
+  const review = useAtomValue(reviewModeInfoAtom).reviewRecord
+  const manualReview = isRevision && review?.origin === 'manual' ? review : undefined
   const currentChapter = useAtomValue(currentChapterAtom)
   const dictID = useAtomValue(currentDictIdAtom)
   const wordDictationConfig = useAtomValue(wordDictationConfigAtom)
@@ -226,6 +232,7 @@ export function useSaveWordRecord() {
       letterTimeArray: number[]
       letterMistake: LetterMistakes
     }) => {
+      if (manualReview && manualReview.ownerUserId !== getLocalLearningOwnerId()) throw new Error('学习账号已变化，请重新打开练习。')
       const timing = []
       for (let i = 1; i < letterTimeArray.length; i++) {
         const diff = letterTimeArray[i] - letterTimeArray[i - 1]
@@ -256,8 +263,9 @@ export function useSaveWordRecord() {
       try {
         dbID = await db.transaction(
           'rw',
-          [db.wordRecords, db.learningEvents, db.studyPlans, db.studyPlanRuns, db.typingCheckpoints],
+          [db.wordRecords, db.learningEvents, db.studyPlans, db.studyPlanRuns, db.typingCheckpoints, db.reviewRecords],
           async () => {
+            if (manualReview && manualReview.ownerUserId !== getLocalLearningOwnerId()) throw new Error('学习账号已变化，请重新打开练习。')
             if (state?.checkpoint && state.checkpoint.ownerUserId !== getLocalLearningOwnerId())
               throw new Error('学习账号已变化，请重新打开练习。')
             const wordRecordId = await db.wordRecords.add(wordRecord)
@@ -266,6 +274,14 @@ export function useSaveWordRecord() {
               if (taskContext) event.payload = { ...event.payload, ...taskContext.context }
             }
             await db.learningEvents.add(event)
+            if (manualReview?.id && state) {
+              const current = await db.reviewRecords.get(manualReview.id)
+              if (!current || current.ownerUserId !== manualReview.ownerUserId || current.index !== manualReview.index || current.isFinished) {
+                throw new Error('练习进度已变化，请重新打开这一段。')
+              }
+              const next = advanceCommittedWord(state, loopTimes)
+              await db.reviewRecords.update(manualReview.id, { index: next.chapterData.index, isFinished: next.isFinished })
+            }
             if (state?.checkpoint) {
               const next = advanceCommittedWord(state, loopTimes)
               next.chapterData.wordRecordIds.push(wordRecordId)
@@ -284,7 +300,7 @@ export function useSaveWordRecord() {
         dispatch({ type: TypingStateActionType.SET_IS_SAVING_RECORD, payload: false })
       }
     },
-    [currentChapter, dictID, dispatch, isRevision, wordDictationConfig.isOpen, wordDictationConfig.type, loopTimes, state],
+    [currentChapter, dictID, dispatch, isRevision, wordDictationConfig.isOpen, wordDictationConfig.type, loopTimes, state, manualReview],
   )
 
   return saveWordRecord

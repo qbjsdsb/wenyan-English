@@ -1,3 +1,4 @@
+import { semanticRunPath } from '@/semantic/practice'
 import { type PreparedSmartSession, assertPreparedVocabularyBlockStartable, prepareSmartVocabularySession, startPreparedSemanticBlock, startPreparedVocabularyBlock } from '@/smart-session/adapter'
 import { reportSmartSessionExecutionAvailability } from '@/smart-session/executionAvailability'
 import { type ResolvedSmartSessionIntent, bindResolvedSessionIntent, resolveSmartSessionLearningIntent } from '@/smart-session/learningIntent'
@@ -23,7 +24,7 @@ function retryLabel(retryAt: number | undefined) {
 
 function purposeLabel(prepared: PreparedSmartSession | undefined) {
   if (!prepared) return '正在安排下一段…'
-  if (prepared.kind === 'semantic-resume') return `继续刚才的词义回想（剩余 ${prepared.run.items.length - prepared.run.index} 个）`
+  if (prepared.kind === 'semantic-resume') return `继续刚才的${prepared.run.mode === 'discrimination' ? '选择词义' : '词义回想'}（剩余 ${(prepared.run.discriminationQuestions?.length ?? prepared.run.items.length) - prepared.run.index} 个）`
   if (prepared.kind === 'resume') return `继续刚才的 ${prepared.record.words.length} 个词`
   if (prepared.draft.disposition === 'break') return '先休息一下'
   const block = prepared.draft.blocks[0]
@@ -191,7 +192,7 @@ export default function SmartSessionDock() {
       await bindResolvedSessionIntent(intent, prepared.runtime.id)
       if (prepared.kind === 'semantic-resume' || (prepared.kind === 'draft' && prepared.draft.blocks[0]?.activity.kind === 'semantic_recall')) {
         const active = prepared.kind === 'semantic-resume' ? prepared : await startPreparedSemanticBlock(prepared)
-        navigate(`/semantic/${encodeURIComponent(active.run.id)}`)
+        navigate(semanticRunPath(active.run))
         return
       }
       const active = prepared.kind === 'resume' ? prepared : await startPreparedVocabularyBlock(prepared)

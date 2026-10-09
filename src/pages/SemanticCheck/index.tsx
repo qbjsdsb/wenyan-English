@@ -1,3 +1,4 @@
+import { useSemanticEvidence } from '@/semantic/useEvidence'
 import type { SemanticDiscriminationQuestion } from '@/semantic/discrimination'
 import type { SemanticRun } from '@/semantic/run'
 import { endSemanticDiscriminationRun, loadSemanticDiscriminationRun, saveSemanticDiscriminationAnswer } from '@/semantic/discriminationRuntime'
@@ -13,6 +14,7 @@ interface Feedback {
 export default function SemanticCheckPage() {
   const { runId = '' } = useParams()
   const navigate = useNavigate()
+  const evidence = useSemanticEvidence(runId)
   const [run, setRun] = useState<SemanticRun>()
   const [feedback, setFeedback] = useState<Feedback>()
   const [error, setError] = useState('')
@@ -71,6 +73,8 @@ export default function SemanticCheckPage() {
   }, [feedback, run, stopped])
 
   const continueAfterFeedback = useCallback(() => setFeedback(undefined), [])
+  const returnPath = run?.origin === 'manual' ? '/practice' : '/today'
+  const returnLabel = run?.origin === 'manual' ? '回到专项训练' : '回到今天'
   const completed = run?.completedAt !== undefined || run?.endedAt !== undefined
   const question = run?.discriminationQuestions?.[run.index]
 
@@ -79,7 +83,7 @@ export default function SemanticCheckPage() {
       if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return
       const target = event.target as HTMLElement | null
       if (target?.closest('button, a, input, textarea, select, [contenteditable="true"]')) return
-      if (event.key === 'Escape') { event.preventDefault(); navigate('/today'); return }
+      if (event.key === 'Escape') { event.preventDefault(); navigate(returnPath); return }
       if (busy || error) return
       if (feedback && (event.key === ' ' || event.key === 'Enter')) {
         event.preventDefault(); continueAfterFeedback(); return
@@ -93,13 +97,13 @@ export default function SemanticCheckPage() {
     }
     window.addEventListener('keydown', keydown)
     return () => window.removeEventListener('keydown', keydown)
-  }, [answer, busy, completed, continueAfterFeedback, error, feedback, navigate, question, stopped])
+  }, [answer, busy, completed, continueAfterFeedback, error, feedback, navigate, question, stopped, returnPath])
 
   return (
     <div className="wenyan-studio-shell min-h-screen text-[var(--wenyan-ink)]">
       <header className="mx-auto flex h-20 max-w-4xl items-center justify-between px-8">
         <Link className="wenyan-brand text-xl no-underline" to="/today">Wenyan</Link>
-        <Link className="wenyan-link text-sm" to="/today">{completed ? '回到今天' : '暂停，回到今天'}</Link>
+        <Link className="wenyan-link text-sm" to={returnPath}>{completed ? returnLabel : `暂停，${returnLabel}`}</Link>
       </header>
       <main className="mx-auto max-w-3xl px-5 py-6 sm:px-8 sm:py-10">
         <p className="wenyan-kicker">参考释义辨认</p>
@@ -138,7 +142,9 @@ export default function SemanticCheckPage() {
           <section className="wenyan-focus-surface mt-8 p-6 sm:p-10">
             <h1 ref={focus} tabIndex={-1} className="text-3xl outline-none">{completed ? '这一小段辨认，已经留下客观记录。' : '到时间了，今天先到这里。'}</h1>
             <p className="wenyan-muted mt-5">已保存 {run.index} 次选择。正确表示选中了当前词书的参考释义，不代表自由回忆或语境理解已经掌握。</p>
-            <button className="wenyan-button-primary mt-8" onClick={async () => { await endSemanticDiscriminationRun(run.id); navigate('/today') }}>回到今天</button>
+            {evidence?.recognition && <p className="mt-4 text-sm">选对 {evidence.recognition.correct} · 选错 {evidence.recognition.incorrect}</p>}
+            {run.origin === 'manual' && Boolean(evidence?.recognition?.incorrect) && <Link className="wenyan-link mt-4 inline-block text-sm" to="/practice?pool=uncertain&mode=recall">换成主动回想，巩固模糊词 →</Link>}
+            <button className="wenyan-button-primary mt-8" disabled={busy} onClick={async () => { setBusy(true); try { await endSemanticDiscriminationRun(run.id); navigate(returnPath) } catch { setError('暂时无法结束这一段，请重试。'); setBusy(false) } }}>{returnLabel}</button>
           </section>
         ) : run && question ? (
           <section className="wenyan-focus-surface mt-8 p-6 sm:p-10">

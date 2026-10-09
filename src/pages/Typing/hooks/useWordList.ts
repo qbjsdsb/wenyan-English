@@ -1,3 +1,4 @@
+import { useLearningOwner } from '@/hooks/useLearningOwner'
 import { dictionarySource } from '@/utils/dictionaryCache'
 import { CHAPTER_LENGTH } from '@/constants'
 import { currentChapterAtom, currentDictInfoAtom, reviewModeInfoAtom } from '@/store'
@@ -21,7 +22,9 @@ export type UseWordListResult = {
 export function useWordList(): UseWordListResult {
   const currentDictInfo = useAtomValue(currentDictInfoAtom)
   const [currentChapter, setCurrentChapter] = useAtom(currentChapterAtom)
-  const { isReviewMode, reviewRecord } = useAtomValue(reviewModeInfoAtom)
+  const owner = useLearningOwner()
+  const { isReviewMode: rawReviewMode, reviewRecord } = useAtomValue(reviewModeInfoAtom)
+  const isReviewMode = rawReviewMode && (reviewRecord?.origin !== 'manual' || reviewRecord.ownerUserId === owner)
 
   // Reset current chapter to 0, when currentChapter is greater than chapterCount.
   if (currentChapter >= currentDictInfo.chapterCount) {

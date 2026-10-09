@@ -120,7 +120,7 @@ export function getCurrentSmartSessionId(ownerUserId?: string, now = Date.now())
  */
 export async function getRecoverableSmartSessionFocusDictionary(ownerUserId?: string, now = Date.now()) {
   const pending = await db.semanticRuns.orderBy('startedAt').reverse().filter((run) =>
-    run.ownerUserId === ownerUserId && run.completedAt === undefined && run.endedAt === undefined).first()
+    run.origin !== 'manual' && run.ownerUserId === ownerUserId && run.completedAt === undefined && run.endedAt === undefined).first()
   if (pending) return pending.dictionaryId
   const state = readStored()
   if (!state?.currentBlock || !sameOwner(state, ownerUserId) || now - state.updatedAt > MAX_IDLE_MS) return undefined
@@ -143,7 +143,7 @@ export async function loadSmartSessionRuntime(
     || now - state.updatedAt > MAX_IDLE_MS
   ) {
     const pending = await db.semanticRuns.orderBy('startedAt').reverse().filter((run) =>
-      run.ownerUserId === options.ownerUserId && run.dictionaryId === focusDictionary && run.completedAt === undefined && run.endedAt === undefined).first()
+      run.origin !== 'manual' && run.ownerUserId === options.ownerUserId && run.dictionaryId === focusDictionary && run.completedAt === undefined && run.endedAt === undefined).first()
     state = pending ? {
       ...(pending.sessionCheckpoint ?? freshRuntime(focusDictionary, { ...options, sessionId: pending.sessionId }, now)),
       executionStartedAt: pending.sessionCheckpoint?.executionStartedAt ?? pending.startedAt, hardStopAt: pending.hardStopAt,

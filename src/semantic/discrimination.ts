@@ -59,11 +59,11 @@ function stableHash(value: string) {
  * Build deterministic four-option questions from exact versioned dictionary references.
  * This measures reference discrimination only; it is not a free-recall or mastery score.
  */
-export function buildSemanticDiscriminationQuestions(items: readonly SemanticItem[], limit = 6): SemanticDiscriminationQuestion[] {
+export function buildSemanticDiscriminationQuestions(items: readonly SemanticItem[], limit = 6, targetIds?: readonly string[]): SemanticDiscriminationQuestion[] {
   if (!Number.isInteger(limit) || limit < 1 || limit > 12) throw new Error('invalid_semantic_discrimination_limit')
 
   const bySignature = new Map<string, SemanticItem>()
-  for (const item of [...items].sort((a, b) => a.contentId.localeCompare(b.contentId))) {
+  for (const item of [...items].sort((a, b) => (targetIds ? Number(targetIds.includes(b.contentId)) - Number(targetIds.includes(a.contentId)) : 0) || a.contentId.localeCompare(b.contentId))) {
     const signature = meaningSignature(item)
     if (!item.contentId || !/^sha256:[a-f0-9]{64}$/.test(item.contentVersion) || !item.word.trim() || !signature) continue
     if (!bySignature.has(signature)) bySignature.set(signature, item)
@@ -71,7 +71,8 @@ export function buildSemanticDiscriminationQuestions(items: readonly SemanticIte
   const pool = Array.from(bySignature.values())
   if (pool.length < 4) return []
 
-  return pool.slice(0, limit).map((cue) => {
+  const cues = targetIds ? targetIds.map((id) => pool.find((item) => item.contentId === id)).filter((item): item is SemanticItem => Boolean(item)) : pool
+  return cues.slice(0, limit).map((cue) => {
     const distractors = pool
       .filter((item) => item.contentId !== cue.contentId)
       .sort((a, b) => stableHash(`${cue.contentVersion}:${a.contentId}`) - stableHash(`${cue.contentVersion}:${b.contentId}`)

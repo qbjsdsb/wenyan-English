@@ -7,6 +7,7 @@ import { NavLink } from 'react-router-dom'
 const navigation = [
   ['/today', '今天'],
   ['/', '背词'],
+  ['/practice', '专项'],
   ['/gallery', '词库'],
   ['/analysis', '记录'],
 ] as const

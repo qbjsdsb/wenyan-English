@@ -1,3 +1,4 @@
+import VocabularyEvidence from '@/components/VocabularyEvidence'
 import EmptyState from '@/components/EmptyState'
 import { ignoresStudyKey } from '@/pages/Typing/keyboard'
 import HeatmapCharts from './components/HeatmapCharts'
@@ -43,8 +44,10 @@ const Analysis = () => {
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-14 pt-9">
         <div className="mb-7">
           <h1 className="wenyan-page-title">记录</h1>
-          <p className="wenyan-muted mt-2 text-sm">过去一年的拼写练习记录</p>
+          <p className="wenyan-muted mt-2 text-sm">拼写与词义，各自留下真实记录</p>
         </div>
+
+        <VocabularyEvidence />
 
         {error ? (
           <section className="wenyan-surface p-7" role="alert"><p>暂时无法读取本机学习记录。</p><button className="wenyan-button-secondary mt-4" onClick={retry}>重新读取</button></section>

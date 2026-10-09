@@ -265,6 +265,7 @@ const ResultScreen = () => {
             )}
 
             <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--wenyan-line-soft)] px-7 py-4">
+              <button type="button" className="wenyan-button-secondary" onClick={() => { if (isReviewMode) setReviewModeInfo({ isReviewMode: false, reviewRecord: undefined }); navigate('/practice?mode=recall&pool=learned') }}>换成词义训练</button>
               <button type="button" aria-label="返回今日学习" className="wenyan-button-secondary" onClick={returnToday}>
                 返回今天
               </button>
