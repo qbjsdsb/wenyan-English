@@ -12,6 +12,8 @@ function jsonResponse(value, status = 200) {
 }
 
 let eventReads = 0
+let semanticReads = 0
+let objectiveSemanticReads = 0
 let intentReads = 0
 let preferenceReads = 0
 let executionReads = 0
@@ -19,13 +21,40 @@ let intentMode = 'available'
 let preferenceMode = 'available'
 let executionMode = 'fresh'
 
+const objectiveVersions = ['1', '2', '3', '4'].map((digit) => `sha256:${digit.repeat(64)}`)
+const objectivePayload = {
+  domain: 'english',
+  activity: 'semantic_discrimination',
+  measurement: 'reference_meaning_discrimination',
+  direction: 'en_to_meaning',
+  contentId: 'semantic:fixture-dict:alpha',
+  contentVersion: objectiveVersions[0],
+  dictionaryId: 'fixture-dict',
+  word: 'alpha',
+  sessionId: 'session',
+  blockId: 'objective-block',
+  cue: 'word_only',
+  responseMode: 'single_choice',
+  options: ['alpha', 'beta', 'gamma', 'delta'].map((word, index) => ({ contentId: `semantic:fixture-dict:${word}`, contentVersion: objectiveVersions[index] })),
+  selectedContentId: 'semantic:fixture-dict:alpha',
+  correctContentId: 'semantic:fixture-dict:alpha',
+  isCorrect: true,
+}
+
 globalThis.fetch = async (input, init = {}) => {
   const rawUrl = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
   const url = new URL(rawUrl)
   if (url.pathname.endsWith('/rest/v1/learning_events') && url.searchParams.get('event_type') === 'eq.semantic_recall_attempted') {
+    semanticReads += 1
     assert.equal(init.headers.Authorization, 'Bearer test-token')
     assert.equal(url.searchParams.get('limit'), '501')
     return jsonResponse([])
+  }
+  if (url.pathname.endsWith('/rest/v1/learning_events') && url.searchParams.get('event_type') === 'eq.semantic_discrimination_attempted') {
+    objectiveSemanticReads += 1
+    assert.equal(init.headers.Authorization, 'Bearer test-token')
+    assert.equal(url.searchParams.get('limit'), '501')
+    return jsonResponse([{ id: '44444444-4444-4444-8444-444444444444', occurred_at: earlierIso, created_at: earlierIso, source_version: 5, payload: objectivePayload }])
   }
   if (url.pathname.endsWith('/rest/v1/learning_events')) {
     eventReads += 1
@@ -154,14 +183,20 @@ try {
   const repeated = await buildCloudCoachingContext(options)
 
   assert.equal(eventReads, 2)
+  assert.equal(semanticReads, 2)
+  assert.equal(objectiveSemanticReads, 2)
   assert.equal(intentReads, 2)
   assert.equal(preferenceReads, 2)
   assert.equal(executionReads, 2)
   assert.equal(result.derived.semanticEvidence.status, 'available')
   assert.equal(result.derived.semanticEvidence.summary.attempts, 0)
+  assert.equal(result.derived.semanticDiscriminationEvidence.status, 'available')
+  assert.equal(result.derived.semanticDiscriminationEvidence.summary.attempts, 1)
+  assert.equal(result.derived.semanticDiscriminationEvidence.summary.correct, 1)
+  assert.match(result.derived.semanticDiscriminationEvidence.summary.interpretation, /Not free recall/)
   assert.equal(result.executionCapabilities.semanticRecall, 'unknown')
   assert.equal(result.schemaVersion, 1)
-  assert.equal(result.toolVersion, 'coaching-context-v1.4')
+  assert.equal(result.toolVersion, 'coaching-context-v1.5')
   assert.match(result.snapshot.id, /^sha256:[0-9a-f]{64}$/)
   assert.equal(repeated.snapshot.id, result.snapshot.id)
   assert.notEqual(repeated.requestId, result.requestId)
@@ -185,6 +220,8 @@ try {
   assert.match(result.runtime.executionAvailability.interpretation, /not learning evidence or mastery/)
   assert.equal(result.adapter.wordRowsRead, 3)
   assert.equal(result.adapter.invalidRowsExcluded, 1)
+  assert.equal(result.adapter.semanticReadStatus, 'available')
+  assert.equal(result.adapter.semanticDiscriminationReadStatus, 'available')
   assert.equal(result.adapter.intentReadStatus, 'available')
   assert.equal(result.adapter.preferenceReadStatus, 'available')
   assert.equal(result.adapter.executionAvailabilityReadStatus, 'fresh')
@@ -192,8 +229,10 @@ try {
   assert.equal(result.adapter.readingCandidatesAvailable, false)
   assert.equal(result.adapter.snapshotDescriptor.persistence, 'not_persisted')
   assert.equal(result.adapter.snapshotDescriptor.replaySupport, 'not_exposed')
+  assert.equal(result.adapter.snapshotDescriptor.semanticDiscriminationFacts.eventType, 'semantic_discrimination_attempted')
   assert.equal(result.adapter.snapshotDescriptor.preferences.status, 'available')
   assert.equal(result.adapter.snapshotDescriptor.executionAvailability.ttlSeconds, 120)
+  assert.ok(result.uncertainty.includes('semantic_discrimination_correctness_is_not_free_recall_or_semantic_mastery'))
   assert.ok(result.evidence.refs.every((ref) => ref.replayable === false && ref.id.startsWith('query:')))
   assert.ok(Buffer.byteLength(JSON.stringify(result)) < 24 * 1024)
 
@@ -274,7 +313,7 @@ try {
   assert.equal(preferenceDecode.preferences.learningStage.current, 'vocabulary')
   assert.equal(preferenceDecode.derived.recentLearning.wordAttempts7, 2)
 
-  console.log('10 cloud coaching adapter scenarios passed')
+  console.log('10 cloud coaching adapter scenarios passed with separate objective semantic evidence')
 } finally {
   globalThis.fetch = originalFetch
 }
