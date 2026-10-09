@@ -23,6 +23,7 @@ const GalleryPage = lazy(() => import('./pages/Gallery-N'))
 const OAuthConsentPage = lazy(() => import('./pages/OAuthConsent'))
 const PreferencesPage = lazy(() => import('./pages/Preferences'))
 const SemanticPage = lazy(() => import('./pages/Semantic'))
+const SemanticCheckPage = lazy(() => import('./pages/SemanticCheck'))
 const ReadingPage = lazy(() => import('./pages/Reading'))
 const TodayPage = lazy(() => import('./pages/Today'))
 const SyncPage = lazy(() => import('./pages/Sync'))
@@ -61,6 +62,7 @@ function Root() {
                 <Route index element={<TypingPage />} />
                 <Route path="/today" element={<TodayPage />} />
                 <Route path="/semantic/:runId" element={<SemanticPage />} />
+                <Route path="/semantic-check/:runId" element={<SemanticCheckPage />} />
                 <Route path="/reading/:contentId" element={<ReadingPage />} />
                 <Route path="/gallery" element={<GalleryPage />} />
                 <Route path="/analysis" element={<AnalysisPage />} />
