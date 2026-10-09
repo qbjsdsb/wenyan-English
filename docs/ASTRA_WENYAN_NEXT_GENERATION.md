@@ -125,3 +125,12 @@ Targeted browser tests exercise rollback/retry without fake completion and navig
 
 
 Reliability checkpoint results: PR #52; initial four Chromium scenarios passed locally; failed-save start-key isolation passed again after tightening the pending-write boundary. Initial CI run #217 passed lint/typecheck/deterministic gates/build/browser flows, later patch CI pending. Typing progress remains visible when paused and Smart Session vocabulary no longer calls all items “wrong-word review”. A screenshot inspection exposed stale live accuracy before the first one-second tick; Speed now computes accuracy from current counters, and zero-duration WPM is guarded. Local light/dark layout screenshots were inspected, but the container has no Chinese fonts, so Chinese typography is not visually validated. No production deployment or real-user verification claimed.
+
+
+## Whole-study surfaces continuation — 2026-10-09
+
+Merged PR52 at 7f49d08 after CI219 passed every step. Separate branch polish/whole-study-surfaces carries the following work: public dictionary CacheStorage fallback (8-entry cap, schema validation on both writes/reads, no user material), explicit cached-content feedback; Gallery search and keyboard-safe navigation; explicit exit from review mode when selecting a normal dictionary/chapter/start; same dictionary re-selection preserves chapter; shared high-contrast quiet states and larger navigation controls; records/error-book empty/error recovery; sync busy-state release and native email form.
+
+Important bug discovered: getChapterStats returned no isEmpty=false for populated data, so Analysis rendered its loading branch indefinitely. Corrected and added real IndexedDB fixture regression. Inclusion of the current second avoids hiding an immediately saved record; zero timing cannot produce Infinity. No new facts or fake mastery inferred.
+
+Current scope intentionally excludes exact ordinary-chapter refresh recovery: a cursor alone would break truthful chapter completion and random-order identity. That needs an owner/content/order-bound draft plus saved record references. Existing Smart Session resume remains. Dictionary caching does not make the app shell a PWA. Font was installed only in the temporary QA environment for actual Chinese screenshot inspection, not added as a repository asset/dependency.

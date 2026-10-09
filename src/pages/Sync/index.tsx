@@ -49,12 +49,14 @@ export default function SyncPage() {
     if (!normalizedEmail) return
     setBusy(true)
     setMessage('')
-    const { error } = await supabase.auth.signInWithOtp({
-      email: normalizedEmail,
-      options: { shouldCreateUser: false, emailRedirectTo: getWenyanRedirectUrl() },
-    })
-    setBusy(false)
-    setMessage(error ? `发送失败：${error.message}` : '登录链接已发送到邮箱。')
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
+        options: { shouldCreateUser: false, emailRedirectTo: getWenyanRedirectUrl() },
+      })
+      setMessage(error ? `发送失败：${error.message}` : '登录链接已发送到邮箱。')
+    } catch { setMessage('发送失败，请检查网络后重试。本机学习不受影响。') }
+    finally { setBusy(false) }
   }
 
   const claimLocalHistory = async () => {
@@ -74,18 +76,22 @@ export default function SyncPage() {
   const syncNow = async () => {
     setBusy(true)
     setMessage('')
-    const result = await syncLearningData()
-    await refreshQueue(session?.user.id)
-    setMessage(describeResult(result))
-    setBusy(false)
+    try {
+      const result = await syncLearningData()
+      await refreshQueue(session?.user.id)
+      setMessage(describeResult(result))
+    } catch { setMessage('同步暂未完成，请稍后重试。本机已保存的记录仍然保留。') }
+    finally { setBusy(false) }
   }
 
   const signOut = async () => {
     setBusy(true)
-    const { error } = await supabase.auth.signOut()
-    setMessage(error ? `退出失败：${error.message}` : '已退出登录。')
-    if (!error) await refreshQueue()
-    setBusy(false)
+    try {
+      const { error } = await supabase.auth.signOut()
+      setMessage(error ? `退出失败：${error.message}` : '已退出登录。')
+      if (!error) await refreshQueue()
+    } catch { setMessage('退出暂未完成，请检查网络后重试。') }
+    finally { setBusy(false) }
   }
 
   const settled = Boolean(message && !message.includes('失败') && !message.includes('登录后'))
@@ -145,20 +151,26 @@ export default function SyncPage() {
             </div>
           </section>
         ) : (
-          <section className="wenyan-surface p-5">
+          <section className="wenyan-surface p-6">
+            <h2 className="mb-2 text-lg font-medium">让学习记录随你回来</h2>
+            <p className="wenyan-muted mb-6 text-sm leading-6">登录后同步已有记录；暂不登录，也可以继续在本机学习。</p>
+            <form onSubmit={(event) => { event.preventDefault(); if (!busy) void sendMagicLink() }}>
             <label className="mb-2 block text-sm font-medium" htmlFor="wenyan-sync-email">邮箱</label>
             <div className="flex gap-3">
               <input
                 id="wenyan-sync-email"
                 className="wenyan-input min-w-0 flex-1 px-3.5 text-sm outline-none"
+                type="email"
+                required
                 inputMode="email"
                 autoComplete="email"
                 placeholder="you@example.com"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
               />
-              <button className="wenyan-button-primary" disabled={busy || !email.trim()} onClick={sendMagicLink}>{busy ? '发送中…' : '发送登录链接'}</button>
+              <button className="wenyan-button-primary" type="submit" disabled={busy || !email.trim()}>{busy ? '发送中…' : '发送登录链接'}</button>
             </div>
+            </form>
             <p className="wenyan-muted mt-3 text-xs">仅登录已有账号，不会自动创建新用户。</p>
           </section>
         )}

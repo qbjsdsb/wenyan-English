@@ -24,7 +24,7 @@ import { TypingContext, TypingStateActionType, initialState, typingReducer } fro
 const App: React.FC = () => {
   const [state, dispatch] = useImmerReducer(typingReducer, structuredClone(initialState))
   const [isLoading, setIsLoading] = useState<boolean>(true)
-  const { words, error: wordListError, retry: retryWordList } = useWordList()
+  const { words, fromCache, error: wordListError, retry: retryWordList } = useWordList()
   const [retryingWords, setRetryingWords] = useState(false)
 
   const [currentDictId, setCurrentDictId] = useAtom(currentDictIdAtom)
@@ -210,6 +210,7 @@ const App: React.FC = () => {
             </div>
           )}
 
+          {fromCache && !state.isTyping && <p role="status" className="wenyan-muted text-center text-xs">正在使用本机保存的词库，可以继续练习。</p>}
           <div className="relative flex flex-1 flex-col items-center">
             <div className="flex min-h-[430px] w-full flex-1 items-center justify-center">
               {wordListError ? (

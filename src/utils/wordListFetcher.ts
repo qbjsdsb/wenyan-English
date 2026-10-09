@@ -1,7 +1,12 @@
+import { markDictionarySource, readDictionaryCache, validDictionary, writeDictionaryCache } from './dictionaryCache'
 import type { Word } from '@/typings'
 
 export async function wordListFetcher(url: string): Promise<Word[]> {
   const resourceUrl = import.meta.env.BASE_URL + url.replace(/^\/+/, '')
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    const cached = await readDictionaryCache(resourceUrl)
+    if (cached) { markDictionarySource(resourceUrl, 'cache'); return cached }
+  }
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 15_000)
   try {
@@ -16,11 +21,16 @@ export async function wordListFetcher(url: string): Promise<Word[]> {
     } catch {
       throw new Error('词库文件无法读取，请重试或更换词书。')
     }
-    if (!Array.isArray(words) || words.length === 0 || words.some((word) => !word || typeof word.name !== 'string' || !word.name.trim())) {
+    if (!validDictionary(words)) {
       throw new Error('词库内容无效或为空，请更换词书。')
     }
-    return words as Word[]
+    markDictionarySource(resourceUrl, 'network')
+    // Best effort; only after schema validation, and never on the typing keystroke path.
+    await writeDictionaryCache(resourceUrl, words)
+    return words
   } catch (cause) {
+    const cached = await readDictionaryCache(resourceUrl)
+    if (cached) { markDictionarySource(resourceUrl, 'cache'); return cached }
     if (controller.signal.aborted) throw new Error('词库加载超时，请检查网络后重试。')
     if (cause instanceof TypeError) throw new Error('暂时无法连接词库，请检查网络后重试。')
     throw cause
