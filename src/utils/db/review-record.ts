@@ -19,7 +19,7 @@ export function useGetLatestReviewRecord(dictID: string) {
 }
 
 async function getReviewRecords(dictID: string): Promise<ReviewRecord | undefined> {
-  const records = await db.reviewRecords.where('dict').equals(dictID).toArray()
+  const records = await db.reviewRecords.where('dict').equals(dictID).filter((record) => record.origin !== 'manual').toArray()
 
   const latestRecord = records.sort((a, b) => a.createTime - b.createTime).pop()
 

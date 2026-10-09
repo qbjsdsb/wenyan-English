@@ -19,7 +19,7 @@ export function reviewInfoAtom(initialValue: TReviewInfoAtomData) {
       const newValue = typeof updater === 'function' ? updater(get(storageAtom)) : updater
 
       // update reviewRecord to indexdb
-      if (newValue.reviewRecord?.id) {
+      if (newValue.reviewRecord?.id && newValue.reviewRecord.origin !== 'manual') {
         putWordReviewRecord(newValue.reviewRecord)
       }
       set(storageAtom, newValue)

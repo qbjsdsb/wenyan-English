@@ -22,6 +22,7 @@ export async function createSemanticDiscriminationRunFromRecall(recallRunId: str
     id,
     mode: 'discrimination',
     origin: recall.origin,
+    practiceChoices: recall.practiceChoices,
     sessionCheckpoint: recall.sessionCheckpoint,
     ownerUserId: recall.ownerUserId,
     sessionId: recall.sessionId,

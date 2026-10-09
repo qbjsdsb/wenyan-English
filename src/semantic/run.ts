@@ -8,6 +8,7 @@ export interface SemanticRun {
   mode?: 'recall' | 'discrimination'
   /** Legacy rows remain Smart-compatible. Manual work never acquires Smart constraints. */
   origin?: 'manual'
+  practiceChoices?: { pool: 'chapter' | 'learned' | 'errors' | 'uncertain'; limit: 6 | 12 }
   sessionCheckpoint?: SmartSessionRuntime
   ownerUserId?: string
   sessionId: string

@@ -1,3 +1,4 @@
+import ManualReviewGate from './ManualReviewGate'
 import { isValidTypingCheckpoint, typingCheckpointId, typingContentSignature } from './checkpoint'
 import { DictChapterButton } from './components/DictChapterButton'
 import ResultScreen from './components/ResultScreen'
@@ -370,4 +371,6 @@ const App: React.FC = () => {
   )
 }
 
-export default App
+export default function TypingPage() {
+  return <ManualReviewGate><App /></ManualReviewGate>
+}

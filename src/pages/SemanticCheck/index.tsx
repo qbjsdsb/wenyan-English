@@ -1,3 +1,4 @@
+import { practiceReturnPath } from '@/semantic/practiceChoices'
 import { useSemanticEvidence } from '@/semantic/useEvidence'
 import type { SemanticDiscriminationQuestion } from '@/semantic/discrimination'
 import type { SemanticRun } from '@/semantic/run'
@@ -73,7 +74,7 @@ export default function SemanticCheckPage() {
   }, [feedback, run, stopped])
 
   const continueAfterFeedback = useCallback(() => setFeedback(undefined), [])
-  const returnPath = run?.origin === 'manual' ? '/practice' : '/today'
+  const returnPath = run?.origin === 'manual' ? practiceReturnPath(run.mode === 'discrimination' ? 'discrimination' : 'recall', run.practiceChoices) : '/today'
   const returnLabel = run?.origin === 'manual' ? '回到专项训练' : '回到今天'
   const completed = run?.completedAt !== undefined || run?.endedAt !== undefined
   const question = run?.discriminationQuestions?.[run.index]
@@ -82,8 +83,8 @@ export default function SemanticCheckPage() {
     const keydown = (event: KeyboardEvent) => {
       if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return
       const target = event.target as HTMLElement | null
+      if (event.key === 'Escape' && !busy) { event.preventDefault(); navigate(returnPath); return }
       if (target?.closest('button, a, input, textarea, select, [contenteditable="true"]')) return
-      if (event.key === 'Escape') { event.preventDefault(); navigate(returnPath); return }
       if (busy || error) return
       if (feedback && (event.key === ' ' || event.key === 'Enter')) {
         event.preventDefault(); continueAfterFeedback(); return
