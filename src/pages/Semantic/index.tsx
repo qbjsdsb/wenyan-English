@@ -1,5 +1,7 @@
 import type { SemanticRun } from '@/semantic/run'
 import type { RecallRating } from '@/semantic/core'
+import { buildSemanticDiscriminationQuestions } from '@/semantic/discrimination'
+import { createSemanticDiscriminationRunFromRecall } from '@/semantic/discriminationRuntime'
 import { endSemanticRun, loadSemanticRun, revealSemanticItem, saveSemanticRating } from '@/semantic/runtime'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -20,6 +22,7 @@ export default function SemanticPage() {
   const restore = useCallback(async () => {
     try {
       const current = await loadSemanticRun(runId)
+      if (current.mode === 'discrimination') throw new Error('请从参考释义辨认页面继续这一段。')
       setRun(current)
       setResumedAfterReveal(current.revealedIndex === current.index)
       setStopped(current.hardStopAt !== undefined && Date.now() >= current.hardStopAt)
@@ -64,8 +67,28 @@ export default function SemanticPage() {
     finally { lock.current = false; setBusy(false) }
   }, [run, resumedAfterReveal])
 
+  const startObjectiveCheck = useCallback(async () => {
+    if (!run || lock.current) return
+    lock.current = true
+    setBusy(true)
+    setError('')
+    try {
+      const check = await createSemanticDiscriminationRunFromRecall(run.id)
+      navigate(`/semantic-check/${encodeURIComponent(check.id)}`)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '暂时无法开始参考释义辨认。')
+      lock.current = false
+      setBusy(false)
+    }
+  }, [navigate, run])
+
   const revealed = run?.revealedIndex === run?.index && Boolean(run)
   const completed = run?.completedAt !== undefined || run?.endedAt !== undefined
+  const canObjectiveCheck = Boolean(
+    run?.completedAt !== undefined
+      && (run.hardStopAt === undefined || Date.now() < run.hardStopAt)
+      && buildSemanticDiscriminationQuestions(run.items).length > 0,
+  )
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return
@@ -98,7 +121,14 @@ export default function SemanticPage() {
           <section className="wenyan-focus-surface mt-8 p-6 sm:p-10">
             <h1 ref={focus} tabIndex={-1} className="text-3xl outline-none">{completed ? '这一段，已经留下记录。' : '到时间了，今天先到这里。'}</h1>
             <p className="wenyan-muted mt-5">已保存 {run.index} 个词的自评。它们会帮助下一次安排，不代表已经完全掌握。</p>
-            <button className="wenyan-button-primary mt-8" onClick={async () => { await endSemanticRun(run.id); navigate('/today') }}>回到今天</button>
+            {completed && canObjectiveCheck && (
+              <div className="mt-7 rounded-[var(--wenyan-radius-sm)] border border-[var(--wenyan-line-soft)] p-4">
+                <p className="text-sm font-medium">再做一小段参考释义辨认</p>
+                <p className="wenyan-muted mt-2 text-xs leading-5">从刚才这些真实词书参考里做 4 选 1。系统能客观记录是否选中当前词条的参考释义，但不会把它叫作“掌握”。</p>
+                <button disabled={busy} className="wenyan-button-primary mt-4" onClick={() => void startObjectiveCheck()}>{busy ? '正在准备…' : '开始辨认'}</button>
+              </div>
+            )}
+            <button className={`${canObjectiveCheck ? 'wenyan-button-secondary' : 'wenyan-button-primary'} mt-5`} onClick={async () => { await endSemanticRun(run.id); navigate('/today') }}>回到今天</button>
           </section>
         ) : run && item && (
           <section className="wenyan-focus-surface mt-8 p-6 sm:p-10">
