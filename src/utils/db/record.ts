@@ -117,6 +117,7 @@ export class ChapterRecord implements IChapterRecord {
 
 export interface IReviewRecord {
   origin?: 'manual'
+  endedAt?: number
   ownerUserId?: string
   id?: number
   dict: string
@@ -133,6 +134,7 @@ export interface IReviewRecord {
 export class ReviewRecord implements IReviewRecord {
   /** Direct practice only; legacy review records retain their existing contract. */
   origin?: 'manual'
+  endedAt?: number
   ownerUserId?: string
   id?: number
   dict: string

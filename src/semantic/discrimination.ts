@@ -131,7 +131,7 @@ export function parseSemanticDiscriminationPayload(value: unknown): SemanticDisc
 }
 
 /** Objective scoring against the presented versioned references, not a semantic mastery estimate. */
-export function buildSemanticDiscriminationEvidence(facts: readonly SemanticDiscriminationFact[], now: number) {
+export function buildSemanticDiscriminationEvidence(facts: readonly SemanticDiscriminationFact[], now: number, windowStart = now - 14 * 86400000) {
   const unique = new Map<string, SemanticDiscriminationFact>()
   let excluded = 0
   for (const fact of facts) {
@@ -144,7 +144,7 @@ export function buildSemanticDiscriminationEvidence(facts: readonly SemanticDisc
     } catch { excluded += 1 }
   }
   const recent = Array.from(unique.values())
-    .filter((fact) => fact.occurredAt >= now - 14 * 86_400_000)
+    .filter((fact) => fact.occurredAt >= windowStart)
     .sort((a, b) => b.occurredAt - a.occurredAt || a.id.localeCompare(b.id))
   const latest = new Map<string, SemanticDiscriminationFact>()
   for (const fact of recent) {
@@ -154,7 +154,7 @@ export function buildSemanticDiscriminationEvidence(facts: readonly SemanticDisc
   const correct = recent.filter((fact) => fact.payload.isCorrect).length
   return {
     algorithmVersion: 'semantic-discrimination-evidence-v1',
-    window: { from: now - 14 * 86_400_000, through: now },
+    window: { from: windowStart, through: now },
     measurement: 'reference_meaning_discrimination',
     attempts: recent.length,
     correct,

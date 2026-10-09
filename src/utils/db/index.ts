@@ -113,6 +113,7 @@ export function useSaveChapterRecord() {
       if (manualReview && manualReview.ownerUserId !== getLocalLearningOwnerId()) throw new Error('学习账号已变化，请重新打开练习。')
       // Reaching the end by navigation/skips is not genuine chapter completion.
       if ((!isRevision || manualReview) && typingState.chapterData.completedWordIndexes.length !== words.length) {
+        if (manualReview?.id) await db.reviewRecords.update(manualReview.id, { endedAt: Date.now() })
         if (typingState.checkpoint) {
           await db.transaction('rw', db.typingCheckpoints, async () => {
             const checkpoint = await db.typingCheckpoints.get(typingState.checkpoint!.id)
@@ -276,7 +277,7 @@ export function useSaveWordRecord() {
             await db.learningEvents.add(event)
             if (manualReview?.id && state) {
               const current = await db.reviewRecords.get(manualReview.id)
-              if (!current || current.ownerUserId !== manualReview.ownerUserId || current.index !== manualReview.index || current.isFinished) {
+              if (!current || current.ownerUserId !== manualReview.ownerUserId || current.index !== manualReview.index || current.isFinished || current.endedAt !== undefined) {
                 throw new Error('练习进度已变化，请重新打开这一段。')
               }
               const next = advanceCommittedWord(state, loopTimes)

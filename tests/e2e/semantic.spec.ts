@@ -146,7 +146,7 @@ test('manual vocabulary desk launches recall directly and is not captured by Sma
   await page.getByRole('link', { name: 'Wenyan', exact: true }).click()
   await expect(page.getByText(/继续刚才的词义回想/)).toHaveCount(0)
   await page.goto('/practice')
-  await expect(page.getByRole('link', { name: '继续这一段' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '继续词义回想' })).toBeVisible()
   await page.getByRole('link', { name: '记录', exact: true }).click()
   await expect(page.getByRole('region', { name: '词义训练记录' })).toContainText('部分 1')
 })
@@ -181,7 +181,7 @@ test('direct objective selection retains atomic facts and owner-safe resume', as
   ` })
   await expect(page.getByRole('alert')).toContainText('不属于当前账号')
   await page.goto('/practice')
-  await expect(page.getByRole('link', { name: '继续这一段' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '继续词义回想' })).toHaveCount(0)
 })
 
 test('practice pools use latest owner facts and reject old definition uncertainty', async ({ page }) => {
@@ -240,4 +240,71 @@ test('manual spelling commits fact with its resume cursor and keeps its selected
   const proof = await page.evaluate(() => (window as unknown as { __spellingPracticeProof: { events: unknown[]; records: { index: number; origin: string; isFinished: boolean }[] } }).__spellingPracticeProof)
   expect(proof.events).toHaveLength(4)
   expect(proof.records[0]).toMatchObject({ index: 1, origin: 'manual', isFinished: true })
+})
+
+
+test('practice remembers choices and ending older work preserves its facts', async ({ page }) => {
+  await page.goto('/practice?mode=recall&pool=chapter&limit=12')
+  await page.getByRole('button', { name: '开始词义回想' }).click()
+  await page.getByRole('button', { name: /查看释义/ }).click()
+  await page.getByRole('button', { name: '2 想起部分' }).click()
+  await expect(page.getByText('想起 0 · 部分 1 · 没想起 0')).toBeVisible()
+  await page.addScriptTag({ type: 'module', content: `
+    import { db } from '/src/utils/db/index.ts'
+    const fact = await db.learningEvents.where('eventType').equals('semantic_recall_attempted').first()
+    await db.learningEvents.update(fact.id, { occurredAt: Date.now() - 20 * 86400000 }) // synthetic old fixture
+    const run = await db.semanticRuns.get(fact.payload.blockId)
+    for (let n=0;n<4;n++) await db.semanticRuns.add({...run,id:'pending-'+n,index:0,completedAt:undefined,endedAt:undefined})
+    window.__oldRunSeeded = true
+  ` })
+  await page.waitForFunction(() => Boolean((window as unknown as { __oldRunSeeded: boolean }).__oldRunSeeded))
+  await page.reload()
+  await expect(page.getByText('想起 0 · 部分 1 · 没想起 0')).toBeVisible()
+  await page.getByRole('button', { name: '回到专项训练', exact: true }).click()
+  await expect(page).toHaveURL(/mode=recall&pool=chapter&limit=12/)
+  await page.goto('/practice')
+  await expect(page.getByRole('radio', { name: '最多 12 个' })).toBeChecked()
+  await expect(page.getByRole('button', { name: '继续词义回想' })).toHaveCount(1)
+  await page.getByRole('button', { name: '展开其余 3 段' }).click()
+  await expect(page.getByRole('button', { name: '继续词义回想' })).toHaveCount(4)
+  await page.getByRole('button', { name: '结束词义回想，保留记录' }).first().click()
+  await expect(page.getByRole('button', { name: '继续词义回想' })).toHaveCount(3)
+  await page.addScriptTag({ type:'module', content: `
+    import { db } from '/src/utils/db/index.ts'
+    import { buildSemanticEvidence } from '/src/semantic/core.ts'
+    const facts = await db.learningEvents.toArray()
+    window.__endProof = { facts:facts.length, recent:buildSemanticEvidence(facts,Date.now()).attempts,
+      ended:(await db.semanticRuns.toArray()).filter(r=>r.endedAt && !r.completedAt).length }
+  ` })
+  await page.waitForFunction(() => Boolean((window as unknown as { __endProof: unknown }).__endProof))
+  expect(await page.evaluate(() => (window as unknown as { __endProof: unknown }).__endProof)).toEqual({facts:1,recent:0,ended:1})
+})
+
+test('manual spelling restores authoritative cursor before mounting input', async ({ page }) => {
+  await page.route('**/dicts/CET4_T.json', (route) => route.fulfill({ json: ['alpha','beta'].map(name=>({name,trans:[name],usphone:'',ukphone:''})) }))
+  await page.goto('/practice?mode=spelling&pool=errors')
+  await page.addScriptTag({type:'module',content:`
+    import { db } from '/src/utils/db/index.ts'
+    import { createLearningEvent } from '/src/learning/types.ts'
+    for (const word of ['alpha','beta']) await db.learningEvents.add(createLearningEvent('word_attempted', { word, dict:'cet4', chapter:0, reviewMode:false, wrongCount:1, durationMs:10, timing:[], mistakes:{} }, 2))
+    window.__staleSeeded = true
+  `})
+  await page.waitForFunction(() => Boolean((window as unknown as { __staleSeeded: boolean }).__staleSeeded))
+  await page.getByRole('button', { name: '开始拼写训练' }).click()
+  await expect(page.locator('.wenyan-word-stage .tooltip-info')).toContainText('alpha')
+  await page.keyboard.type('alpha', { delay:35 })
+  await expect(page.locator('.wenyan-word-stage .tooltip-info')).toContainText('beta')
+  await page.evaluate(() => {
+    const stale = JSON.parse(localStorage.getItem('reviewModeInfo')!)
+    stale.reviewRecord.index = 0
+    localStorage.setItem('reviewModeInfo',JSON.stringify(stale))
+  })
+  await page.reload()
+  await expect(page.locator('.wenyan-word-stage .tooltip-info')).toContainText('beta')
+  await page.addScriptTag({type:'module',content:`
+    import { db } from '/src/utils/db/index.ts'
+    window.__cursorProof = { index:(await db.reviewRecords.toArray())[0].index, facts:await db.learningEvents.count() }
+  `})
+  await page.waitForFunction(() => Boolean((window as unknown as { __cursorProof: unknown }).__cursorProof))
+  expect(await page.evaluate(() => (window as unknown as { __cursorProof: unknown }).__cursorProof)).toEqual({index:1,facts:3})
 })

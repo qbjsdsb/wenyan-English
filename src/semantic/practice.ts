@@ -88,7 +88,7 @@ export async function preparePracticeItems(words: readonly Word[], dictionaryId:
 }
 
 export async function createManualSemanticRun(dictionaryId: string, mode: 'recall' | 'discrimination', items: SemanticItem[],
-  referencePool: SemanticItem[], ownerUserId: string | undefined) {
+  referencePool: SemanticItem[], ownerUserId: string | undefined, practiceChoices?: SemanticRun['practiceChoices']) {
   if (getLocalLearningOwnerId() !== ownerUserId) throw new Error('账号已改变，请重新准备练习。')
   if (!items.length || items.length > 12) throw new Error('当前没有可练的词，请换一组。')
   const questions = mode === 'discrimination'
@@ -96,7 +96,7 @@ export async function createManualSemanticRun(dictionaryId: string, mode: 'recal
   if (questions && !questions.length) throw new Error('这组词不足以组成四个不同的参考选项。可以改用词义回想。')
   const id = createSmartSessionId()
   const run: SemanticRun = { id, mode, origin: 'manual', ownerUserId, sessionId: id, dictionaryId,
-    startedAt: Date.now(), items, discriminationQuestions: questions, index: 0 }
+    startedAt: Date.now(), practiceChoices, items, discriminationQuestions: questions, index: 0 }
   await db.semanticRuns.add(run)
   return run
 }

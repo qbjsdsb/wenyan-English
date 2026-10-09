@@ -1,3 +1,5 @@
+import PracticeResume from '@/components/PracticeResume'
+import { readPracticeChoices, savePracticeChoices } from '@/semantic/practiceChoices'
 import Header from '@/components/Header'
 import { CHAPTER_LENGTH } from '@/constants'
 import { useLearningOwner } from '@/hooks/useLearningOwner'
@@ -36,9 +38,11 @@ export default function PracticePage() {
   const setReview = useSetAtom(reviewModeInfoAtom)
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const mode: PracticeMode = modes.some((item) => item.id === params.get('mode')) ? params.get('mode') as PracticeMode : 'recall'
-  const pool: PracticePool = pools.some((item) => item.id === params.get('pool')) ? params.get('pool') as PracticePool : 'chapter'
-  const [limit, setLimit] = useState(6)
+  const savedChoices = useMemo(() => readPracticeChoices(owner), [owner])
+  const mode: PracticeMode = modes.some((item) => item.id === params.get('mode')) ? params.get('mode') as PracticeMode : savedChoices.mode
+  const pool: PracticePool = pools.some((item) => item.id === params.get('pool')) ? params.get('pool') as PracticePool : savedChoices.pool
+  const limit = params.get('limit') === '12' ? 12 : params.get('limit') === '6' ? 6 : savedChoices.limit
+  useEffect(() => savePracticeChoices({ mode, pool, limit }, owner), [mode, pool, limit, owner])
   const [prepared, setPrepared] = useState<{ items: SemanticItem[]; references: SemanticItem[]; words: ReturnType<typeof selectPracticeWords>['candidates']; count: number }>()
   const [preparing, setPreparing] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -49,11 +53,6 @@ export default function PracticePage() {
   const events = useLiveQuery(async () => (await db.learningEvents.where('eventType')
     .anyOf('word_attempted', 'semantic_recall_attempted', 'semantic_discrimination_attempted').toArray())
     .filter((event) => event.ownerUserId === owner), [owner])
-  const pending = useLiveQuery(() => db.semanticRuns.orderBy('startedAt').reverse()
-    .filter((run) => run.origin === 'manual' && run.ownerUserId === owner && run.dictionaryId === dict.id
-      && run.completedAt === undefined && run.endedAt === undefined).first(), [dict.id, owner])
-  const pendingSpelling = useLiveQuery(() => db.reviewRecords.orderBy('createTime').reverse()
-    .filter((record) => record.origin === 'manual' && record.ownerUserId === owner && record.dict === dict.id && !record.isFinished).first(), [dict.id, owner])
   const selection = useMemo(() => words && events ? selectPracticeWords(words, events, dict.id, chapter, pool, mode) : undefined,
     [chapter, dict.id, events, mode, pool, words])
 
@@ -100,7 +99,7 @@ export default function PracticePage() {
           navigate('/?practice=spelling')
         }
       } else {
-        const run = await createManualSemanticRun(dict.id, mode, prepared.items, prepared.references, owner)
+        const run = await createManualSemanticRun(dict.id, mode, prepared.items, prepared.references, owner, { pool, limit })
         if (getLocalLearningOwnerId() !== owner) throw new Error('账号已经改变，请重新准备。')
         navigate(semanticRunPath(run))
       }
@@ -119,15 +118,7 @@ export default function PracticePage() {
         <div><h1 className="wenyan-page-title">专项训练</h1><p className="wenyan-muted mt-2 text-sm">想练哪一种，就从一小段开始。</p></div>
         <Link to="/today" className="wenyan-link text-sm">按今天的安排学 <ArrowRight className="ml-1 inline" size={13} /></Link>
       </div>
-      {pending && <section className="wenyan-practice-resume mb-7 flex items-center justify-between gap-5 px-5 py-4" aria-label="未完成的专项训练">
-        <div><p className="text-sm font-medium">接着上次的{pending.mode === 'discrimination' ? '选择词义' : '词义回想'}</p>
-          <p className="wenyan-muted mt-1 text-xs">已保存 {pending.index} / {pending.mode === 'discrimination' ? pending.discriminationQuestions?.length : pending.items.length}，可以从刚才的位置继续。</p></div>
-        <Link className="wenyan-button-secondary shrink-0" to={semanticRunPath(pending)}>继续这一段</Link>
-      </section>}
-      {pendingSpelling && <section className="wenyan-practice-resume mb-7 flex items-center justify-between gap-5 px-5 py-4" aria-label="未完成的专项拼写">
-        <div><p className="text-sm font-medium">接着上次的专项拼写</p><p className="wenyan-muted mt-1 text-xs">已保存 {pendingSpelling.index} / {pendingSpelling.words.length} 个词。</p></div>
-        <button className="wenyan-button-secondary shrink-0" onClick={() => { if (pendingSpelling.ownerUserId !== getLocalLearningOwnerId()) return; setReview({ isReviewMode: true, reviewRecord: pendingSpelling }); navigate('/?practice=spelling') }}>继续拼写</button>
-      </section>}
+      <PracticeResume dictionaryId={dict.id} />
       <fieldset><legend className="wenyan-kicker mb-3">01 · 练什么</legend>
         <div className="grid gap-3 sm:grid-cols-3">{modes.map((item) => <label key={item.id} className={`wenyan-practice-mode ${mode === item.id ? 'is-selected' : ''}`}>
           <input type="radio" name="practice-mode" className="sr-only" value={item.id} checked={mode === item.id} onChange={() => change('mode', item.id)} />
@@ -142,7 +133,7 @@ export default function PracticePage() {
             <input type="radio" className="sr-only" name="practice-pool" checked={pool === item.id} onChange={() => change('pool', item.id)} />{item.title}
           </label>)}</div></fieldset>
           <p className="wenyan-muted mt-3 min-h-[40px] text-xs leading-5">{selectedPool.detail}</p>
-          {!(mode === 'spelling' && pool === 'chapter') && <fieldset className="mt-3 flex items-center gap-3"><legend className="sr-only">每段词数</legend><span className="wenyan-muted text-xs">这一段</span>{[6, 12].map((count) => <label key={count} className={`wenyan-practice-pool ${limit === count ? 'is-selected' : ''}`}><input className="sr-only" type="radio" name="practice-count" checked={limit === count} onChange={() => setLimit(count)} />最多 {count} 个</label>)}</fieldset>}
+          {!(mode === 'spelling' && pool === 'chapter') && <fieldset className="mt-3 flex items-center gap-3"><legend className="sr-only">每段词数</legend><span className="wenyan-muted text-xs">这一段</span>{[6, 12].map((count) => <label key={count} className={`wenyan-practice-pool ${limit === count ? 'is-selected' : ''}`}><input className="sr-only" type="radio" name="practice-count" checked={limit === count} onChange={() => change('limit', String(count))} />最多 {count} 个</label>)}</fieldset>}
           <div className="mt-6 border-t border-[var(--wenyan-line-soft)] pt-5">
             <p className="text-sm">{selectedMode.detail}</p>
             <p className="wenyan-muted mt-3 text-xs leading-6" aria-live="polite">{contentError ? '词书暂时加载失败。已保存的学习记录不受影响。' : loading ? '正在整理这一小段…' : prepared?.count ? `本段 ${prepared.count} 个${mode === 'discrimination' ? '可辨认的词' : '词'}${mode === 'spelling' && pool === 'chapter' ? ' · 继续章节原有进度' : ' · 较久没练的优先'}` : pool === 'chapter' && mode === 'discrimination' ? '当前章节没有足够的不同释义组成题目，试试词义回想。' : '这一组暂时没有可练的词。没有记录不代表不会，先选当前章节即可。'}</p>

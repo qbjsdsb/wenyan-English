@@ -219,3 +219,15 @@ Final targeted spelling proof passed: two error words with random preference on,
 Release closure: PR #57 merged as `d47fe246a1034d5d2720294d14ce0f3711257129`. Final feature head `536a56d901a79207c3c9ba567e85e88c0d5233f9` full CI #255 (run `37940889441`) success, including all browser and Pages flows. Pages run `37941059141` build/deploy both success on exact merge SHA. Existing production MCP v15 / measurement contracts remain unchanged. Real-user learning not yet verified. Docs-only closure does not change deployed frontend code.
 
 Live smoke: homepage HTTP 200; published entry `/wenyan-English/assets/index-20786b24.js` contains the new `/practice` route. Public asset checks only, no real user learning/session modified.
+
+## 2026-10-10 · Practice continuity
+
+Fresh main: `850a2d9cca24294925ba3b9d84fb38b08de05c51`; runtime release remains PR #57 `d47fe24`. Branch `polish/practice-continuity`. Priority findings: practice mode/pool/count lost on return; only newest unfinished semantic run visible, hiding older work; per-run results incorrectly capped at 14 days; direct spelling reload may trust stale localStorage after an atomic IndexedDB word save.
+
+Decision: compact unfinished-work shelf with resume / end controls (ending never deletes facts or invents completion), owner-scoped remembered practice choices, bounded return context, full per-run result counts, and authoritative manual-review restoration before typing. Preserve existing runners, Smart Session, payloads and backend contracts. No reading or new training mode in this iteration. Implementation pending; save this checkpoint before proceeding.
+
+Implemented: owner-scoped mode/pool/count memory and frozen semantic return context; unified unfinished shelf (latest one, expandable, resume/end); ending preserves facts without completion. Per-run evidence includes all session facts while recent aggregates remain 14 days. Manual spelling gates input on authoritative IndexedDB cursor; UI atom no longer overwrites manual cursor, and ended runs reject further commits. Legacy wrong-word resume excludes manual records. Escape works from focused semantic buttons. No schema migration or backend deployment required; new optional fields are local runtime metadata. Type check passed. Focused verification in progress; PR #58 is not yet merged/deployed.
+
+Validation checkpoint: three targeted browser paths passed (normal manual spelling/reload, old result window + preferences + pending shelf/end, authoritative cursor against stale localStorage). Initial stale-cursor test accidentally chose ordinary chapter mode; corrected fixture to manual error pool and reran only that case, passing in 4.9s. Type check passed; targeted lint has no errors. Implementation saved remotely as `b3d8993`; automatic CI #258 runs independently. No real-user verification.
+
+Layout refinement: show only the latest unfinished session by default, with a count and expansion for older work, so pending work does not bury starting a new exercise. Synthetic desktop screenshot checked for layout; CJK font was missing in this container, so this is not full typography verification.

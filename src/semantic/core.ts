@@ -40,7 +40,7 @@ export function parseSemanticPayload(value: unknown): SemanticPayload {
 }
 
 /** Bounded descriptive evidence. A self-rating is an observed report, not verified correctness. */
-export function buildSemanticEvidence(facts: readonly SemanticFact[], now: number) {
+export function buildSemanticEvidence(facts: readonly SemanticFact[], now: number, windowStart = now - 14 * 86400000) {
   const unique = new Map<string, SemanticFact>()
   let excluded = 0
   for (const fact of facts) {
@@ -52,7 +52,7 @@ export function buildSemanticEvidence(facts: readonly SemanticFact[], now: numbe
       unique.set(fact.id, { ...fact, payload })
     } catch { excluded++ }
   }
-  const recent = Array.from(unique.values()).filter((f) => f.occurredAt >= now - 14 * 86400000)
+  const recent = Array.from(unique.values()).filter((f) => f.occurredAt >= windowStart)
     .sort((a, b) => b.occurredAt - a.occurredAt || a.id.localeCompare(b.id))
   const latest = new Map<string, SemanticFact>()
   for (const f of recent) {
@@ -60,7 +60,7 @@ export function buildSemanticEvidence(facts: readonly SemanticFact[], now: numbe
     if (!latest.has(key)) latest.set(key, f)
   }
   return {
-    algorithmVersion: 'semantic-evidence-v1', window: { from: now - 14 * 86400000, through: now },
+    algorithmVersion: 'semantic-evidence-v1', window: { from: windowStart, through: now },
     measurement: 'self_report_after_reveal', attempts: recent.length, distinctVersionedItems: latest.size,
     selfReported: { recalled: recent.filter((f) => f.payload.rating === 'recalled').length,
       partial: recent.filter((f) => f.payload.rating === 'partial').length,
