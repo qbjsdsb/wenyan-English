@@ -510,35 +510,6 @@ html.dark .dark\:border-white\/12 {
 }
 
 /* Calm shared states: readable in both desk themes, without new motion layers. */
-.wenyan-dictionary-choice {
-  display: block;
-  width: 100%;
-  border: 1px solid transparent;
-  border-radius: var(--wenyan-radius-md);
-  padding: 12px;
-  text-align: left;
-  color: var(--wenyan-ink-secondary);
-}
-.wenyan-dictionary-choice:hover { background: var(--wenyan-paper-muted); }
-.wenyan-dictionary-choice.is-selected {
-  border-color: color-mix(in srgb, var(--wenyan-accent) 30%, var(--wenyan-line));
-  background: var(--wenyan-accent-soft);
-  color: var(--wenyan-ink);
-}
-.wenyan-chapter-choice {
-  min-height: 104px;
-  border: 1px solid var(--wenyan-line-soft);
-  border-radius: var(--wenyan-radius-md);
-  padding: 16px;
-  background: var(--wenyan-paper-raised);
-  text-align: left;
-}
-.wenyan-chapter-choice:hover { border-color: var(--wenyan-accent); }
-.wenyan-chapter-choice.is-selected {
-  border-color: var(--wenyan-accent);
-  background: var(--wenyan-accent-soft);
-  box-shadow: inset 3px 0 0 var(--wenyan-accent);
-}
 .wenyan-empty-state {
   display: flex;
   min-height: 320px;
@@ -564,3 +535,32 @@ html.dark .dark\:border-white\/12 {
 summary { border-radius: var(--wenyan-radius-sm); }
 summary:focus-visible { outline: 2px solid var(--wenyan-accent); outline-offset: 5px; }
 input[type='search']::-webkit-search-cancel-button { cursor: pointer; }
+
+.wenyan-library-choice { border-radius: 8px; }
+.wenyan-library-choice:focus-visible,
+.wenyan-language-tab:focus-visible,
+.wenyan-library-tags [role='radio']:focus-visible {
+  outline: 2px solid var(--wenyan-accent);
+  outline-offset: -2px;
+}
+.wenyan-chapter-choice { transition: border-color 140ms ease, background-color 140ms ease; }
+.wenyan-library-results { animation: wenyan-surface-arrive 160ms ease-out; }
+@keyframes wenyan-surface-arrive {
+  from { opacity: 0.65; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wenyan-library-results { animation: none; }
+  .wenyan-chapter-choice { transition: none; }
+}
+
+.wenyan-dialog[data-state='open'] { animation: wenyan-dialog-arrive 160ms ease-out; }
+.wenyan-dialog[data-state='closed'] { animation: wenyan-dialog-leave 100ms ease-in; }
+@keyframes wenyan-dialog-arrive {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 4px)) scale(0.99); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes wenyan-dialog-leave { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .wenyan-dialog[data-state] { animation: none; }
+}

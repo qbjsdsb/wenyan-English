@@ -18,7 +18,8 @@ section[aria-label='智能学习']::before {
   right: -34%;
   top: -66%;
   background: radial-gradient(ellipse at center, var(--wenyan-accent-glow) 0%, transparent 72%);
-  filter: blur(30px);
+  /* The radial gradient already feathers its edge; avoid a large blur layer. */
+  filter: none;
   opacity: 0.62;
 }
 
@@ -51,7 +52,7 @@ section[aria-label='学习计划'] > div:first-child > div:first-child > span:fi
     color-mix(in srgb, var(--wenyan-accent) 2.5%, transparent) 48%,
     transparent 76%
   );
-  filter: blur(42px);
+  filter: none;
   opacity: 0.13;
 }
 

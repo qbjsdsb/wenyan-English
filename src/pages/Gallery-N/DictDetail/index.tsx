@@ -1,3 +1,4 @@
+import { DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { useDeleteWordRecord } from '../../../utils/db'
 import Chapter from '../Chapter'
 import { ErrorTable } from '../ErrorTable'
@@ -67,8 +68,8 @@ export default function DictDetail({ dictionary: dict }: { dictionary: Dictionar
       <div className="mb-5 border-b border-[var(--wenyan-line-soft)] pb-4">
         <div className="flex items-end justify-between gap-8">
           <div className="min-w-0">
-            <h3 className="text-[22px] font-semibold tracking-[-0.03em] text-[var(--wenyan-ink)]">{dict.name}</h3>
-            <p className="wenyan-muted mt-1.5 text-[11px]">{dict.chapterCount} 章节 · {dict.length} 词</p>
+            <DialogTitle className="text-[22px] font-semibold tracking-[-0.03em] text-[var(--wenyan-ink)]">{dict.name}</DialogTitle>
+            <p className="wenyan-muted mt-1.5 text-[11px]">{dict.chapterCount} 章节 · {dict.length} 词 · 点击章节开始练习</p>
           </div>
 
           <ToggleGroup type="single" value={curTab} onValueChange={handleTabChange} className="shrink-0 gap-4">
@@ -81,13 +82,13 @@ export default function DictDetail({ dictionary: dict }: { dictionary: Dictionar
             )}
           </ToggleGroup>
         </div>
-        <p className="wenyan-body mt-3 max-w-2xl text-[13px] leading-6">{dict.description}</p>
+        <DialogDescription className="wenyan-body mt-3 max-w-2xl text-[13px] leading-6">{dict.description}</DialogDescription>
       </div>
 
       <Tabs value={curTab} className="h-[28rem] w-full">
         <TabsContent value={Tab.Chapters} className="h-full">
           <ScrollArea className="h-[28rem] pr-3">
-            <div className="flex w-full flex-wrap gap-2.5">
+            <div className="grid w-full grid-cols-3 gap-3 lg:grid-cols-4">
               {range(0, dict.chapterCount, 1).map((index) => (
                 <Chapter
                   key={`${dict.id}-${index}`}

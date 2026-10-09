@@ -34,7 +34,7 @@ export function LanguageTabSwitcher() {
     <RadioGroup value={state.currentLanguageTab} onChange={onChangeTab}>
       <div className="flex items-center gap-5">
         {options.map((option) => (
-          <RadioGroup.Option key={option.id} value={option.id} className="cursor-pointer focus:outline-none">
+          <RadioGroup.Option key={option.id} value={option.id} className="wenyan-language-tab cursor-pointer rounded-sm">
             {({ checked }) => (
               <div className={`relative pb-2 text-[13px] font-medium ${checked ? 'text-[var(--wenyan-ink)]' : 'text-[var(--wenyan-ink-secondary)] hover:text-[var(--wenyan-ink)]'}`}>
                 {option.name}
