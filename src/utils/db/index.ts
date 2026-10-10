@@ -65,6 +65,9 @@ class RecordDB extends Dexie {
       learningSyncCursors: '&userId',
     })
     this.version(8).stores({ typingCheckpoints: '&id,updatedAt' })
+    this.version(9).stores({
+      learningEvents: '&id,eventType,occurredAt,syncState,ownerUserId,[syncState+occurredAt],[ownerUserId+eventType],[ownerUserId+occurredAt]',
+    })
   }
 }
 

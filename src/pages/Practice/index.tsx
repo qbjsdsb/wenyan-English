@@ -3,6 +3,7 @@ import { readPracticeChoices, savePracticeChoices } from '@/semantic/practiceCho
 import Header from '@/components/Header'
 import { CHAPTER_LENGTH } from '@/constants'
 import { useLearningOwner } from '@/hooks/useLearningOwner'
+import { learningEventsForOwnerByTypes } from '@/learning/eventQueries'
 import { buildSemanticDiscriminationQuestions } from '@/semantic/discrimination'
 import { createManualSemanticRun, preparePracticeItems, selectPracticeWords, semanticRunPath } from '@/semantic/practice'
 import type { PracticeMode, PracticePool } from '@/semantic/practice'
@@ -53,9 +54,10 @@ export default function PracticePage() {
   const lock = useRef(false)
   const { data: words, error: contentError, mutate } = useSWR(dict.language === 'en' ? dict.url : null, wordListFetcher,
     { shouldRetryOnError: false, revalidateOnFocus: false, revalidateOnReconnect: false })
-  const events = useLiveQuery(async () => (await db.learningEvents.where('eventType')
-    .anyOf('word_attempted', 'semantic_recall_attempted', 'semantic_discrimination_attempted').toArray())
-    .filter((event) => event.ownerUserId === owner), [owner])
+  const events = useLiveQuery(
+    () => learningEventsForOwnerByTypes(owner, ['word_attempted', 'semantic_recall_attempted', 'semantic_discrimination_attempted']),
+    [owner],
+  )
   const selection = useMemo(() => words && events ? selectPracticeWords(words, events, dict.id, chapter, pool, mode) : undefined,
     [chapter, dict.id, events, mode, pool, words])
 

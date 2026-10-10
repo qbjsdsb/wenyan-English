@@ -3,6 +3,7 @@ import type { SemanticCandidate } from './types'
 import type { SemanticItem, SemanticPayload } from '@/semantic/core'
 import { parseSemanticPayload, semanticKey } from '@/semantic/core'
 import { semanticItem } from '@/semantic/provider'
+import { learningEventsForOwnerByTypes } from '@/learning/eventQueries'
 import { buildSmartSession } from './planner'
 import {
   type SmartSessionRuntime,
@@ -36,10 +37,6 @@ function contentId(dictId: string, ordinal: number) {
 
 function startOfShanghaiDay(now: number) {
   return Math.floor((now + SHANGHAI_OFFSET) / DAY) * DAY - SHANGHAI_OFFSET
-}
-
-function visibleToCurrentOwner(ownerUserId: string | undefined, eventOwnerUserId: string | undefined) {
-  return ownerUserId ? eventOwnerUserId === ownerUserId : !eventOwnerUserId
 }
 
 function wordAttemptPayload(value: unknown): WordAttemptedPayload | undefined {
@@ -96,13 +93,14 @@ export async function prepareSmartVocabularySession(
     ) return { kind: 'resume', runtime, record: record as ReviewRecord }
   }
 
-  const [words, rawEvents, semanticEvents] = await Promise.all([
+  const [words, ownerEvents] = await Promise.all([
     wordListFetcher(dictionary.url),
-    db.learningEvents.where('eventType').equals('word_attempted').toArray(),
-    db.learningEvents.where('eventType').equals('semantic_recall_attempted').toArray(),
+    learningEventsForOwnerByTypes(ownerUserId, ['word_attempted', 'semantic_recall_attempted']),
   ])
+  const rawEvents = ownerEvents.filter((event) => event.eventType === 'word_attempted')
+  const semanticEvents = ownerEvents.filter((event) => event.eventType === 'semantic_recall_attempted')
   const visibleEvents = rawEvents
-    .filter((event) => visibleToCurrentOwner(ownerUserId, event.ownerUserId) && event.occurredAt <= now)
+    .filter((event) => event.occurredAt <= now)
     .map((event) => ({ event, payload: wordAttemptPayload(event.payload) }))
     .filter((entry): entry is { event: (typeof rawEvents)[number]; payload: WordAttemptedPayload } => Boolean(entry.payload))
 
@@ -154,7 +152,7 @@ export async function prepareSmartVocabularySession(
   const semanticItems = new Map<string, SemanticItem>()
   const latestSemantic = new Map<string, { id: string; occurredAt: number; payload: SemanticPayload }>()
   for (const event of semanticEvents) {
-    if (!visibleToCurrentOwner(ownerUserId, event.ownerUserId) || event.occurredAt > now) continue
+    if (event.occurredAt > now) continue
     try {
       const payload = parseSemanticPayload(event.payload)
       const key = semanticKey(payload.dictionaryId, payload.word)
