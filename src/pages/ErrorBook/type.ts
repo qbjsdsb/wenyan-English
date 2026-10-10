@@ -6,4 +6,5 @@ export type groupedWordRecords = {
   records: SpellingAttemptRecord[]
   wrongCount: number
   latestOccurredAt: number
+  latestSource: SpellingAttemptRecord['source']
 }
