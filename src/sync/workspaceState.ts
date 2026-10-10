@@ -1,5 +1,5 @@
 import type { PracticeMode, PracticePool } from '@/semantic/practice'
-import { practiceChoicesStorageKey, type PracticeChoices } from '@/semantic/practiceChoices'
+import { type PracticeChoices, practiceChoicesStorageKey } from '@/semantic/practiceChoices'
 import { supabase } from '@/supabase/client'
 
 export type WorkspaceState = {
