@@ -46,7 +46,7 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
-test('Smart Session uses real word facts, has no chapter taskRun, and resumes an unfinished block', async ({ page }) => {
+test('Smart Session persists the real spelling cursor, resumes at the next word, and settles without chapter completion', async ({ page }) => {
   await page.goto('/today')
 
   const smartRegion = page.getByRole('region', { name: '智能学习' })
@@ -74,8 +74,11 @@ test('Smart Session uses real word facts, has no chapter taskRun, and resumes an
     content: `
       import { db } from '/src/utils/db/index.ts'
       const events = await db.learningEvents.toArray()
-      const wordFacts = events.filter(event => event.eventType === 'word_attempted')
+      const wordFacts = events
+        .filter(event => event.eventType === 'word_attempted')
+        .sort((a, b) => a.occurredAt - b.occurredAt || a.id.localeCompare(b.id))
       const reviewRecords = await db.reviewRecords.toArray()
+      const smartRecord = reviewRecords.find(record => record.origin === 'smart')
       window.__smartSessionFacts = {
         wordCount: wordFacts.length,
         words: wordFacts.map(event => event.payload.word),
@@ -83,7 +86,11 @@ test('Smart Session uses real word facts, has no chapter taskRun, and resumes an
         allReviewChapter: wordFacts.every(event => event.payload.chapter === -1),
         anyPlanLink: wordFacts.some(event => event.payload.planId || event.payload.taskId || event.payload.taskRunId),
         chapterFacts: events.filter(event => event.eventType === 'chapter_completed').length,
-        openReviewRecords: reviewRecords.filter(record => !record.isFinished).length,
+        openReviewRecords: reviewRecords.filter(record => !record.isFinished && record.endedAt === undefined).length,
+        smartIndex: smartRecord?.index ?? null,
+        smartOrigin: smartRecord?.origin ?? null,
+        smartOwner: smartRecord?.ownerUserId ?? null,
+        smartFinished: smartRecord?.isFinished ?? null,
       }
     `,
   })
@@ -99,11 +106,52 @@ test('Smart Session uses real word facts, has no chapter taskRun, and resumes an
   expect(facts.anyPlanLink).toBe(false)
   expect(facts.chapterFacts).toBe(0)
   expect(facts.openReviewRecords).toBe(1)
+  expect(facts.smartIndex).toBe(1)
+  expect(facts.smartOrigin).toBe('smart')
+  expect(facts.smartOwner).toBeNull()
+  expect(facts.smartFinished).toBe(false)
 
   await page.getByRole('button', { name: '继续这一段', exact: true }).click()
   await expect(page).toHaveURL(/smartSession=/)
   expect(new URL(page.url()).searchParams.get('taskRun')).toBeNull()
   await expect(page.getByText('按任意键开始', { exact: true })).toBeVisible()
+
+  await page.keyboard.press('Enter')
+  await expect(page.getByText('beta translation', { exact: true })).toBeVisible()
+  await page.keyboard.type('beta', { delay: 35 })
+  await expect(page.getByText('gamma translation', { exact: true })).toBeVisible()
+  await page.keyboard.type('gamma', { delay: 35 })
+  await expect(page.getByText(/本次学习完成/)).toBeVisible()
+  await page.getByRole('button', { name: '返回今天', exact: true }).click()
+  await expect(page).toHaveURL(/\/today$/)
+
+  await page.addScriptTag({
+    type: 'module',
+    content: `
+      import { db } from '/src/utils/db/index.ts'
+      const events = await db.learningEvents.toArray()
+      const wordFacts = events
+        .filter(event => event.eventType === 'word_attempted')
+        .sort((a, b) => a.occurredAt - b.occurredAt || a.id.localeCompare(b.id))
+      const smartRecord = (await db.reviewRecords.toArray()).find(record => record.origin === 'smart')
+      window.__smartCompletion = {
+        wordCount: wordFacts.length,
+        words: wordFacts.map(event => event.payload.word),
+        chapterFacts: events.filter(event => event.eventType === 'chapter_completed').length,
+        smartIndex: smartRecord?.index ?? null,
+        smartFinished: smartRecord?.isFinished ?? null,
+      }
+    `,
+  })
+  await page.waitForFunction(() => Boolean((window as unknown as { __smartCompletion?: unknown }).__smartCompletion))
+  const completion = await page.evaluate(
+    () => (window as unknown as { __smartCompletion: Record<string, unknown> }).__smartCompletion,
+  )
+  expect(completion.wordCount).toBe(3)
+  expect(completion.words).toEqual(['alpha', 'beta', 'gamma'])
+  expect(completion.chapterFacts).toBe(0)
+  expect(completion.smartIndex).toBe(2)
+  expect(completion.smartFinished).toBe(true)
 })
 
 test('active Learning Intent is merged by scope and safely shapes the next block', async ({ page }) => {

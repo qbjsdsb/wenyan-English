@@ -27,7 +27,9 @@ export default function WordPanel() {
   const smartSessionId = searchParams.get('smartSession')
 
   const setReviewModeInfo = useSetAtom(reviewModeInfoAtom)
+  const reviewRecord = useAtomValue(reviewModeInfoAtom).reviewRecord
   const isReviewMode = useAtomValue(isReviewModeAtom)
+  const ownerBoundReview = isReviewMode && ['manual', 'smart', 'correction'].includes(reviewRecord?.origin ?? '')
 
   const prevIndex = useMemo(() => {
     const newIndex = state.chapterData.index - 1
@@ -76,6 +78,9 @@ export default function WordPanel() {
 
   const onSkipWord = useCallback(
     (type: 'prev' | 'next') => {
+      // Owner-bound spelling runs use ReviewRecord.index as the durable cursor. Moving
+      // around without committing a word would desynchronise that cursor from the UI.
+      if (ownerBoundReview) return
       if (type === 'prev') {
         dispatch({ type: TypingStateActionType.SKIP_2_WORD_INDEX, newIndex: prevIndex })
       }
@@ -84,7 +89,7 @@ export default function WordPanel() {
         dispatch({ type: TypingStateActionType.SKIP_2_WORD_INDEX, newIndex: nextIndex })
       }
     },
-    [dispatch, prevIndex, nextIndex],
+    [dispatch, ownerBoundReview, prevIndex, nextIndex],
   )
 
   useHotkeys(
@@ -93,7 +98,7 @@ export default function WordPanel() {
       e.preventDefault()
       onSkipWord('prev')
     },
-    { enabled: state.isTyping, ignoreEventWhen: ignoresStudyKey, preventDefault: true },
+    { enabled: state.isTyping && !ownerBoundReview, ignoreEventWhen: ignoresStudyKey, preventDefault: true },
   )
 
   useHotkeys(
@@ -102,7 +107,7 @@ export default function WordPanel() {
       e.preventDefault()
       onSkipWord('next')
     },
-    { enabled: state.isTyping, ignoreEventWhen: ignoresStudyKey, preventDefault: true },
+    { enabled: state.isTyping && !ownerBoundReview, ignoreEventWhen: ignoresStudyKey, preventDefault: true },
   )
   const [isShowTranslation, setIsHoveringTranslation] = useState(false)
 
@@ -138,7 +143,7 @@ export default function WordPanel() {
 
   return (
     <div className="wenyan-word-stage flex h-full w-full flex-col items-center justify-center">
-      {isShowPrevAndNextWord && state.isTyping && (
+      {isShowPrevAndNextWord && state.isTyping && !ownerBoundReview && (
         <div className="absolute inset-x-6 top-8 z-10 flex items-center justify-between">
           <PrevAndNextWord type="prev" />
           <PrevAndNextWord type="next" />

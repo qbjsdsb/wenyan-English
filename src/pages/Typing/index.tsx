@@ -64,6 +64,8 @@ const App: React.FC = () => {
 
   const reviewModeInfo = useAtomValue(reviewModeInfoAtom)
   const isReviewMode = useAtomValue(isReviewModeAtom)
+  const ownerBoundReview =
+    isReviewMode && ['manual', 'smart', 'correction'].includes(reviewModeInfo.reviewRecord?.origin ?? '')
   const checkpointEnabled = !isReviewMode && !searchParams.has('smartSession') && idDictionaryMap[currentDictId]?.language === 'en'
   const taskRunId = searchParams.get('taskRun')
 
@@ -112,8 +114,9 @@ const App: React.FC = () => {
   }, [currentDictId, setCurrentChapter, setCurrentDictId])
 
   const skipWord = useCallback(() => {
+    if (ownerBoundReview) return
     dispatch({ type: TypingStateActionType.SKIP_WORD })
-  }, [dispatch])
+  }, [dispatch, ownerBoundReview])
 
   useEffect(() => {
     const onBlur = () => {
@@ -197,7 +200,7 @@ const App: React.FC = () => {
       const initialIndex = isReviewMode && reviewModeInfo.reviewRecord?.index ? reviewModeInfo.reviewRecord.index : 0
       dispatch({
         type: TypingStateActionType.SETUP_CHAPTER,
-        payload: { words, shouldShuffle: reviewModeInfo.reviewRecord?.origin === 'manual' && isReviewMode ? false : randomConfig.isOpen, initialIndex, checkpoint: identity },
+        payload: { words, shouldShuffle: ownerBoundReview ? false : randomConfig.isOpen, initialIndex, checkpoint: identity },
       })
       setPreparingChapter(false)
     })()
@@ -234,12 +237,12 @@ const App: React.FC = () => {
   }, [state.isTyping, dispatch])
 
   const skipButton = (
-    <Tooltip content="跳过该词">
+    <Tooltip content={ownerBoundReview ? '这段练习按固定顺序保存进度，不能跳词' : '跳过该词'}>
       <button
         aria-label="Skip"
-        disabled={state.isSavingRecord}
+        disabled={state.isSavingRecord || ownerBoundReview}
         className={`${
-          state.isShowSkip ? 'opacity-100' : 'pointer-events-none w-0 px-0 opacity-0'
+          state.isShowSkip && !ownerBoundReview ? 'opacity-100' : 'pointer-events-none w-0 px-0 opacity-0'
         } rounded-[var(--wenyan-radius-sm)] px-2.5 py-1.5 text-xs text-[var(--wenyan-ink-muted)] transition-all hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]`}
         onClick={(event) => {
           skipWord()

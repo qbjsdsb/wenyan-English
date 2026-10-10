@@ -103,20 +103,24 @@ export class ChapterRecord implements IChapterRecord {
   }
 
   get wpm() {
-    return Math.round((this.wordCount / this.time) * 60)
+    return this.time > 0 ? Math.round((this.wordCount / this.time) * 60) : 0
   }
 
   get inputAccuracy() {
-    return Math.round((this.correctCount / this.correctCount + this.wrongCount) * 100)
+    const total = this.correctCount + this.wrongCount
+    return total > 0 ? Math.round((this.correctCount / total) * 100) : 0
   }
 
   get wordAccuracy() {
-    return Math.round((this.correctWordIndexes.length / this.wordNumber) * 100)
+    return this.wordNumber > 0 ? Math.round((this.correctWordIndexes.length / this.wordNumber) * 100) : 0
   }
 }
 
+export type ReviewRecordOrigin = 'manual' | 'smart' | 'correction'
+
 export interface IReviewRecord {
-  origin?: 'manual'
+  /** New direct/smart/correction executions are owner-bound. Missing origin is legacy local review data. */
+  origin?: ReviewRecordOrigin
   endedAt?: number
   ownerUserId?: string
   id?: number
@@ -132,8 +136,8 @@ export interface IReviewRecord {
 }
 
 export class ReviewRecord implements IReviewRecord {
-  /** Direct practice only; legacy review records retain their existing contract. */
-  origin?: 'manual'
+  /** New direct/smart/correction executions are owner-bound. Missing origin is legacy local review data. */
+  origin?: ReviewRecordOrigin
   endedAt?: number
   ownerUserId?: string
   id?: number

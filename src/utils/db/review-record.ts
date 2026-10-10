@@ -19,7 +19,11 @@ export function useGetLatestReviewRecord(dictID: string) {
 }
 
 async function getReviewRecords(dictID: string): Promise<ReviewRecord | undefined> {
-  const records = await db.reviewRecords.where('dict').equals(dictID).filter((record) => record.origin !== 'manual').toArray()
+  // This hook powers the original Gallery "review" continuation path. Only
+  // origin-less legacy records belong there. Owner-bound manual/Smart/correction
+  // runs have their own entry points and execution invariants (owner, hard-stop,
+  // authoritative cursor), so letting Gallery resume them would bypass those guards.
+  const records = await db.reviewRecords.where('dict').equals(dictID).filter((record) => record.origin === undefined).toArray()
 
   const latestRecord = records.sort((a, b) => a.createTime - b.createTime).pop()
 

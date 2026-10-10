@@ -1,8 +1,10 @@
-import type { WordRecord } from '@/utils/db/record'
+import type { SpellingAttemptRecord } from '@/learning/spellingEvidence'
 
 export type groupedWordRecords = {
   word: string
   dict: string
-  records: WordRecord[]
+  records: SpellingAttemptRecord[]
   wrongCount: number
+  latestOccurredAt: number
+  latestSource: SpellingAttemptRecord['source']
 }

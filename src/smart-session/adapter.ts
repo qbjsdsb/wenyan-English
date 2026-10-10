@@ -87,7 +87,13 @@ export async function prepareSmartVocabularySession(
       if (run && run.ownerUserId === ownerUserId && run.completedAt === undefined && run.endedAt === undefined) return { kind: 'semantic-resume', runtime, run }
     }
     const record = runtime.currentBlock.reviewRecordId === undefined ? undefined : await db.reviewRecords.get(runtime.currentBlock.reviewRecordId)
-    if (record && !record.isFinished) return { kind: 'resume', runtime, record: record as ReviewRecord }
+    if (
+      record &&
+      record.origin === 'smart' &&
+      record.ownerUserId === ownerUserId &&
+      !record.isFinished &&
+      record.endedAt === undefined
+    ) return { kind: 'resume', runtime, record: record as ReviewRecord }
   }
 
   const [words, rawEvents, semanticEvents] = await Promise.all([
@@ -238,6 +244,8 @@ export async function startPreparedVocabularyBlock(
     return word
   })
   const record = new ReviewRecord(prepared.runtime.focusDictionary, words)
+  record.origin = 'smart'
+  record.ownerUserId = prepared.runtime.ownerUserId
   const reviewRecordId = await db.reviewRecords.add(record)
   record.id = reviewRecordId
 

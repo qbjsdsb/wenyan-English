@@ -10,6 +10,7 @@ import {
   reviewModeInfoAtom,
   wordDictationConfigAtom,
 } from '@/store'
+import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
 import { db } from '@/utils/db'
 import { ReviewRecord } from '@/utils/db/record'
 import { Dialog, Transition } from '@headlessui/react'
@@ -32,6 +33,7 @@ const ResultScreen = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const setReviewModeInfo = useSetAtom(reviewModeInfoAtom)
+  const reviewRecord = useAtomValue(reviewModeInfoAtom).reviewRecord
   const isReviewMode = useAtomValue(isReviewModeAtom)
 
   useEffect(() => {
@@ -74,11 +76,27 @@ const ResultScreen = () => {
   }, [state.chapterData.userInputLogs, state.chapterData.words])
 
   const isLastChapter = useMemo(() => currentChapter >= currentDictInfo.chapterCount - 1, [currentChapter, currentDictInfo])
-  const practisedCount = state.chapterData.completedWordIndexes.length
+  const segmentPractisedCount = state.chapterData.completedWordIndexes.length
+  const isOwnerBoundReview =
+    isReviewMode && ['manual', 'smart', 'correction'].includes(reviewRecord?.origin ?? '')
+  // ReviewRecord.index/isFinished is the authoritative cursor for owner-bound review execution.
+  // A resumed page only knows the inputs completed since it was reopened, so do not mistake that
+  // partial UI state for the progress of the whole persisted block.
+  const practisedCount = isOwnerBoundReview && reviewRecord
+    ? reviewRecord.isFinished
+      ? state.chapterData.words.length
+      : Math.min(state.chapterData.words.length, Math.max(reviewRecord.index, segmentPractisedCount))
+    : segmentPractisedCount
   const unpractisedCount = state.chapterData.words.length - practisedCount
   const firstTryCorrect = state.chapterData.completedWordIndexes.filter(
     (index) => state.chapterData.userInputLogs[index]?.wrongCount === 0,
   ).length
+  const resumedOwnedReview = isOwnerBoundReview && practisedCount > segmentPractisedCount
+  const firstTryValue = resumedOwnedReview
+    ? segmentPractisedCount > 0
+      ? `${firstTryCorrect} / ${segmentPractisedCount}`
+      : '—'
+    : `${firstTryCorrect} / ${practisedCount}`
 
   const timeString = useMemo(() => {
     const seconds = state.timerData.time
@@ -122,12 +140,19 @@ const ResultScreen = () => {
     setStartingReview(true)
     setReviewError('')
     try {
-      const reviewRecord = new ReviewRecord(currentDictInfo.id, wrongWords)
-      reviewRecord.id = await db.reviewRecords.add(reviewRecord)
-      setReviewModeInfo({ isReviewMode: true, reviewRecord })
+      const ownerUserId = getLocalLearningOwnerId()
+      const review = new ReviewRecord(currentDictInfo.id, wrongWords)
+      review.origin = 'correction'
+      review.ownerUserId = ownerUserId
+      review.id = await db.reviewRecords.add(review)
+      if (ownerUserId !== getLocalLearningOwnerId()) {
+        await db.reviewRecords.update(review.id, { endedAt: Date.now() })
+        throw new Error('账号已经改变，请重新开始错词练习。')
+      }
+      setReviewModeInfo({ isReviewMode: true, reviewRecord: review })
       navigate('/')
-    } catch {
-      setReviewError('暂时无法准备错词练习，原有记录仍然保留。请重试。')
+    } catch (cause) {
+      setReviewError(cause instanceof Error ? cause.message : '暂时无法准备错词练习，原有记录仍然保留。请重试。')
       setStartingReview(false)
     }
   }
@@ -137,6 +162,14 @@ const ResultScreen = () => {
     setReviewModeInfo((old) => ({ ...old, isReviewMode: false }))
     navigate('/gallery')
   }, [navigate, setCurrentChapter, setReviewModeInfo])
+
+  const leaveOwnedReview = useCallback(() => {
+    const origin = reviewRecord?.origin
+    setReviewModeInfo({ isReviewMode: false, reviewRecord: undefined })
+    if (origin === 'manual') navigate('/practice?mode=spelling')
+    else if (origin === 'correction') navigate('/error-book')
+    else navigate('/today')
+  }, [navigate, reviewRecord?.origin, setReviewModeInfo])
 
   const ignoresResultKey = (event: KeyboardEvent) =>
     event.isComposing ||
@@ -162,9 +195,19 @@ const ResultScreen = () => {
   )
   useHotkeys('shift+enter', dictationButtonHandler, { ignoreEventWhen: ignoresResultKey, preventDefault: true })
 
-  const title = `${currentDictInfo.name} · ${
-    isReviewMode ? (searchParams.has('smartSession') ? '本段词汇练习' : '错词复习') : `第 ${currentChapter + 1} 章`
-  }`
+  const reviewLabel = searchParams.has('smartSession') || reviewRecord?.origin === 'smart'
+    ? '本段词汇练习'
+    : reviewRecord?.origin === 'manual'
+      ? '专项拼写'
+      : reviewRecord?.origin === 'correction'
+        ? '错词纠正'
+        : '错词复习'
+  const title = `${currentDictInfo.name} · ${isReviewMode ? reviewLabel : `第 ${currentChapter + 1} 章`}`
+  const ownedExitLabel = reviewRecord?.origin === 'manual'
+    ? '回到专项训练'
+    : reviewRecord?.origin === 'correction'
+      ? '查看剩余错词'
+      : '返回今天'
 
   return (
     <Dialog
@@ -188,7 +231,7 @@ const ResultScreen = () => {
                 <Dialog.Title as="h2" className="mt-1 text-[18px] font-semibold tracking-[-0.02em] text-[var(--wenyan-ink)]">
                   {title}
                 </Dialog.Title>
-                {wrongWords.length === 0 && practisedCount > 0 && (
+                {wrongWords.length === 0 && segmentPractisedCount > 0 && (
                   <p className="mt-2 text-xs text-[var(--wenyan-success)]">本次已练的词没有出现拼写错误。</p>
                 )}
                 {unpractisedCount > 0 && (
@@ -207,8 +250,8 @@ const ResultScreen = () => {
 
             <div className="grid grid-cols-3 divide-x divide-[var(--wenyan-line-soft)] border-b border-[var(--wenyan-line-soft)] px-7 py-5">
               {[
-                [`${practisedCount} / ${state.chapterData.words.length}`, '已练单词'],
-                [`${firstTryCorrect} / ${practisedCount}`, '拼写无错'],
+                [`${practisedCount} / ${state.chapterData.words.length}`, isOwnerBoundReview ? '练习进度' : '已练单词'],
+                [firstTryValue, resumedOwnedReview ? '本次打开无错' : '拼写无错'],
                 [timeString, '用时'],
               ].map(([value, label]) => (
                 <div key={label} className="text-center">
@@ -220,13 +263,17 @@ const ResultScreen = () => {
 
             <div className="px-7 py-6">
               <p className="wenyan-muted mb-5 text-xs leading-6">
-                拼写无错只描述本次输入；是否理解词义，还需要单独回想。按键准确率 {state.timerData.accuracy}% · {state.timerData.wpm} 词/分钟
+                拼写无错只描述{resumedOwnedReview ? '这次打开后完成的输入' : '本次输入'}；是否理解词义，还需要单独回想。按键准确率 {state.timerData.accuracy}% · {state.timerData.wpm} 词/分钟
               </p>
               <div className="mb-3 flex items-center justify-between gap-4">
                 <div>
                   <h3 className="text-sm font-semibold text-[var(--wenyan-ink)]">错词</h3>
                   <p className="wenyan-muted mt-1 text-xs">
-                    {wrongWords.length ? `${wrongWords.length} 个词出现过拼写错误` : '本段没有拼写错词'}
+                    {wrongWords.length
+                      ? `${wrongWords.length} 个词出现过拼写错误`
+                      : resumedOwnedReview
+                        ? '这次继续完成的词没有拼写错误'
+                        : '本段没有拼写错词'}
                   </p>
                 </div>
                 {!isReviewMode && (
@@ -266,9 +313,11 @@ const ResultScreen = () => {
 
             <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--wenyan-line-soft)] px-7 py-4">
               <button type="button" className="wenyan-button-secondary" onClick={() => { if (isReviewMode) setReviewModeInfo({ isReviewMode: false, reviewRecord: undefined }); navigate('/practice?mode=recall&pool=learned') }}>换成词义训练</button>
-              <button type="button" aria-label="返回今日学习" className="wenyan-button-secondary" onClick={returnToday}>
-                返回今天
-              </button>
+              {(!isReviewMode || reviewRecord?.origin !== 'smart') && (
+                <button type="button" aria-label="返回今日学习" className="wenyan-button-secondary" onClick={returnToday}>
+                  返回今天
+                </button>
+              )}
               {!isReviewMode && (
                 <>
                   <Tooltip content="快捷键：Shift + Enter">
@@ -300,11 +349,15 @@ const ResultScreen = () => {
                   {startingReview ? '正在准备…' : `只练这 ${wrongWords.length} 个错词`}
                 </button>
               )}
-              {isReviewMode && (
+              {isReviewMode && reviewRecord?.origin ? (
+                <button aria-label={ownedExitLabel} className="wenyan-button-primary" type="button" onClick={leaveOwnedReview}>
+                  {ownedExitLabel}
+                </button>
+              ) : isReviewMode ? (
                 <button aria-label="练习其他章节" className="wenyan-button-primary" type="button" onClick={onNavigateToGallery}>
                   选择其他章节
                 </button>
-              )}
+              ) : null}
             </div>
           </Dialog.Panel>
         </div>
