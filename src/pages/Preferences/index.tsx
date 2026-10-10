@@ -5,10 +5,17 @@ import type { LearningStage } from '@/coaching/types'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-const stages: Array<{ id: LearningStage; title: string; description: string }> = [
-  { id: 'vocabulary', title: '词汇阶段', description: '以词汇输入、复习和拼写为主。' },
-  { id: 'mixed', title: '词汇 + 阅读', description: '词汇继续推进，同时加入阅读训练。' },
-  { id: 'exam_practice', title: '真题阶段', description: '以真题和题型训练为主，词汇作为补强。' },
+type StageOption = {
+  id: LearningStage
+  title: string
+  description: string
+  available: boolean
+}
+
+const stages: StageOption[] = [
+  { id: 'vocabulary', title: '词汇阶段', description: '以词汇输入、复习、拼写和词义训练为主。', available: true },
+  { id: 'mixed', title: '词汇 + 阅读', description: '路线已预留；等阅读执行器完成真实内容与闭环验收后开放。', available: false },
+  { id: 'exam_practice', title: '真题阶段', description: '路线已预留；等真题内容、题型执行与证据模型完成后开放。', available: false },
 ]
 
 function sourceLabel(snapshot: LearningPreferencesSnapshot) {
@@ -38,7 +45,7 @@ export default function PreferencesPage() {
   }, [])
 
   const confirm = async (stage: LearningStage) => {
-    if (!snapshot) return
+    if (!snapshot || !stages.find((item) => item.id === stage)?.available) return
     setSaving(stage)
     setMessage('')
     try {
@@ -58,13 +65,16 @@ export default function PreferencesPage() {
     }
   }
 
+  const currentStage = snapshot ? stages.find((stage) => stage.id === snapshot.learningStage.current) : undefined
+  const currentStageUnavailable = Boolean(currentStage && !currentStage.available)
+
   return (
     <div className="wenyan-studio-shell flex min-h-screen flex-col text-[var(--wenyan-ink)]">
       <Header />
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 pb-16 pt-9">
         <div className="mb-7">
           <h1 className="wenyan-page-title">学习阶段</h1>
-          <p className="wenyan-muted mt-2 text-sm">决定后续自动安排可以做到哪一步</p>
+          <p className="wenyan-muted mt-2 text-sm">只启用当前已有真实执行器和学习证据支持的阶段</p>
         </div>
 
         {message && <p role="status" className="wenyan-body mb-5 text-sm">{message}</p>}
@@ -88,11 +98,17 @@ export default function PreferencesPage() {
                 <div>
                   <p className="wenyan-muted text-[10px]">当前阶段</p>
                   <p className="mt-1 text-lg font-semibold text-[var(--wenyan-ink)]">
-                    {stages.find((stage) => stage.id === snapshot.learningStage.current)?.title ?? snapshot.learningStage.current}
+                    {currentStage?.title ?? snapshot.learningStage.current}
                   </p>
                 </div>
                 <span className="wenyan-muted text-xs">{sourceLabel(snapshot)}</span>
               </div>
+
+              {currentStageUnavailable && (
+                <p className="mt-4 rounded-[var(--wenyan-radius-sm)] bg-[var(--wenyan-paper-muted)] px-3 py-2 text-xs leading-5 text-[var(--wenyan-ink-muted)]">
+                  这个阶段来自之前的设置，但对应执行器尚未开放。Wenyan 不会假装已具备阅读或真题训练能力；你可以切回词汇阶段。
+                </p>
+              )}
 
               <div className="wenyan-stage-path mt-6" aria-label="学习路径">
                 {stages.map((stage) => {
@@ -100,33 +116,45 @@ export default function PreferencesPage() {
                   return (
                     <div key={stage.id} className={`wenyan-stage-node ${active ? 'is-active' : ''}`}>
                       <div className="wenyan-stage-node-dot" aria-hidden="true" />
-                      <div className={`text-[11px] ${active ? 'font-medium text-[var(--wenyan-ink)]' : 'text-[var(--wenyan-ink-muted)]'}`}>{stage.title}</div>
+                      <div className={`text-[11px] ${active ? 'font-medium text-[var(--wenyan-ink)]' : 'text-[var(--wenyan-ink-muted)]'}`}>
+                        {stage.title}{!stage.available ? ' · 规划中' : ''}
+                      </div>
                     </div>
                   )
                 })}
               </div>
             </section>
 
-            <section aria-label="可确认阶段" className="overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]">
+            <section aria-label="学习阶段选项" className="overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]">
               {stages.map((stage, index) => {
                 const active = snapshot.learningStage.current === stage.id
                 const confirmed = active && snapshot.learningStage.provenance.kind === 'user_confirmation'
+                const disabled = Boolean(saving) || confirmed || !stage.available
                 return (
                   <div key={stage.id} className={`${index > 0 ? 'border-t border-[var(--wenyan-line-soft)]' : ''} flex items-center justify-between gap-8 px-5 py-5 ${active ? 'bg-[var(--wenyan-accent-soft)]' : ''}`}>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <h2 className="text-sm font-medium text-[var(--wenyan-ink)]">{stage.title}</h2>
                         {active && <span className="text-[10px] text-[var(--wenyan-accent)]">当前</span>}
+                        {!stage.available && <span className="wenyan-muted text-[10px]">尚未开放</span>}
                       </div>
                       <p className="wenyan-muted mt-1.5 text-xs leading-5">{stage.description}</p>
                     </div>
                     <button
                       type="button"
-                      disabled={Boolean(saving) || confirmed}
+                      disabled={disabled}
                       onClick={() => void confirm(stage.id)}
                       className="wenyan-button-secondary shrink-0"
                     >
-                      {saving === stage.id ? '保存中…' : confirmed ? '已确认' : active ? '确认' : '切换'}
+                      {!stage.available
+                        ? '尚未开放'
+                        : saving === stage.id
+                          ? '保存中…'
+                          : confirmed
+                            ? '已确认'
+                            : active
+                              ? '确认'
+                              : '切换'}
                     </button>
                   </div>
                 )
@@ -135,7 +163,10 @@ export default function PreferencesPage() {
 
             <details className="wenyan-muted mt-8 text-xs">
               <summary className="wenyan-link cursor-pointer select-none text-xs">阶段说明</summary>
-              <p className="mt-3 leading-6">长期阶段需要由你确认。短期学习时长、强度和复习优先级仍可根据最近学习情况自动调整。阶段变化只影响未来安排，不会改写历史学习记录。</p>
+              <div className="mt-3 space-y-2 leading-6">
+                <p>阶段路径表示长期产品方向，不等于功能已经完成。只有存在真实执行器、可追溯学习事实和可用恢复路径的阶段才会开放确认。</p>
+                <p>短期学习时长、强度和复习优先级仍可根据最近学习情况自动调整。阶段变化只影响未来安排，不会改写历史学习记录。</p>
+              </div>
             </details>
           </>
         )}
