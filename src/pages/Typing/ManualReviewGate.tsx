@@ -12,9 +12,7 @@ import { Link } from 'react-router-dom'
 export default function ManualReviewGate({ children }: PropsWithChildren) {
   const [review, setReview] = useAtom(reviewModeInfoAtom)
   const owner = useLearningOwner()
-  const origin = review.isReviewMode && (review.reviewRecord?.origin === 'manual' || review.reviewRecord?.origin === 'smart')
-    ? review.reviewRecord.origin
-    : undefined
+  const origin = review.isReviewMode ? review.reviewRecord?.origin : undefined
   const id = origin ? review.reviewRecord?.id : undefined
   const key = id === undefined ? '' : JSON.stringify([owner ?? null, origin, id])
   const [ready, setReady] = useState('')
@@ -43,8 +41,8 @@ export default function ManualReviewGate({ children }: PropsWithChildren) {
     }
   }, [id, key, origin, owner, retry, setReview])
   if (!key || ready === key) return <>{children}</>
-  const returnPath = origin === 'smart' ? '/today' : '/practice'
-  const returnLabel = origin === 'smart' ? '回到今天' : '回到专项训练'
+  const returnPath = origin === 'smart' ? '/today' : origin === 'correction' ? '/error-book' : '/practice'
+  const returnLabel = origin === 'smart' ? '回到今天' : origin === 'correction' ? '回到错词' : '回到专项训练'
   return (
     <div className="wenyan-studio-shell min-h-screen text-[var(--wenyan-ink)]">
       <Header />
