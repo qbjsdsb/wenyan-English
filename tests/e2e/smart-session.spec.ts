@@ -115,11 +115,12 @@ test('Smart Session persists the real spelling cursor, resumes at the next word,
   await expect(page.getByText('按任意键开始', { exact: true })).toBeVisible()
 
   await page.keyboard.press('Enter')
+  await expect(page.getByText('beta translation', { exact: true })).toBeVisible()
   await page.keyboard.type('beta', { delay: 35 })
-  await page.waitForTimeout(350)
+  await expect(page.getByText('gamma translation', { exact: true })).toBeVisible()
   await page.keyboard.type('gamma', { delay: 35 })
   await expect(page.getByText(/本次学习完成/)).toBeVisible()
-  await page.getByRole('button', { name: '返回今日学习' }).click()
+  await page.getByRole('button', { name: '返回今天', exact: true }).click()
   await expect(page).toHaveURL(/\/today$/)
 
   await page.addScriptTag({
