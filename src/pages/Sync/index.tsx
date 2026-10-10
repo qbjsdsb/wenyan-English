@@ -163,6 +163,8 @@ export default function SyncPage() {
   const publishWorkspace = async () => {
     if (!session || busy) return
     const ownerUserId = session.user.id
+    workspaceRequestRef.current += 1
+    setWorkspaceLoading(false)
     setBusy(true)
     setMessage('')
     try {
@@ -171,6 +173,8 @@ export default function SyncPage() {
       const choices = readPracticeChoices(ownerUserId)
       const saved = await saveWorkspaceState(ownerUserId, workspaceStateInput(currentDictId, currentChapter, choices))
       if (sessionUserRef.current !== ownerUserId) throw new Error('账号已经改变，请在当前账号下重新保存。')
+      workspaceRequestRef.current += 1
+      setWorkspaceLoading(false)
       setCloudWorkspace(saved)
       setMessage('本机学习位置已保存到云端。学习事实没有被改写。')
     } catch (error) {
