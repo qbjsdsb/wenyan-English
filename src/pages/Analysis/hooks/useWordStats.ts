@@ -112,14 +112,14 @@ async function getSpellingStats(startTimeStamp: number, endTimeStamp: number, ow
     return { date, count, level: getLevel(count) }
   })
   const typingPaceRecord: IWordStats['typingPaceRecord'] = recordArray
+    .filter(([, day]) => day.activeTypingMs > 0)
     .map<[string, number]>(([date, day]) => [
       date,
-      day.activeTypingMs > 0 ? Math.round(day.attempts / (day.activeTypingMs / 60_000)) : 0,
+      Math.round(day.attempts / (day.activeTypingMs / 60_000)),
     ])
-    .filter(([, value]) => value > 0)
   const accuracyRecord: IWordStats['accuracyRecord'] = recordArray
+    .filter(([, day]) => day.correctCharacters + day.wrongCount > 0)
     .map<[string, number]>(([date, day]) => [date, inputAccuracy(day.correctCharacters, day.wrongCount) ?? 0])
-    .filter(([, value]) => value > 0)
 
   const wrongCounts = new Map<string, number>()
   for (const [, day] of recordArray) {
