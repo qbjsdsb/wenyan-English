@@ -14,16 +14,17 @@ import { ReviewRecord } from '@/utils/db/record'
 import { wordListFetcher } from '@/utils/wordListFetcher'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useAtomValue, useSetAtom } from 'jotai'
-import { ArrowRight, Check, Keyboard, ListChecks, MessageCircle } from 'lucide-react'
+import { ArrowRight, Keyboard, ListChecks, MessageCircle } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import useSWR from 'swr'
 
 const modes = [
-  { id: 'spelling', title: '拼写训练', hint: '把词拼准确', detail: '沿用熟悉的输入练习。想挑战回忆，可以在练习里开启默写。', icon: Keyboard },
-  { id: 'recall', title: '词义回想', hint: '英文 → 中文 · 主动回想', detail: '先在心里说出词义，再揭示释义，如实自评。没有选项提示。', icon: MessageCircle },
-  { id: 'discrimination', title: '选择词义', hint: '英文 → 中文 · 四选一', detail: '从真实词书释义中辨认。选对会记录为辨认正确，与主动回想分开。', icon: ListChecks },
+  { id: 'spelling', title: '拼写', hint: '练准词形', detail: '沿用熟悉的输入练习。想挑战回忆，可以在练习里开启默写。', icon: Keyboard },
+  { id: 'recall', title: '词义回想', hint: '主动想意思', detail: '先在心里说出词义，再揭示释义，如实自评。没有选项提示。', icon: MessageCircle },
+  { id: 'discrimination', title: '选择词义', hint: '辨认参考释义', detail: '从真实词书释义中辨认。选对会记录为辨认正确，与主动回想分开。', icon: ListChecks },
 ] as const
+
 const pools = [
   { id: 'chapter', title: '当前章节', detail: '从眼前这章挑一小段，适合刚学完后的巩固。' },
   { id: 'learned', title: '已经练过', detail: '只用当前词书里有真实拼写记录的词。优先较久没练这一模式的词。' },
@@ -42,7 +43,9 @@ export default function PracticePage() {
   const mode: PracticeMode = modes.some((item) => item.id === params.get('mode')) ? params.get('mode') as PracticeMode : savedChoices.mode
   const pool: PracticePool = pools.some((item) => item.id === params.get('pool')) ? params.get('pool') as PracticePool : savedChoices.pool
   const limit = params.get('limit') === '12' ? 12 : params.get('limit') === '6' ? 6 : savedChoices.limit
+
   useEffect(() => savePracticeChoices({ mode, pool, limit }, owner), [mode, pool, limit, owner])
+
   const [prepared, setPrepared] = useState<{ items: SemanticItem[]; references: SemanticItem[]; words: ReturnType<typeof selectPracticeWords>['candidates']; count: number }>()
   const [preparing, setPreparing] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -72,8 +75,11 @@ export default function PracticePage() {
         const count = mode === 'discrimination' ? buildSemanticDiscriminationQuestions(references, limit, items.map((item) => item.contentId)).length
           : mode === 'spelling' && pool === 'chapter' ? chapterWords.length : selectedWords.length
         if (active) setPrepared({ items, references, words: selectedWords, count })
-      } catch (cause) { if (active) setError(cause instanceof Error ? cause.message : '暂时无法准备这一组。') }
-      finally { if (active) setPreparing(false) }
+      } catch (cause) {
+        if (active) setError(cause instanceof Error ? cause.message : '暂时无法准备这一组。')
+      } finally {
+        if (active) setPreparing(false)
+      }
     })()
     return () => { active = false }
   }, [chapter, dict.id, limit, mode, pool, selection, words])
@@ -103,56 +109,180 @@ export default function PracticePage() {
         if (getLocalLearningOwnerId() !== owner) throw new Error('账号已经改变，请重新准备。')
         navigate(semanticRunPath(run))
       }
-    } catch (cause) { setError(cause instanceof Error ? cause.message : '暂时无法开始，原有记录仍然保留。') }
-    finally { lock.current = false; setBusy(false) }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '暂时无法开始，原有记录仍然保留。')
+    } finally {
+      lock.current = false
+      setBusy(false)
+    }
   }
-  const change = (key: string, value: string) => setParams((old) => { const next = new URLSearchParams(old); next.set(key, value); return next }, { replace: true })
+
+  const change = (key: string, value: string) => setParams((old) => {
+    const next = new URLSearchParams(old)
+    next.set(key, value)
+    return next
+  }, { replace: true })
+
   const selectedMode = modes.find((item) => item.id === mode) ?? modes[1]
   const selectedPool = pools.find((item) => item.id === pool) ?? pools[0]
   const loading = preparing || !events || !words
+  const previewWords = prepared?.items.slice(0, 8).map((item) => item.word) ?? []
+  const statusText = contentError
+    ? '词书暂时加载失败。已保存的学习记录不受影响。'
+    : loading
+      ? '正在整理这一小段…'
+      : prepared?.count
+        ? `本段 ${prepared.count} 个${mode === 'discrimination' ? '可辨认的词' : '词'}${mode === 'spelling' && pool === 'chapter' ? ' · 继续章节原有进度' : ' · 较久没练的优先'}`
+        : pool === 'chapter' && mode === 'discrimination'
+          ? '当前章节没有足够的不同释义组成题目，试试词义回想。'
+          : '这一组暂时没有可练的词。没有记录不代表不会，先选当前章节即可。'
 
-  return <div className="wenyan-studio-shell min-h-screen text-[var(--wenyan-ink)]">
-    <Header />
-    <main className="mx-auto max-w-5xl px-6 pb-14 pt-9">
-      <div className="mb-8 flex items-end justify-between gap-6">
-        <div><h1 className="wenyan-page-title">专项训练</h1><p className="wenyan-muted mt-2 text-sm">想练哪一种，就从一小段开始。</p></div>
-        <Link to="/today" className="wenyan-link text-sm">按今天的安排学 <ArrowRight className="ml-1 inline" size={13} /></Link>
-      </div>
-      <PracticeResume dictionaryId={dict.id} />
-      <fieldset><legend className="wenyan-kicker mb-3">01 · 练什么</legend>
-        <div className="grid gap-3 sm:grid-cols-3">{modes.map((item) => <label key={item.id} className={`wenyan-practice-mode ${mode === item.id ? 'is-selected' : ''}`}>
-          <input type="radio" name="practice-mode" className="sr-only" value={item.id} checked={mode === item.id} onChange={() => change('mode', item.id)} />
-          <div className="mb-5 flex items-center justify-between"><item.icon size={20} strokeWidth={1.5} aria-hidden="true" />{mode === item.id && <Check size={15} aria-hidden="true" />}</div>
-          <span className="block text-base font-semibold">{item.title}</span><span className="wenyan-muted mt-2 block text-xs">{item.hint}</span>
-        </label>)}</div>
-      </fieldset>
-      <section className="wenyan-focus-surface mt-6 px-6 py-6 sm:px-8 sm:py-7" aria-label="准备训练">
-        <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-medium">{dict.name} · 第 {chapter + 1} 章</p><Link className="wenyan-link text-xs" to="/gallery">换词书 / 章节</Link></div>
-        {dict.language !== 'en' ? <p className="wenyan-muted mt-7">专项训练目前支持英语词书，请先选择英语词书。</p> : <>
-          <fieldset className="mt-7"><legend className="wenyan-kicker mb-3">02 · 练哪些词</legend><div className="flex flex-wrap gap-2">{pools.map((item) => <label key={item.id} className={`wenyan-practice-pool ${pool === item.id ? 'is-selected' : ''}`}>
-            <input type="radio" className="sr-only" name="practice-pool" checked={pool === item.id} onChange={() => change('pool', item.id)} />{item.title}
-          </label>)}</div></fieldset>
-          <p className="wenyan-muted mt-3 min-h-[40px] text-xs leading-5">{selectedPool.detail}</p>
-          {!(mode === 'spelling' && pool === 'chapter') && <fieldset className="mt-3 flex items-center gap-3"><legend className="sr-only">每段词数</legend><span className="wenyan-muted text-xs">这一段</span>{[6, 12].map((count) => <label key={count} className={`wenyan-practice-pool ${limit === count ? 'is-selected' : ''}`}><input className="sr-only" type="radio" name="practice-count" checked={limit === count} onChange={() => change('limit', String(count))} />最多 {count} 个</label>)}</fieldset>}
-          <div className="mt-6 border-t border-[var(--wenyan-line-soft)] pt-5">
-            <p className="text-sm">{selectedMode.detail}</p>
-            <p className="wenyan-muted mt-3 text-xs leading-6" aria-live="polite">{contentError ? '词书暂时加载失败。已保存的学习记录不受影响。' : loading ? '正在整理这一小段…' : prepared?.count ? `本段 ${prepared.count} 个${mode === 'discrimination' ? '可辨认的词' : '词'}${mode === 'spelling' && pool === 'chapter' ? ' · 继续章节原有进度' : ' · 较久没练的优先'}` : pool === 'chapter' && mode === 'discrimination' ? '当前章节没有足够的不同释义组成题目，试试词义回想。' : '这一组暂时没有可练的词。没有记录不代表不会，先选当前章节即可。'}</p>
-            {prepared?.count ? <p className="wenyan-muted mt-1 truncate text-xs" title={prepared.items.map((item) => item.word).join(' · ')}>{prepared.items.slice(0, 6).map((item) => item.word).join(' · ')}{prepared.items.length > 6 ? ' …' : ''}</p> : null}
-            {error && <p role="alert" className="mt-3 text-sm text-[var(--wenyan-danger)]">{error}</p>}
-            <div className="mt-5 flex items-center gap-4">
-              <button className="wenyan-button-primary inline-flex items-center gap-2" disabled={loading || busy || !prepared?.count || Boolean(contentError)} onClick={() => void start()}>{busy ? '正在准备…' : mode === 'spelling' && pool === 'chapter' ? '继续拼写这一章' : `开始${selectedMode.title}`}<ArrowRight size={14} aria-hidden="true" /></button>
-              {contentError && <button className="wenyan-button-secondary" onClick={() => void mutate()}>重试加载</button>}
-              {!loading && !prepared?.count && pool !== 'chapter' && <button className="wenyan-link text-sm" onClick={() => change('pool', 'chapter')}>练当前章节</button>}
-            </div>
+  return (
+    <div className="wenyan-studio-shell min-h-screen text-[var(--wenyan-ink)]">
+      <Header />
+      <main className="mx-auto max-w-4xl px-6 pb-14 pt-10">
+        <div className="mb-7 flex items-end justify-between gap-6">
+          <div>
+            <h1 className="wenyan-page-title">专项训练</h1>
+            <p className="wenyan-muted mt-2 text-sm">专门练一件事，选好就开始。</p>
           </div>
-        </>}
-      </section>
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-xs"><p className="wenyan-muted">练习结果会进入学习记录。拼写、主动回想与辨认分别记录，随时可以暂停。</p><Link className="wenyan-link" to="/error-book">查看拼写错词</Link></div>
-      <details className="mt-7 border-t border-[var(--wenyan-line-soft)] pt-4"><summary className="wenyan-muted cursor-pointer text-xs">该怎么选？</summary><div className="wenyan-muted mt-3 space-y-2 text-xs leading-6">
-        <p>词形不稳：练拼写。看着词却说不出意思：先回想。意思相近、容易选错：用选择词义核对。模糊词来自你真实的自评或选错记录，不会凭空生成。</p>
-        <p>中文 → 英文：可以在拼写页面开启“默写”，隐藏词形再输入；发音与提示设置会影响线索，因此只按真实拼写条件记录。它不等于无提示产出，也不替代词义回想。</p>
-        <p>选择词义使用词书里的四个参考选项，适合检查辨认；它不测语境、搭配或熟词僻义。短段重复练习也不代表长期记住了。</p>
-      </div></details>
-    </main>
-  </div>
+          <Link to="/today" className="wenyan-link text-sm">按今天的安排学 <ArrowRight className="ml-1 inline" size={13} /></Link>
+        </div>
+
+        <PracticeResume dictionaryId={dict.id} />
+
+        <section className="wenyan-practice-desk" aria-label="专项训练设置">
+          <fieldset>
+            <legend className="sr-only">训练方式</legend>
+            <div className="wenyan-practice-tabs" role="radiogroup" aria-label="训练方式">
+              {modes.map((item) => (
+                <label key={item.id} className={`wenyan-practice-tab ${mode === item.id ? 'is-selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="practice-mode"
+                    className="sr-only"
+                    value={item.id}
+                    checked={mode === item.id}
+                    onChange={() => change('mode', item.id)}
+                  />
+                  <item.icon size={16} strokeWidth={1.65} aria-hidden="true" />
+                  <span>
+                    <span className="block text-sm font-semibold">{item.title}</span>
+                    <span className="wenyan-muted mt-1 block text-[11px]">{item.hint}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <div className="wenyan-practice-context">
+            <div>
+              <p className="wenyan-muted text-[10px] font-medium tracking-[0.04em]">当前词书</p>
+              <p className="mt-1 text-sm font-semibold">{dict.name} <span className="wenyan-muted font-normal">· 第 {chapter + 1} 章</span></p>
+            </div>
+            <Link className="wenyan-link text-xs" to="/gallery">换词书 / 章节</Link>
+          </div>
+
+          {dict.language !== 'en' ? (
+            <p className="wenyan-muted py-8">专项训练目前支持英语词书，请先选择英语词书。</p>
+          ) : (
+            <>
+              <section className="wenyan-practice-section" aria-labelledby="practice-pool-title">
+                <div className="wenyan-practice-section-heading">
+                  <div>
+                    <h2 id="practice-pool-title" className="text-sm font-semibold">练这些词</h2>
+                    <p className="wenyan-muted mt-1 text-xs leading-5">{selectedPool.detail}</p>
+                  </div>
+                </div>
+                <fieldset className="mt-4">
+                  <legend className="sr-only">练习范围</legend>
+                  <div className="flex flex-wrap gap-2">
+                    {pools.map((item) => (
+                      <label key={item.id} className={`wenyan-practice-pool ${pool === item.id ? 'is-selected' : ''}`}>
+                        <input type="radio" className="sr-only" name="practice-pool" checked={pool === item.id} onChange={() => change('pool', item.id)} />
+                        {item.title}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              </section>
+
+              {!(mode === 'spelling' && pool === 'chapter') && (
+                <section className="wenyan-practice-section wenyan-practice-length" aria-labelledby="practice-length-title">
+                  <div>
+                    <h2 id="practice-length-title" className="text-sm font-semibold">这一段</h2>
+                    <p className="wenyan-muted mt-1 text-xs">短一点更容易开始，练完可以继续下一段。</p>
+                  </div>
+                  <fieldset className="flex items-center gap-1.5">
+                    <legend className="sr-only">每段词数</legend>
+                    {[6, 12].map((count) => (
+                      <label key={count} className={`wenyan-practice-count ${limit === count ? 'is-selected' : ''}`}>
+                        <input
+                          className="sr-only"
+                          type="radio"
+                          name="practice-count"
+                          aria-label={`最多 ${count} 个`}
+                          checked={limit === count}
+                          onChange={() => change('limit', String(count))}
+                        />
+                        {count} 个
+                      </label>
+                    ))}
+                  </fieldset>
+                </section>
+              )}
+
+              <section className="wenyan-practice-launch" aria-live="polite">
+                <div className="min-w-0">
+                  <p className="wenyan-muted text-[10px] font-medium tracking-[0.05em]">{selectedMode.title}</p>
+                  <p className="mt-2 max-w-2xl text-sm leading-6">{selectedMode.detail}</p>
+                  <p className="wenyan-muted mt-3 text-xs leading-5">{statusText}</p>
+                  {previewWords.length > 0 && (
+                    <p className="wenyan-practice-preview mt-2 truncate text-xs" title={prepared?.items.map((item) => item.word).join(' · ')}>
+                      {previewWords.join(' · ')}{(prepared?.items.length ?? 0) > previewWords.length ? ' …' : ''}
+                    </p>
+                  )}
+                  {error && <p role="alert" className="mt-3 text-sm text-[var(--wenyan-danger)]">{error}</p>}
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  {contentError && <button className="wenyan-button-secondary" onClick={() => void mutate()}>重试加载</button>}
+                  {!loading && !prepared?.count && pool !== 'chapter' && (
+                    <button className="wenyan-link text-sm" onClick={() => change('pool', 'chapter')}>练当前章节</button>
+                  )}
+                  <button
+                    className="wenyan-button-primary inline-flex items-center gap-2"
+                    disabled={loading || busy || !prepared?.count || Boolean(contentError)}
+                    onClick={() => void start()}
+                  >
+                    {busy
+                      ? '正在准备…'
+                      : mode === 'spelling' && pool === 'chapter'
+                        ? '继续拼写这一章'
+                        : mode === 'spelling'
+                          ? '开始拼写训练'
+                          : `开始${selectedMode.title}`}
+                    <ArrowRight size={14} aria-hidden="true" />
+                  </button>
+                </div>
+              </section>
+            </>
+          )}
+        </section>
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <p className="wenyan-muted">拼写、主动回想与辨认分别留下真实记录；随时可以暂停。</p>
+          <Link className="wenyan-link" to="/error-book">查看拼写错词</Link>
+        </div>
+
+        <details className="mt-7 border-t border-[var(--wenyan-line-soft)] pt-4">
+          <summary className="wenyan-muted cursor-pointer text-xs">怎么选更合适？</summary>
+          <div className="wenyan-muted mt-3 space-y-2 text-xs leading-6">
+            <p>词形不稳：练拼写。看着词却说不出意思：先回想。意思相近、容易选错：用选择词义核对。模糊词来自你真实的自评或选错记录，不会凭空生成。</p>
+            <p>中文 → 英文：可以在拼写页面开启“默写”，隐藏词形再输入；发音与提示设置会影响线索，因此只按真实拼写条件记录。它不等于无提示产出，也不替代词义回想。</p>
+            <p>选择词义使用词书里的四个参考选项，适合检查辨认；它不测语境、搭配或熟词僻义。短段重复练习也不代表长期记住了。</p>
+          </div>
+        </details>
+      </main>
+    </div>
+  )
 }
