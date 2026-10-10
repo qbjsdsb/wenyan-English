@@ -79,6 +79,7 @@ export default function SyncPage() {
       setCloudWorkspace(state)
     } catch (error) {
       if (requestId !== workspaceRequestRef.current || sessionUserRef.current !== userId) return
+      setCloudWorkspace(undefined)
       setMessage(`云端学习位置暂时无法读取：${error instanceof Error ? error.message : String(error)}`)
     } finally {
       if (requestId === workspaceRequestRef.current && sessionUserRef.current === userId) setWorkspaceLoading(false)
@@ -96,6 +97,7 @@ export default function SyncPage() {
       if (userChanged) {
         setBusy(false)
         setMessage('')
+        setCloudWorkspace(undefined)
       }
       setSession(nextSession)
       setAuthReady(true)
