@@ -74,7 +74,7 @@ export default function SyncPage() {
     }
     setWorkspaceLoading(true)
     try {
-      const state = await getWorkspaceState()
+      const state = await getWorkspaceState(userId)
       if (requestId !== workspaceRequestRef.current || sessionUserRef.current !== userId) return
       setCloudWorkspace(state)
     } catch (error) {
@@ -169,7 +169,7 @@ export default function SyncPage() {
       const dict = idDictionaryMap[currentDictId]
       if (!dict || currentChapter < 0 || currentChapter >= dict.chapterCount) throw new Error('当前词书位置无效，请先重新选择章节。')
       const choices = readPracticeChoices(ownerUserId)
-      const saved = await saveWorkspaceState(workspaceStateInput(currentDictId, currentChapter, choices))
+      const saved = await saveWorkspaceState(ownerUserId, workspaceStateInput(currentDictId, currentChapter, choices))
       if (sessionUserRef.current !== ownerUserId) throw new Error('账号已经改变，请在当前账号下重新保存。')
       setCloudWorkspace(saved)
       setMessage('本机学习位置已保存到云端。学习事实没有被改写。')
