@@ -23,9 +23,13 @@ export function readPracticeChoices(owner?: string): PracticeChoices {
 }
 export function savePracticeChoices(choices: PracticeChoices, owner?: string) {
   try {
-    localStorage.setItem(key(owner), JSON.stringify(choices))
+    const serialized = JSON.stringify(choices)
+    localStorage.setItem(key(owner), serialized)
+    return localStorage.getItem(key(owner)) === serialized
   } catch {
-    /* Preferences must not block learning. */
+    // Preference persistence failure must never block learning; callers that need
+    // durable restore semantics can inspect the boolean result and surface it.
+    return false
   }
 }
 export function practiceReturnPath(mode: PracticeMode, choices?: Partial<PracticeChoices>) {
