@@ -232,9 +232,7 @@ const ResultScreen = () => {
                   {title}
                 </Dialog.Title>
                 {wrongWords.length === 0 && segmentPractisedCount > 0 && (
-                  <p className="mt-2 text-xs text-[var(--wenyan-success)]">
-                    {resumedOwnedReview ? '这次继续完成的词没有出现拼写错误。' : '本次已练的词没有出现拼写错误。'}
-                  </p>
+                  <p className="mt-2 text-xs text-[var(--wenyan-success)]">本次已练的词没有出现拼写错误。</p>
                 )}
                 {unpractisedCount > 0 && (
                   <p className="wenyan-muted mt-2 text-xs">{unpractisedCount} 个词尚未完成输入，可以再练一遍补上。</p>
