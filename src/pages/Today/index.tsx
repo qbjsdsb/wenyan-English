@@ -1,5 +1,6 @@
 import Header from '@/components/Header'
 import { useLearningOwner } from '@/hooks/useLearningOwner'
+import { learningEventsForOwnerBetween } from '@/learning/eventQueries'
 import type { WordAttemptedPayload } from '@/learning/types'
 import { createLearningEvent } from '@/learning/types'
 import { syncCloudPlanToLocal } from '@/plans/cloud'
@@ -7,13 +8,15 @@ import { exportStudyPlan, importStudyPlan, startStudyTask } from '@/plans/reposi
 import type { StoredStudyPlan, StudyPlan, StudyTask } from '@/plans/types'
 import { dateInTimezone } from '@/plans/validation'
 import { idDictionaryMap } from '@/resources/dictionary'
+import { practiceReturnPath, readPracticeChoices } from '@/semantic/practiceChoices'
+import type { PracticePool } from '@/semantic/practice'
 import { currentChapterAtom, currentDictIdAtom, currentDictInfoAtom, reviewModeInfoAtom } from '@/store'
 import { db } from '@/utils/db'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { saveAs } from 'file-saver'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { RefreshCw } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import SmartSessionDock from './SmartSessionDock'
 
@@ -24,6 +27,13 @@ function planSource(plan: StoredStudyPlan) {
   if (plan.origin === 'cloud') return 'ChatGPT'
   if (plan.origin === 'local') return '本机'
   return '导入'
+}
+
+function practicePoolLabel(pool: PracticePool) {
+  if (pool === 'chapter') return '当前章节'
+  if (pool === 'learned') return '已经练过'
+  if (pool === 'errors') return '拼写错词'
+  return '词义模糊'
 }
 
 export default function TodayPage() {
@@ -40,6 +50,7 @@ export default function TodayPage() {
   const [cloudMessage, setCloudMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const [cloudBusy, setCloudBusy] = useState(false)
+  const practiceChoices = useMemo(() => readPracticeChoices(owner), [owner])
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 60_000)
@@ -74,13 +85,12 @@ export default function TodayPage() {
   const today = dateInTimezone(now)
   const data = useLiveQuery(async () => {
     const start = new Date(`${today}T00:00:00+08:00`).getTime()
-    const [events, plans, runs, pendingEvents] = await Promise.all([
-      db.learningEvents.where('occurredAt').between(start, start + 86_400_000, true, false).toArray(),
+    const [visibleEvents, plans, runs, pendingEvents] = await Promise.all([
+      learningEventsForOwnerBetween(owner, start, start + 86_400_000 - 1),
       db.studyPlans.orderBy('importedAt').reverse().toArray(),
       db.studyPlanRuns.toArray(),
       db.learningEvents.where('syncState').anyOf('pending', 'failed').toArray(),
     ])
-    const visibleEvents = events.filter((event) => event.ownerUserId === owner)
     const attempts = visibleEvents.filter((event) => event.eventType === 'word_attempted')
     const correct = attempts.filter((event) => (event.payload as WordAttemptedPayload).wrongCount === 0).length
     const visiblePlans = plans.filter((plan) => {
@@ -206,11 +216,14 @@ export default function TodayPage() {
 
         <nav aria-label="专项训练快捷入口" className="wenyan-direct-practice">
           <span className="wenyan-muted text-[11px] font-medium">专项</span>
-          <Link to="/practice?mode=spelling">拼写</Link>
-          <Link to="/practice?mode=recall">词义回想</Link>
-          <Link to="/practice?mode=discrimination">选择词义</Link>
+          <Link to={practiceReturnPath('spelling', practiceChoices)}>拼写</Link>
+          <Link to={practiceReturnPath('recall', practiceChoices)}>词义回想</Link>
+          <Link to={practiceReturnPath('discrimination', practiceChoices)}>选择词义</Link>
+          <span className="wenyan-muted text-[10px]">
+            上次范围 · {practicePoolLabel(practiceChoices.pool)}{practiceChoices.pool === 'chapter' ? '' : ` · 每段 ${practiceChoices.limit}`}
+          </span>
           <span className="wenyan-direct-practice-spacer" aria-hidden="true" />
-          <Link to="/practice" className="wenyan-muted">更多设置</Link>
+          <Link to={practiceReturnPath(practiceChoices.mode, practiceChoices)} className="wenyan-muted">更多设置</Link>
         </nav>
 
         <section aria-label="今日概况" className="wenyan-overview-surface wenyan-today-overview mb-10">
@@ -341,7 +354,7 @@ export default function TodayPage() {
 
         <nav aria-label="学习入口" className="flex flex-wrap items-center gap-5 pt-1 text-[13px]">
           <Link to="/error-book" className={quietLink}>错词</Link>
-          <Link to="/reading/wenyan-demo-reading-01" className={quietLink}>阅读</Link>
+          <Link to="/reading/wenyan-demo-reading-01" className={quietLink} title="实验入口：阅读主学习闭环尚未开放">阅读实验</Link>
           <Link to="/gallery" className={quietLink}>词库</Link>
           <Link to="/analysis" className={quietLink}>记录</Link>
         </nav>
