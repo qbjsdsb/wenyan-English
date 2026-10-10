@@ -12,6 +12,7 @@ import { advanceCommittedWord } from '@/pages/Typing/checkpoint'
 import type { TypingCheckpoint } from '@/pages/Typing/checkpoint'
 import { TypingContext, TypingStateActionType } from '@/pages/Typing/store'
 import type { TypingState } from '@/pages/Typing/store/type'
+import { studyTaskExecutionFingerprint } from '@/plans/fingerprint'
 import type { StoredStudyPlan, StudyPlanRun } from '@/plans/types'
 import type { SemanticRun } from '@/semantic/run'
 import { currentChapterAtom, currentDictIdAtom, isReviewModeAtom, loopWordConfigAtom, reviewModeInfoAtom, wordDictationConfigAtom } from '@/store'
@@ -78,14 +79,32 @@ async function getActiveChapterTaskContext(
   occurredAt: number,
   dictId: string,
   chapter: number,
-): Promise<{ run: StudyPlanRun; context: Required<PlanTaskFactContext> } | undefined> {
+): Promise<{ run: StudyPlanRun; context: Required<Pick<PlanTaskFactContext, 'taskRunId' | 'planId' | 'taskId'>> & PlanTaskFactContext } | undefined> {
   if (!taskRunId) return undefined
   const run = await db.studyPlanRuns.get(taskRunId)
   if (!run || run.completionEventId || occurredAt < run.startedAt) return undefined
 
   const plan = await db.studyPlans.get(run.planId)
   const task = plan?.tasks.find((item) => item.id === run.taskId)
-  if (!task || task.dictId !== dictId || task.chapterIndex !== chapter) return undefined
+  if (!plan || !task || task.dictId !== dictId || task.chapterIndex !== chapter) return undefined
+
+  const currentFingerprint = studyTaskExecutionFingerprint(task)
+  if (run.taskFingerprint && run.taskFingerprint !== currentFingerprint) return undefined
+
+  if (plan.origin === 'cloud') {
+    const ownerUserId = getLocalLearningOwnerId()
+    // New Cloud Plan runs must have explicit owner/version/target provenance.
+    // Legacy in-flight cloud runs fail closed rather than attaching stale task
+    // ids to new immutable facts after an upgrade or account change.
+    if (
+      !ownerUserId ||
+      plan.ownerUserId !== ownerUserId ||
+      run.ownerUserId !== ownerUserId ||
+      plan.cloudStatus !== 'active' ||
+      !run.planRevision ||
+      !run.taskFingerprint
+    ) return undefined
+  }
 
   return {
     run,
@@ -93,6 +112,8 @@ async function getActiveChapterTaskContext(
       taskRunId: run.id,
       planId: run.planId,
       taskId: run.taskId,
+      ...(run.planRevision ? { planRevision: run.planRevision } : {}),
+      ...(run.taskFingerprint ? { taskFingerprint: run.taskFingerprint } : {}),
     },
   }
 }
