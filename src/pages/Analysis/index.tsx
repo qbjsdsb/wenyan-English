@@ -22,7 +22,7 @@ const Analysis = () => {
   useHotkeys('ctrl+d', () => setIsOpenDarkMode((old) => !old), { enableOnFormTags: true, preventDefault: true }, [])
   useHotkeys('esc', () => navigate('/today'), { ignoreEventWhen: ignoresStudyKey, preventDefault: true })
 
-  const { error, retry, isEmpty, attemptRecord, wordRecord, typingPaceRecord, accuracyRecord, wrongTimeRecord, recent7 } = useWordStats(
+  const { error, retry, isEmpty, attemptRecord, wordRecord, typingPaceRecord, accuracyRecord, wrongTimeRecord, legacyAttempts, recent7 } = useWordStats(
     dayjs().subtract(1, 'year').unix(),
     dayjs().unix(),
   )
@@ -57,7 +57,9 @@ const Analysis = () => {
                   <p className="wenyan-muted text-[10px]">最近 7 天</p>
                   <h2 className="mt-1 text-[16px] font-semibold tracking-[-0.02em] text-[var(--wenyan-ink)]">拼写节奏</h2>
                 </div>
-                <p className="wenyan-muted text-xs">当前账号 · immutable learning facts</p>
+                <p className="wenyan-muted text-xs">
+                  {legacyAttempts > 0 ? `当前账号事实 · 含 ${legacyAttempts} 条旧版本机记录` : '当前账号 · immutable learning facts'}
+                </p>
               </div>
               <div className="grid grid-cols-3 gap-6">
                 {[
@@ -73,6 +75,11 @@ const Analysis = () => {
               </div>
             </section>
 
+            {legacyAttempts > 0 && (
+              <p className="wenyan-muted mb-4 max-w-3xl text-[11px] leading-5">
+                旧版本机记录只用于保留升级前已经存在的可见历史；能与新版学习事实配对的记录会自动去重，不会被重新写成或上传为学习事实。
+              </p>
+            )}
             <p className="wenyan-muted mb-5 max-w-3xl text-[11px] leading-5">
               “输入节奏”只按正确按键之间的活跃间隔计算，不包含看词、回忆、首次反应和暂停时间，因此不代表记忆速度。
             </p>
