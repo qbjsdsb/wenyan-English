@@ -217,7 +217,14 @@ export default function PracticePage() {
                     <legend className="sr-only">每段词数</legend>
                     {[6, 12].map((count) => (
                       <label key={count} className={`wenyan-practice-count ${limit === count ? 'is-selected' : ''}`}>
-                        <input className="sr-only" type="radio" name="practice-count" checked={limit === count} onChange={() => change('limit', String(count))} />
+                        <input
+                          className="sr-only"
+                          type="radio"
+                          name="practice-count"
+                          aria-label={`最多 ${count} 个`}
+                          checked={limit === count}
+                          onChange={() => change('limit', String(count))}
+                        />
                         {count} 个
                       </label>
                     ))}
@@ -247,7 +254,13 @@ export default function PracticePage() {
                     disabled={loading || busy || !prepared?.count || Boolean(contentError)}
                     onClick={() => void start()}
                   >
-                    {busy ? '正在准备…' : mode === 'spelling' && pool === 'chapter' ? '继续拼写这一章' : `开始${selectedMode.title}`}
+                    {busy
+                      ? '正在准备…'
+                      : mode === 'spelling' && pool === 'chapter'
+                        ? '继续拼写这一章'
+                        : mode === 'spelling'
+                          ? '开始拼写训练'
+                          : `开始${selectedMode.title}`}
                     <ArrowRight size={14} aria-hidden="true" />
                   </button>
                 </div>
