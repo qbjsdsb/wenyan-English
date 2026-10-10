@@ -79,27 +79,32 @@ function mapChapterTask(value: unknown): { task?: StudyTask; completion?: CloudT
   }
 }
 
-async function markOtherCloudPlansArchived(activePlanId?: string) {
-  const cloudPlans = (await db.studyPlans.toArray()).filter((plan) => plan.origin === 'cloud' && plan.id !== activePlanId)
+async function markOtherCloudPlansArchived(ownerUserId: string, activePlanId?: string) {
+  const cloudPlans = (await db.studyPlans.toArray()).filter(
+    (plan) => plan.origin === 'cloud' && plan.ownerUserId === ownerUserId && plan.id !== activePlanId,
+  )
   await Promise.all(cloudPlans.map((plan) => db.studyPlans.put({ ...plan, cloudStatus: 'archived' })))
 }
 
 /**
- * Pull Cloud Plan v2 into Dexie as an execution cache. With no planId this
- * follows the newest active plan for Today. A specific planId is used by the
- * website command executor before starting a task, without hiding other cached
- * plans on the device.
+ * Pull Cloud Plan v2 into Dexie as an owner-bound execution cache. With no
+ * planId this follows the current actionable plan for Today. A specific planId
+ * is used immediately before task execution so RLS/Supabase remains the source
+ * of truth even when a stale local cache exists.
  */
 export async function syncCloudPlanToLocal(requestedPlanId?: string): Promise<CloudPlanSyncResult> {
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
   if (sessionError) return { status: 'failed', message: sessionError.message }
   if (!sessionData.session) return { status: 'signed-out' }
+  const ownerUserId = sessionData.session.user.id
 
   const { data, error } = await supabase.rpc('get_plan_status', { p_plan_id: requestedPlanId ?? null })
   if (error) return { status: 'failed', message: error.message }
 
   if (data == null) {
-    if (!requestedPlanId) await db.transaction('rw', db.studyPlans, async () => markOtherCloudPlansArchived())
+    if (!requestedPlanId) {
+      await db.transaction('rw', db.studyPlans, async () => markOtherCloudPlansArchived(ownerUserId))
+    }
     return { status: 'none' }
   }
 
@@ -156,6 +161,7 @@ export async function syncCloudPlanToLocal(requestedPlanId?: string): Promise<Cl
     tasks,
     importedAt,
     origin: 'cloud',
+    ownerUserId,
     cloudRevision: revision,
     cloudStatus: status,
     cloudCompletions,
@@ -164,7 +170,7 @@ export async function syncCloudPlanToLocal(requestedPlanId?: string): Promise<Cl
   await db.transaction('rw', db.studyPlans, async () => {
     const existing = await db.studyPlans.get(planId)
     if (existing && existing.origin !== 'cloud') throw new Error('云端计划 ID 与本机计划冲突，已拒绝覆盖本机计划。')
-    if (!requestedPlanId) await markOtherCloudPlansArchived(planId)
+    if (!requestedPlanId) await markOtherCloudPlansArchived(ownerUserId, planId)
     await db.studyPlans.put(cached)
   })
 
