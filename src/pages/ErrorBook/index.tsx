@@ -11,18 +11,22 @@ import { LoadingUI } from '@/components/Loading'
 import Header from '@/components/Header'
 import { useLearningOwner } from '@/hooks/useLearningOwner'
 import { buildActiveSpellingErrors } from '@/learning/spellingEvidence'
+import { idDictionaryMap } from '@/resources/dictionary'
+import { currentDictIdAtom } from '@/store'
 import { db } from '@/utils/db'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useAtom } from 'jotai'
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
 export function ErrorBook() {
   const owner = useLearningOwner()
+  const navigate = useNavigate()
   const [currentPage, setCurrentPage] = useState(1)
   const [sortType, setSortType] = useState<ISortType>('desc')
   const [retry, setRetry] = useState(0)
   const [currentRowDetail, setCurrentRowDetail] = useAtom(currentRowDetailAtom)
+  const [currentDictId, setCurrentDictId] = useAtom(currentDictIdAtom)
 
   useEffect(() => {
     setCurrentRowDetail(null)
@@ -64,6 +68,22 @@ export function ErrorBook() {
     return sortedRecords.slice(start, start + ITEM_PER_PAGE)
   }, [currentPage, sortedRecords])
 
+  const practiceDictId = useMemo(() => {
+    if (groupedRecords.some((record) => record.dict === currentDictId)) return currentDictId
+    return groupedRecords[0]?.dict
+  }, [currentDictId, groupedRecords])
+  const practiceErrorCount = useMemo(
+    () => practiceDictId ? groupedRecords.filter((record) => record.dict === practiceDictId).length : 0,
+    [groupedRecords, practiceDictId],
+  )
+  const practiceDictName = practiceDictId ? idDictionaryMap[practiceDictId]?.name : undefined
+
+  const startErrorPractice = () => {
+    if (!practiceDictId) return
+    setCurrentDictId(practiceDictId)
+    navigate('/practice?mode=spelling&pool=errors')
+  }
+
   return (
     <div className="wenyan-studio-shell flex min-h-screen flex-col text-[var(--wenyan-ink)]">
       <div className={`transition-[filter] duration-150 ${currentRowDetail ? 'blur-[1px]' : ''}`}>
@@ -77,14 +97,18 @@ export function ErrorBook() {
           </div>
           {!loading && !loadError && (
             <div className="flex items-center gap-3">
-              {groupedRecords.length > 0 && <Link to="/practice?mode=spelling&pool=errors" className="wenyan-button-secondary no-underline">练这些错词</Link>}
+              {practiceDictId && practiceErrorCount > 0 && (
+                <button type="button" onClick={startErrorPractice} className="wenyan-button-secondary">
+                  练 {practiceErrorCount} 个{practiceDictName ? `${practiceDictName} ` : ''}错词
+                </button>
+              )}
               <DropdownExport renderRecords={sortedRecords} />
             </div>
           )}
         </div>
 
         <p className="wenyan-muted mb-5 max-w-3xl text-xs leading-6">
-          这里按当前账号可见的真实拼写事实整理：只有最近一次仍有拼写错误的词会留下；之后拼对会自动离开。历史学习事实不会被“删除”。
+          这里按当前账号可见的真实拼写事实整理：只有最近一次仍有拼写错误的词会留下；之后拼对会自动离开。历史学习事实不会被“删除”。跨词书有错词时，右上角练习会明确锁定其中一本词书，不会误练当前无关词书。
         </p>
 
         {loading ? (
