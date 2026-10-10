@@ -10,6 +10,7 @@ import {
   reviewModeInfoAtom,
   wordDictationConfigAtom,
 } from '@/store'
+import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
 import { db } from '@/utils/db'
 import { ReviewRecord } from '@/utils/db/record'
 import { Dialog, Transition } from '@headlessui/react'
@@ -32,6 +33,7 @@ const ResultScreen = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const setReviewModeInfo = useSetAtom(reviewModeInfoAtom)
+  const reviewRecord = useAtomValue(reviewModeInfoAtom).reviewRecord
   const isReviewMode = useAtomValue(isReviewModeAtom)
 
   useEffect(() => {
@@ -122,12 +124,19 @@ const ResultScreen = () => {
     setStartingReview(true)
     setReviewError('')
     try {
-      const reviewRecord = new ReviewRecord(currentDictInfo.id, wrongWords)
-      reviewRecord.id = await db.reviewRecords.add(reviewRecord)
-      setReviewModeInfo({ isReviewMode: true, reviewRecord })
+      const ownerUserId = getLocalLearningOwnerId()
+      const review = new ReviewRecord(currentDictInfo.id, wrongWords)
+      review.origin = 'correction'
+      review.ownerUserId = ownerUserId
+      review.id = await db.reviewRecords.add(review)
+      if (ownerUserId !== getLocalLearningOwnerId()) {
+        await db.reviewRecords.update(review.id, { endedAt: Date.now() })
+        throw new Error('账号已经改变，请重新开始错词练习。')
+      }
+      setReviewModeInfo({ isReviewMode: true, reviewRecord: review })
       navigate('/')
-    } catch {
-      setReviewError('暂时无法准备错词练习，原有记录仍然保留。请重试。')
+    } catch (cause) {
+      setReviewError(cause instanceof Error ? cause.message : '暂时无法准备错词练习，原有记录仍然保留。请重试。')
       setStartingReview(false)
     }
   }
@@ -137,6 +146,14 @@ const ResultScreen = () => {
     setReviewModeInfo((old) => ({ ...old, isReviewMode: false }))
     navigate('/gallery')
   }, [navigate, setCurrentChapter, setReviewModeInfo])
+
+  const leaveOwnedReview = useCallback(() => {
+    const origin = reviewRecord?.origin
+    setReviewModeInfo({ isReviewMode: false, reviewRecord: undefined })
+    if (origin === 'manual') navigate('/practice?mode=spelling')
+    else if (origin === 'correction') navigate('/error-book')
+    else navigate('/today')
+  }, [navigate, reviewRecord?.origin, setReviewModeInfo])
 
   const ignoresResultKey = (event: KeyboardEvent) =>
     event.isComposing ||
@@ -162,9 +179,19 @@ const ResultScreen = () => {
   )
   useHotkeys('shift+enter', dictationButtonHandler, { ignoreEventWhen: ignoresResultKey, preventDefault: true })
 
-  const title = `${currentDictInfo.name} · ${
-    isReviewMode ? (searchParams.has('smartSession') ? '本段词汇练习' : '错词复习') : `第 ${currentChapter + 1} 章`
-  }`
+  const reviewLabel = searchParams.has('smartSession') || reviewRecord?.origin === 'smart'
+    ? '本段词汇练习'
+    : reviewRecord?.origin === 'manual'
+      ? '专项拼写'
+      : reviewRecord?.origin === 'correction'
+        ? '错词纠正'
+        : '错词复习'
+  const title = `${currentDictInfo.name} · ${isReviewMode ? reviewLabel : `第 ${currentChapter + 1} 章`}`
+  const ownedExitLabel = reviewRecord?.origin === 'manual'
+    ? '回到专项训练'
+    : reviewRecord?.origin === 'correction'
+      ? '查看剩余错词'
+      : '返回今天'
 
   return (
     <Dialog
@@ -266,9 +293,11 @@ const ResultScreen = () => {
 
             <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--wenyan-line-soft)] px-7 py-4">
               <button type="button" className="wenyan-button-secondary" onClick={() => { if (isReviewMode) setReviewModeInfo({ isReviewMode: false, reviewRecord: undefined }); navigate('/practice?mode=recall&pool=learned') }}>换成词义训练</button>
-              <button type="button" aria-label="返回今日学习" className="wenyan-button-secondary" onClick={returnToday}>
-                返回今天
-              </button>
+              {(!isReviewMode || reviewRecord?.origin !== 'smart') && (
+                <button type="button" aria-label="返回今日学习" className="wenyan-button-secondary" onClick={returnToday}>
+                  返回今天
+                </button>
+              )}
               {!isReviewMode && (
                 <>
                   <Tooltip content="快捷键：Shift + Enter">
@@ -300,11 +329,15 @@ const ResultScreen = () => {
                   {startingReview ? '正在准备…' : `只练这 ${wrongWords.length} 个错词`}
                 </button>
               )}
-              {isReviewMode && (
+              {isReviewMode && reviewRecord?.origin ? (
+                <button aria-label={ownedExitLabel} className="wenyan-button-primary" type="button" onClick={leaveOwnedReview}>
+                  {ownedExitLabel}
+                </button>
+              ) : isReviewMode ? (
                 <button aria-label="练习其他章节" className="wenyan-button-primary" type="button" onClick={onNavigateToGallery}>
                   选择其他章节
                 </button>
-              )}
+              ) : null}
             </div>
           </Dialog.Panel>
         </div>
