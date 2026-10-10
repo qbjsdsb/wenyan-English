@@ -35,7 +35,7 @@ function Root() {
   const [review, setReview] = useAtom(reviewModeInfoAtom)
   useEffect(() => {
     const origin = review.reviewRecord?.origin
-    if ((origin === 'manual' || origin === 'smart') && review.reviewRecord?.ownerUserId !== owner) {
+    if (origin && review.reviewRecord?.ownerUserId !== owner) {
       setReview({ isReviewMode: false, reviewRecord: undefined })
     }
   }, [owner, review, setReview])
