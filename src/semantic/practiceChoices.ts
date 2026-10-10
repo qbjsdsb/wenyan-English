@@ -6,7 +6,7 @@ export interface PracticeChoices {
   limit: 6 | 12
 }
 const defaults: PracticeChoices = { mode: 'recall', pool: 'chapter', limit: 6 }
-const key = (owner?: string) => `wenyanPracticeChoices:${owner ?? 'local'}`
+export const practiceChoicesStorageKey = (owner?: string) => `wenyanPracticeChoices:${owner ?? 'local'}`
 export function validPracticeChoices(value: Partial<PracticeChoices> | null | undefined): PracticeChoices {
   return {
     mode: ['spelling', 'recall', 'discrimination'].includes(value?.mode ?? '') ? value!.mode! : defaults.mode,
@@ -16,7 +16,7 @@ export function validPracticeChoices(value: Partial<PracticeChoices> | null | un
 }
 export function readPracticeChoices(owner?: string): PracticeChoices {
   try {
-    return validPracticeChoices(JSON.parse(localStorage.getItem(key(owner)) ?? 'null'))
+    return validPracticeChoices(JSON.parse(localStorage.getItem(practiceChoicesStorageKey(owner)) ?? 'null'))
   } catch {
     return defaults
   }
@@ -24,8 +24,8 @@ export function readPracticeChoices(owner?: string): PracticeChoices {
 export function savePracticeChoices(choices: PracticeChoices, owner?: string) {
   try {
     const serialized = JSON.stringify(choices)
-    localStorage.setItem(key(owner), serialized)
-    return localStorage.getItem(key(owner)) === serialized
+    localStorage.setItem(practiceChoicesStorageKey(owner), serialized)
+    return localStorage.getItem(practiceChoicesStorageKey(owner)) === serialized
   } catch {
     // Preference persistence failure must never block learning; callers that need
     // durable restore semantics can inspect the boolean result and surface it.
