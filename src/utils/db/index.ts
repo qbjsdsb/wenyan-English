@@ -185,7 +185,6 @@ export function useSaveChapterRecord() {
         'rw',
         [db.chapterRecords, db.learningEvents, db.wordRecords, db.studyPlans, db.studyPlanRuns, db.typingCheckpoints],
         async () => {
-          if (ownedReview && ownedReview.ownerUserId !== getLocalLearningOwnerId()) throw new Error('学习账号已变化，请重新打开练习。')
           if (typingState.checkpoint && typingState.checkpoint.ownerUserId !== getLocalLearningOwnerId())
             throw new Error('学习账号已变化，请重新打开练习。')
           await db.chapterRecords.add(chapterRecord)
