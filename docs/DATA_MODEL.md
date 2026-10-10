@@ -1,49 +1,54 @@
 # Learning data model
 
-更新：2026-10-07。
+更新：2026-10-10。
 
 ## Why events
 
 Qwerty already stores useful local records, but those records are shaped around the current UI. Wenyan adds a second, append-only layer whose job is to describe durable learning facts that can survive future UI changes.
 
-Current event types remain deliberately small:
+Existing `wordRecords`, `chapterRecords` and `reviewRecords` continue to power parts of the current product. Wenyan facts are the durable analysis/sync layer; they do not require rewriting Qwerty's learning engine.
 
-- `word_attempted`
-- `chapter_completed`
+Core rule：
 
-Existing `wordRecords`, `chapterRecords` and `reviewRecords` continue to power the current product. Wenyan facts are the durable analysis/sync layer; they do not require rewriting Qwerty's learning engine.
+> Historical learning truth is immutable. Future intent / plan state may change; past facts do not.
 
 ## Local event envelope
 
 ```text
 id             client UUID v4
- eventType      stable event name
- occurredAt     client timestamp in milliseconds
- sourceVersion  Wenyan English fact protocol version (legacy local rows imply v1)
- syncState      pending | synced | failed
- syncAttempts   retry counter
- ownerUserId    local account-isolation marker when known
- lastSyncError  optional diagnostic
- payload        event-specific fact data
+eventType      stable event name
+occurredAt     client timestamp in milliseconds
+sourceVersion  Wenyan English fact protocol version
+syncState      pending | synced | failed
+syncAttempts   retry counter
+ownerUserId    local account-isolation marker when known
+lastSyncError  optional diagnostic
+payload        event-specific fact data
 ```
 
 The UUID is generated before sync and never changes. The same event may therefore be retried without creating a second server row.
 
 Server rows additionally store `source='wenyan-english'`, `source_version`, `user_id`, and server `created_at`. `source_version` is copied from the local fact version rather than hard-coded during upload.
 
-## v1 facts
+## Server truth
+
+`public.learning_events` is the durable fact table. It is append-only for normal clients. Derived concepts such as review urgency, weak-word evidence, semantic evidence and study summaries can be recomputed without rewriting history.
+
+AI tools must never silently rewrite historical events just to make a recommendation or plan look cleaner.
+
+## Spelling facts
 
 ### `word_attempted` v1
 
 ```text
 word
- dict
- chapter
- reviewMode
- wrongCount
- durationMs
- timing[]
- mistakes{}
+dict
+chapter
+reviewMode
+wrongCount
+durationMs
+timing[]
+mistakes{}
 ```
 
 `durationMs` is the sum of inter-key timings already captured by Qwerty. It does not include the time before the first keypress and must not be described as recall latency. `mistakes` preserves which wrong key was pressed at each character position.
@@ -52,33 +57,62 @@ word
 
 ```text
 dict
- chapter
- reviewMode
- durationSeconds
- correctCount
- wrongCount
- wordCount
- wordNumber
- firstTryCorrectCount
+chapter
+reviewMode
+durationSeconds
+correctCount
+wrongCount
+wordCount
+wordNumber
+firstTryCorrectCount
 ```
 
-## v2 groundwork
+## v2 task / raw UI context
 
-New word attempts are emitted as source version 2. v2 keeps every v1 field and adds raw, directly observed context instead of guessing cognitive state:
+New spelling attempts use sourceVersion 2. v2 keeps v1 fields and may add directly observed UI / explicit-task context:
 
 ```text
 dictationEnabled
- dictationType   hideAll | hideVowel | hideConsonant | randomHide
- taskRunId?      only after local run validation
- planId?
- taskId?
+dictationType   hideAll | hideVowel | hideConsonant | randomHide
+
+taskRunId?
+planId?
+taskId?
+planRevision?
+taskFingerprint?
 ```
 
-`dictationEnabled/dictationType` describe the Qwerty UI conditions that were actually active. They are not automatically relabeled as “semantic recall”, “listening ability”, or another stronger claim.
+`dictationEnabled / dictationType` describe the UI conditions that were actually active. They are not automatically relabelled as “semantic recall”, “listening ability”, or another stronger claim.
 
-When a word is opened from a study-plan run, Wenyan resolves the local `StudyPlanRun`, plan and task before attaching task context. The actual dict/chapter must match, the run must still be active, and review mode is not linked to a chapter task. A stale or forged `taskRun` URL therefore does not become evidence.
+### Explicit Plan task identity
 
-A `chapter_completed` event is promoted to v2 and receives the same `taskRunId / planId / taskId` only when the existing real-completion rule succeeds: the correct dict/chapter was practised, all chapter words have real word records, and the task has not already been completed by another run.
+The task reference is all-or-nothing: `taskRunId / planId / taskId` travel together. `planRevision / taskFingerprint` are optional provenance fields for compatibility with historical v2 rows, but new Cloud Plan runs capture both.
+
+For new Cloud Plan runs:
+
+- `ownerUserId` is stored on the local `StudyPlanRun`;
+- `planRevision` records the plan revision observed when the run started;
+- `taskFingerprint` records the exact executable target.
+
+The current chapter executor uses:
+
+`chapter:<dictId>:<chapterIndex>`
+
+The fingerprint deliberately excludes title, reason, due date and estimated minutes. Those are planning metadata; editing them does not change what the learner is actually practising. Changing dictionary/chapter does change the fingerprint.
+
+When a word/chapter is opened from a task run, Wenyan resolves the local `StudyPlanRun`, plan and task before attaching task context. For Cloud Plans it also requires the current owner, active cloud cache, run owner, revision provenance and fingerprint. A stale URL, changed account, legacy unbound cloud run or changed executable target therefore cannot silently become Plan completion evidence.
+
+If task identity cannot be proven, **ordinary learning still saves**; only the unreliable Plan/task linkage is omitted. Network/cloud state must not block truthful local study.
+
+### Completion identity
+
+A `chapter_completed` event receives Plan task context only when the existing real-completion rule succeeds: correct dict/chapter, all chapter words have real word records, the run is still valid, and the task has not already been completed by another run.
+
+Production `get_plan_status` matches completion by owner + `planId / taskId`, and for new fingerprint-bearing facts additionally requires `taskFingerprint` to match the current task config.
+
+`planRevision` is provenance, **not** an equality gate. A revision that only changes due date/title/reason/estimate may still accept an in-flight run if the executable fingerprint is unchanged. A revision that changes dictionary/chapter cannot inherit that run's completion.
+
+Historical pre-fingerprint completion facts remain readable; history is not retrofitted or rewritten.
 
 ## Atomic local evidence
 
@@ -88,55 +122,79 @@ Chapter record, completion fact and plan-run completion are likewise committed t
 
 ## Restore compatibility
 
-Current clients accept Wenyan English source versions 1 and 2. v2 task and raw dictation fields are preserved during cloud restore.
+Current clients preserve sourceVersion 1/2 spelling facts, including optional `planRevision / taskFingerprint` provenance on v2 rows. Malformed partial task identity is rejected before the restore cursor advances.
 
-Unknown future source versions still stop a restore page before its cursor advances. This is intentional: an older client must not silently skip facts it cannot interpret.
+Unknown future source versions stop restore before its cursor advances. An older client must not silently skip facts it cannot interpret.
 
-## Still missing before richer AI analysis
+## Semantic recall v1 — sourceVersion 4
 
-v2 groundwork does **not** yet claim the following signals:
+`semantic_recall_attempted` is a separate immutable fact. Core fields include:
+
+```text
+domain=english
+activity=semantic_recall
+direction=en_to_meaning
+cue=word_only
+responseMode=mental_recall
+measurement=self_report_after_reveal
+answerRevealed=true
+rating=recalled|partial|not_recalled
+dictionaryId / word
+contentId / contentVersion
+sessionId / blockId
+```
+
+The observation is the **user's report**, not objectively checked correctness. No response latency or mastery score is invented.
+
+Content identity is dictionary + normalized surface, independent of array ordinal. SHA-256 versions the exact displayed word/reference meanings. Changed definitions are a different evidence version.
+
+Reveal is persisted before rendering; fact and run cursor commit in one transaction. Failed storage leaves the current item in place. Only all real ratings finish a run; stopping does not synthesize completion.
+
+## Objective semantic discrimination — sourceVersion 5
+
+`semantic_discrimination_attempted` measures `reference_meaning_discrimination`.
+
+- English cue → choose the matching current versioned reference meaning;
+- options come only from real dictionary reference meanings;
+- at least four safe/different options are required;
+- no LLM-generated fake definition / distractor;
+- answer can be objectively scored;
+- fact and question cursor commit atomically.
+
+Correct recognition does not imply free recall, contextual comprehension, Chinese→English production, collocation knowledge or semantic mastery. Recognition evidence and semantic recall self-report stay separate.
+
+## Manual vocabulary practice
+
+`semanticRuns.origin = manual` distinguishes direct practice from Smart recovery; payload/source versions and owner isolation remain unchanged.
+
+Direct spelling uses an existing ReviewRecord with optional `origin=manual` and `ownerUserId`. At each complete word, legacy spelling record, immutable fact and review cursor update share one transaction. Presented order is frozen instead of re-shuffled on refresh. Partial-word input is not recovered; already persisted observations remain history.
+
+Manual pools use current-owner immutable facts: learned requires a spelling observation; spelling errors require the latest attempt still incorrect within 14 days; semantic uncertainty uses latest recall/selection separately per current content version. No evidence is unknown, not weakness. Recognition success never clears a recall self-report, and vice versa.
+
+## Device-local vocabulary checkpoint (Dexie v8)
+
+`typingCheckpoints: &id,updatedAt` is mutable execution state, not a learning event and not part of cloud sync.
+
+Key binds owner / dictionary / chapter / taskRun. Exact content signature covers the presented source; presentation order is preserved and validated. Word record, immutable word fact and post-commit checkpoint share one Dexie transaction.
+
+Partial current-word input is deliberately not restored. Restore returns to the last committed boundary. A genuinely completed normal chapter clears its checkpoint in the same transaction as chapter record/fact. Navigation/skips without practising all items do not produce a chapter completion.
+
+This is device-local execution recovery, not cross-device run migration or a complete offline PWA.
+
+## Reading / future domains
+
+Reading already has separately typed `question_attempted` / `reading_completed` facts. Future content domains should reuse the common envelope, owner/sync/idempotency, session/plan references and versioned content identity, but keep domain-specific payloads and validators.
+
+Neither an essay nor a literary concept belongs in `WordAttemptedPayload`. Existing chapter completion is not a universal completion contract.
+
+## Still missing before richer inference
+
+Current spelling facts do **not** justify backfilling or inferring:
 
 - true first-key recall latency;
-- explicit session start/pause/finish facts;
-- `word_skipped` facts;
-- reliable hint/reveal usage;
-- active duration with background/pause time removed;
-- normalized follow / recall / listen practice mode.
+- reliable active duration with all pause/background time removed;
+- generic semantic mastery;
+- memory strength / FSRS rating from wrongCount;
+- unknown historical hint/reveal behavior.
 
-These should be added only with measurement semantics that survive pause, blur and mode changes. Missing historical fields stay missing; they are never backfilled by guesswork.
-
-## Server truth
-
-`public.learning_events` is the durable fact table. It is append-only for normal clients. Derived concepts such as mastery, weak words, review urgency and study summaries are computed from events and can change as algorithms improve.
-
-AI tools must never be allowed to silently rewrite historical events just to make a recommendation look cleaner.
-
-## Semantic recall v1 (sourceVersion 4; next-generation branch)
-
-`semantic_recall_attempted` is a separate immutable fact. Fields: domain=english, activity=semantic_recall, direction=en_to_meaning, cue=word_only, responseMode=mental_recall, measurement=self_report_after_reveal, answerRevealed=true, resumedAfterReveal, rating=recalled|partial|not_recalled, dictionaryId/word, contentId/contentVersion, sessionId/blockId. The observation is the **user's report**, not objectively checked correctness. No response latency or mastery score is recorded.
-
-Content identity is dictionary + normalized surface, independent of array ordinal. SHA-256 versions the exact displayed word/reference meanings. Definition text stays local; no new corpus is uploaded or committed. Changed definitions are a different evidence version. Multi-sense recognition and reading comprehension are not measured.
-
-Dexie v7 adds semanticRuns without touching legacy tables. Reveal is persisted before rendering; fact and run cursor commit in one transaction. Failed storage leaves the current item in place. Only all real ratings finish a run; stopping sets runtime endedAt and does not synthesize completion. The existing owner-scoped sync queue ingests v4 facts. Restore validates measurement fields before moving the cursor. Old clients encountering v4 stop restoration and require update; do not silently skip new facts. Existing chapter Cloud Plan completion rules remain unchanged.
-
-Future domain events should reuse the envelope, owner/sync/idempotency, session/plan references and versioned content identity. Keep separately typed domain payloads: neither an essay nor a literary concept belongs in WordAttemptedPayload. Do not retrofit historical rows or assign missing domain semantics by guesswork.
-
-
-## Device-local vocabulary checkpoint (Dexie v8, PR #56)
-
-`typingCheckpoints: &id,updatedAt` is mutable execution state, not a learning event and not part of cloud sync. Key = JSON tuple `[ownerUserId|null, dictionaryId, chapter, taskRunId|null]`; each attempt has a fresh runId. Exact content signature covers ordered source indices, names, reference meanings, phonetics and notation; the stored presentation order is preserved and validated against that source. Ordinary English chapters only; Smart Session and review retain their existing resume mechanisms.
-
-The word record, immutable word fact and post-commit checkpoint share one Dexie transaction. Stored state carries committed record IDs, distinct practised indices and repetition count. Partial current-word input is deliberately not restored. Timer restores to the last committed boundary, not wall time. Restore checks owner/content/order/counters and referenced records; a changed source discards only the invalid cursor, never past facts. Restored state starts paused.
-
-A genuinely completed normal chapter clears its checkpoint in the same transaction as the chapter record/fact. A normal chapter ended through skips without practising every item does not produce a chapter completion; saved word attempts remain. Restart clears only execution state. Pending final-word checkpoint allows a failed chapter commit to recover after refresh without replaying word facts. This adds no Supabase schema, new sync payload or AI write capability.
-
-
-Completion compatibility note: the stricter normal-chapter guard applies to new client execution. Older v1/v2 chapter facts are not rewritten and may reflect the legacy end-of-chapter behavior, including skips. A historical chapter count alone is not proof that every item was attempted; item-level immutable facts remain the stronger evidence.
-
-### Manual vocabulary practice (PR #57)
-
-`semanticRuns.origin = manual` distinguishes direct practice from Smart recovery; legacy rows omit it and remain compatible. Payloads/sourceVersion 4/5, owner isolation and atomic fact/cursor transactions are unchanged. Reference options can use current-chapter entries as distractors, but only the answered target produces a fact; viewing distractors does not count as learning. Recall versus recognition remains distinct.
-
-Direct spelling uses an existing ReviewRecord with optional `origin=manual` and `ownerUserId`. At each complete word, legacy spelling record, immutable fact and review cursor update share one transaction. The owner and expected review cursor are checked, preventing other-account or stale-tab writes. Presented order is frozen instead of re-shuffled on refresh. Partial-word/repetition input is not recovered; already persisted observations remain history. Navigated/skipped items do not synthesize manual chapter completion.
-
-Manual pools use current-owner immutable facts: learned requires a spelling observation; spelling errors require the latest attempt still incorrect within 14 days; semantic uncertainty uses the latest self-report/selection separately per content version. The current definition hash must match before an uncertain word is selected. No evidence is unknown, not weakness. Recognition success never clears a recall self-report, and vice versa. Automatic Smart spacing continues to use recall evidence; discrimination remains Coach evidence and a direct-practice uncertainty signal, not an FSRS rating.
+Missing historical fields stay missing; they are never reconstructed by guesswork.
