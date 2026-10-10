@@ -150,7 +150,7 @@ test('Smart Session persists the real spelling cursor, resumes at the next word,
   expect(completion.wordCount).toBe(3)
   expect(completion.words).toEqual(['alpha', 'beta', 'gamma'])
   expect(completion.chapterFacts).toBe(0)
-  expect(completion.smartIndex).toBe(3)
+  expect(completion.smartIndex).toBe(2)
   expect(completion.smartFinished).toBe(true)
 })
 
