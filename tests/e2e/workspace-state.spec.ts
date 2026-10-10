@@ -166,19 +166,22 @@ test('a complete local workspace persists across reload', async ({ page }) => {
   await page.route('**/*.supabase.co/**', (route) => route.abort())
   await page.goto('/today')
 
-  const result = await page.evaluate(async () => {
-    const { persistLocalWorkspace } = await import('/src/sync/workspaceState.ts')
-    return persistLocalWorkspace('user-a', {
-      schemaVersion: 1,
-      dictId: 'cet4',
-      chapterIndex: 7,
-      practiceMode: 'discrimination',
-      practicePool: 'uncertain',
-      practiceLimit: 12,
-      updatedAt: '2026-10-10T00:00:00.000Z',
-    }).ok
+  await page.addScriptTag({
+    type: 'module',
+    content: `
+      import { persistLocalWorkspace } from '/src/sync/workspaceState.ts'
+      window.__workspacePersistResult = persistLocalWorkspace('user-a', {
+        schemaVersion: 1,
+        dictId: 'cet4',
+        chapterIndex: 7,
+        practiceMode: 'discrimination',
+        practicePool: 'uncertain',
+        practiceLimit: 12,
+        updatedAt: '2026-10-10T00:00:00.000Z',
+      }).ok
+    `,
   })
-  expect(result).toBe(true)
+  expect(await waitForResult(page, '__workspacePersistResult')).toBe(true)
 
   await page.reload()
   const restored = await page.evaluate(() => ({
