@@ -75,7 +75,7 @@ db.chapterRecords.mapToClass(ChapterRecord)
 db.reviewRecords.mapToClass(ReviewRecord)
 
 function isOwnedReview(review: IReviewRecord | undefined) {
-  return review?.origin === 'manual' || review?.origin === 'smart'
+  return review?.origin === 'manual' || review?.origin === 'smart' || review?.origin === 'correction'
 }
 
 async function getActiveChapterTaskContext(
@@ -148,9 +148,9 @@ export function useSaveChapterRecord() {
         return
       }
 
-      // Smart spelling is a bounded review block, not a dictionary chapter. Its word facts and
-      // owner-bound review cursor are sufficient evidence; never synthesize chapter_completed.
-      if (ownedReview?.origin === 'smart') return
+      // Owner-bound spelling runs are bounded execution, not dictionary chapters. Their word facts and
+      // authoritative review cursor are sufficient evidence; never synthesize chapter_completed.
+      if (ownedReview) return
 
       const correctWordIndexes = userInputLogs
         .filter((log) => typingState.chapterData.completedWordIndexes.includes(log.index) && log.wrongCount === 0)
