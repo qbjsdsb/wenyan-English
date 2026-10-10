@@ -55,7 +55,7 @@ export default function Header({ children }: PropsWithChildren) {
               <NavLink to="/sync" aria-label="同步" title="同步" className={({ isActive }) => utilityClass(isActive)}>
                 <Cloud aria-hidden="true" size={15} strokeWidth={1.7} />
               </NavLink>
-              <NavLink to="/preferences" aria-label="设置" title="设置" className={({ isActive }) => utilityClass(isActive)}>
+              <NavLink to="/preferences" aria-label="学习策略" title="学习策略" className={({ isActive }) => utilityClass(isActive)}>
                 <Settings aria-hidden="true" size={15} strokeWidth={1.7} />
               </NavLink>
               <button
