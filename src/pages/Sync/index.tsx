@@ -1,10 +1,23 @@
 import { LoadingUI } from '@/components/Loading'
 import Header from '@/components/Header'
+import { idDictionaryMap } from '@/resources/dictionary'
+import { readPracticeChoices } from '@/semantic/practiceChoices'
+import { currentChapterAtom, currentDictIdAtom, reviewModeInfoAtom } from '@/store'
 import { getWenyanRedirectUrl, supabase } from '@/supabase/client'
 import { type LearningQueueSummary, claimUnownedLearningEvents, getLearningQueueSummary } from '@/sync/learningQueue'
 import { type LearningDataSyncResult, syncLearningData } from '@/sync/syncLearningEvents'
+import {
+  type WorkspaceState,
+  createWorkspaceRequestGate,
+  getWorkspaceState,
+  persistLocalWorkspace,
+  restoreLocalWorkspaceSnapshot,
+  saveWorkspaceState,
+  workspaceStateInput,
+} from '@/sync/workspaceState'
 import type { Session } from '@supabase/supabase-js'
-import { useCallback, useEffect, useState } from 'react'
+import { useAtom } from 'jotai'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 function describeResult(result: LearningDataSyncResult) {
   const parts: string[] = []
@@ -16,6 +29,27 @@ function describeResult(result: LearningDataSyncResult) {
   return parts.length > 0 ? parts.join(' · ') : '已是最新状态。'
 }
 
+function practiceModeLabel(mode: WorkspaceState['practiceMode']) {
+  if (mode === 'spelling') return '拼写'
+  if (mode === 'discrimination') return '选择词义'
+  return '词义回想'
+}
+
+function practicePoolLabel(pool: WorkspaceState['practicePool']) {
+  if (pool === 'chapter') return '当前章节'
+  if (pool === 'learned') return '已经练过'
+  if (pool === 'errors') return '拼写错词'
+  return '词义模糊'
+}
+
+function describeWorkspace(state: WorkspaceState | undefined) {
+  if (!state) return '还没有保存过云端位置'
+  const dict = idDictionaryMap[state.dictId]
+  const dictName = dict?.name ?? state.dictId
+  const amount = state.practicePool === 'chapter' ? '' : ` · 每段 ${state.practiceLimit}`
+  return `${dictName} · 第 ${state.chapterIndex + 1} 章 · ${practiceModeLabel(state.practiceMode)} · ${practicePoolLabel(state.practicePool)}${amount}`
+}
+
 const emptySummary: LearningQueueSummary = { currentAccount: 0, unclaimed: 0, otherAccount: 0, readyNow: 0 }
 
 export default function SyncPage() {
@@ -25,24 +59,77 @@ export default function SyncPage() {
   const [message, setMessage] = useState('')
   const [queue, setQueue] = useState<LearningQueueSummary>(emptySummary)
   const [busy, setBusy] = useState(false)
+  const [workspaceLoading, setWorkspaceLoading] = useState(false)
+  const [cloudWorkspace, setCloudWorkspace] = useState<WorkspaceState>()
+  const [currentDictId, setCurrentDictId] = useAtom(currentDictIdAtom)
+  const [currentChapter, setCurrentChapter] = useAtom(currentChapterAtom)
+  const [review, setReview] = useAtom(reviewModeInfoAtom)
+  const sessionUserRef = useRef<string | null>(null)
+  const workspaceRequestGate = useRef(createWorkspaceRequestGate()).current
 
   const refreshQueue = useCallback(async (userId?: string) => {
-    setQueue(await getLearningQueueSummary(userId))
+    const summary = await getLearningQueueSummary(userId)
+    if ((sessionUserRef.current ?? undefined) !== userId) return
+    setQueue(summary)
   }, [])
 
+  const refreshWorkspace = useCallback(async (userId?: string) => {
+    const ticket = workspaceRequestGate.begin(userId)
+    if (!userId) {
+      setCloudWorkspace(undefined)
+      setWorkspaceLoading(false)
+      return true
+    }
+    setWorkspaceLoading(true)
+    try {
+      const state = await getWorkspaceState(userId)
+      if (!workspaceRequestGate.accepts(ticket, sessionUserRef.current ?? undefined)) return false
+      setCloudWorkspace(state)
+      return true
+    } catch (error) {
+      if (!workspaceRequestGate.accepts(ticket, sessionUserRef.current ?? undefined)) return false
+      setCloudWorkspace(undefined)
+      setMessage(`云端学习位置暂时无法读取：${error instanceof Error ? error.message : String(error)}`)
+      return false
+    } finally {
+      if (workspaceRequestGate.accepts(ticket, sessionUserRef.current ?? undefined)) setWorkspaceLoading(false)
+    }
+  }, [workspaceRequestGate])
+
   useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setAuthReady(true)
-      void refreshQueue(data.session?.user.id)
-    })
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    let alive = true
+    let authEventSeen = false
+    const applySession = (nextSession: Session | null) => {
+      if (!alive) return
+      const nextUserId = nextSession?.user.id ?? null
+      const userChanged = sessionUserRef.current !== nextUserId
+      sessionUserRef.current = nextUserId
+      if (userChanged) {
+        workspaceRequestGate.invalidate()
+        setBusy(false)
+        setMessage('')
+        setCloudWorkspace(undefined)
+      }
       setSession(nextSession)
       setAuthReady(true)
-      void refreshQueue(nextSession?.user.id)
+      void refreshQueue(nextUserId ?? undefined)
+      void refreshWorkspace(nextUserId ?? undefined)
+    }
+
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!alive || authEventSeen) return
+      applySession(data.session)
     })
-    return () => data.subscription.unsubscribe()
-  }, [refreshQueue])
+    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      authEventSeen = true
+      applySession(nextSession)
+    })
+    return () => {
+      alive = false
+      workspaceRequestGate.invalidate()
+      data.subscription.unsubscribe()
+    }
+  }, [refreshQueue, refreshWorkspace, workspaceRequestGate])
 
   const sendMagicLink = async () => {
     const normalizedEmail = email.trim()
@@ -84,17 +171,101 @@ export default function SyncPage() {
     finally { setBusy(false) }
   }
 
+  const publishWorkspace = async () => {
+    if (!session || busy) return
+    const ownerUserId = session.user.id
+    workspaceRequestGate.invalidate()
+    setWorkspaceLoading(false)
+    setBusy(true)
+    setMessage('')
+    try {
+      const dict = idDictionaryMap[currentDictId]
+      if (!dict || currentChapter < 0 || currentChapter >= dict.chapterCount) throw new Error('当前词书位置无效，请先重新选择章节。')
+      const choices = readPracticeChoices(ownerUserId)
+      const saved = await saveWorkspaceState(ownerUserId, workspaceStateInput(currentDictId, currentChapter, choices))
+      if (sessionUserRef.current !== ownerUserId) throw new Error('账号已经改变，请在当前账号下重新保存。')
+      workspaceRequestGate.invalidate()
+      setWorkspaceLoading(false)
+      setCloudWorkspace(saved)
+      setMessage('本机学习位置已保存到云端。学习事实没有被改写。')
+    } catch {
+      if (sessionUserRef.current === ownerUserId) {
+        workspaceRequestGate.invalidate()
+        setCloudWorkspace(undefined)
+        const reconciled = await refreshWorkspace(ownerUserId)
+        if (sessionUserRef.current === ownerUserId) {
+          setMessage(reconciled
+            ? '保存结果未能直接确认，已重新读取云端位置。请核对后再继续。'
+            : '保存结果暂时无法确认，重新读取云端也失败了；恢复按钮已保持禁用，请稍后重试。')
+        }
+      }
+    } finally {
+      if (sessionUserRef.current === ownerUserId) setBusy(false)
+    }
+  }
+
+  const restoreWorkspace = async () => {
+    if (!session || !cloudWorkspace || busy) return
+    const ownerUserId = session.user.id
+    const state = cloudWorkspace
+    const previousDictId = currentDictId
+    const previousChapter = currentChapter
+    const previousReview = review
+    setBusy(true)
+    setMessage('')
+    try {
+      const dict = idDictionaryMap[state.dictId]
+      if (!dict) throw new Error('云端位置使用了当前版本不认识的词书。')
+      if (state.chapterIndex < 0 || state.chapterIndex >= dict.chapterCount) throw new Error('云端章节已经超出当前词书范围。')
+      if (sessionUserRef.current !== ownerUserId) throw new Error('账号已经改变，请重新读取云端位置。')
+
+      const persisted = persistLocalWorkspace(ownerUserId, state)
+      if (!persisted.ok) {
+        throw new Error(persisted.rollbackOk
+          ? '本机存储无法完整写入，已恢复原来的学习位置。请检查浏览器存储设置。'
+          : '本机存储异常，且无法确认是否完整回滚。请刷新页面后再继续。')
+      }
+
+      try {
+        setCurrentDictId(state.dictId)
+        setCurrentChapter(state.chapterIndex)
+        setReview({ isReviewMode: false, reviewRecord: undefined })
+      } catch {
+        const storageRollbackOk = restoreLocalWorkspaceSnapshot(ownerUserId, persisted.snapshot)
+        try {
+          setCurrentDictId(previousDictId)
+          setCurrentChapter(previousChapter)
+          setReview(previousReview)
+        } catch {
+          // Persistent storage is already rolled back where possible; the error
+          // message below tells the user to refresh before continuing.
+        }
+        throw new Error(storageRollbackOk
+          ? '本机学习位置更新失败，已回滚持久化状态。请刷新页面后再继续。'
+          : '本机学习位置更新失败，且无法确认是否完整回滚。请刷新页面后再继续。')
+      }
+
+      setMessage('云端学习位置已恢复到这台设备。历史学习事实没有变化。')
+    } catch (error) {
+      if (sessionUserRef.current === ownerUserId) setMessage(`恢复学习位置失败：${error instanceof Error ? error.message : String(error)}`)
+    } finally {
+      if (sessionUserRef.current === ownerUserId) setBusy(false)
+    }
+  }
+
   const signOut = async () => {
     setBusy(true)
     try {
       const { error } = await supabase.auth.signOut()
       setMessage(error ? `退出失败：${error.message}` : '已退出登录。')
-      if (!error) await refreshQueue()
+      if (!error) setCloudWorkspace(undefined)
     } catch { setMessage('退出暂未完成，请检查网络后重试。') }
     finally { setBusy(false) }
   }
 
-  const settled = Boolean(message && !message.includes('失败') && !message.includes('登录后'))
+  const settled = Boolean(message && !message.includes('失败') && !message.includes('登录后') && !message.includes('暂时无法'))
+  const localDict = idDictionaryMap[currentDictId]
+  const localWorkspaceLabel = `${localDict?.name ?? currentDictId} · 第 ${currentChapter + 1} 章`
 
   return (
     <div className="wenyan-studio-shell flex min-h-screen flex-col text-[var(--wenyan-ink)]">
@@ -149,6 +320,23 @@ export default function SyncPage() {
               </div>
               <button className="wenyan-button-primary" disabled={busy} onClick={syncNow}>{busy ? '同步中…' : '立即同步'}</button>
             </div>
+
+            <div className="relative z-[1] border-t border-[var(--wenyan-line-soft)] px-5 py-5">
+              <div className="flex flex-wrap items-start justify-between gap-5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-[var(--wenyan-ink)]">学习位置</p>
+                  <p className="wenyan-muted mt-1 text-xs leading-5">本机：{localWorkspaceLabel}</p>
+                  <p className="wenyan-muted mt-1 text-xs leading-5">
+                    云端：{workspaceLoading ? '正在读取…' : describeWorkspace(cloudWorkspace)}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <button className="wenyan-button-secondary" disabled={busy || workspaceLoading} onClick={publishWorkspace}>保存本机位置</button>
+                  <button className="wenyan-button-secondary" disabled={busy || workspaceLoading || !cloudWorkspace} onClick={restoreWorkspace}>恢复云端位置</button>
+                </div>
+              </div>
+              <p className="wenyan-muted mt-3 text-[11px] leading-5">位置只包含当前词书、章节和专项选择。需要你明确保存或恢复，不会自动让一台设备覆盖另一台，也不会生成学习事实。</p>
+            </div>
           </section>
         ) : (
           <section className="wenyan-surface p-6">
@@ -181,8 +369,9 @@ export default function SyncPage() {
           <summary className="wenyan-link cursor-pointer select-none text-xs">同步说明</summary>
           <div className="mt-3 space-y-2 leading-6">
             <p>学习事件先保存在本机；登录后只上传明确归属于当前账号的记录。未归属记录需要你手动认领。</p>
-            <p>错词、记录页和词库已练章节现在都从当前账号可见的学习事实派生；同步这些事实后，相关历史可以在另一台设备重新计算。</p>
-            <p>当前词书位置、界面偏好和旧 Qwerty 本机表仍属于设备状态，不会被伪装成跨设备学习事实。</p>
+            <p>错词、记录页和词库已练章节都从当前账号可见的学习事实派生；同步这些事实后，相关历史可以在另一台设备重新计算。</p>
+            <p>学习位置是独立的工作区状态，只在你明确点击“保存本机位置”时更新云端，并可明确恢复到另一台设备；它不会被当成学习证据。</p>
+            <p>其它界面偏好和旧 Qwerty 本机表仍留在设备本地。</p>
           </div>
         </details>
       </main>
