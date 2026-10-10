@@ -1,138 +1,151 @@
+import { useLearningOwner } from '@/hooks/useLearningOwner'
+import { visibleSpellingAttempts } from '@/learning/spellingEvidence'
 import { db } from '@/utils/db'
-import type { IWordRecord } from '@/utils/db/record'
 import dayjs from 'dayjs'
-import { useCallback, useEffect, useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { useCallback, useState } from 'react'
 import type { Activity } from 'react-activity-calendar'
 
 interface IWordStats {
   isEmpty?: boolean
-  exerciseRecord: Activity[]
+  attemptRecord: Activity[]
   wordRecord: Activity[]
-  wpmRecord: [string, number][]
+  typingPaceRecord: [string, number][]
   accuracyRecord: [string, number][]
   wrongTimeRecord: { name: string; value: number }[]
+  recent7: {
+    attempts: number
+    distinctWords: number
+    inputAccuracy?: number
+  }
 }
 
-// 获取两个日期之间的所有日期，使用dayjs计算
+const emptyStats: IWordStats = {
+  attemptRecord: [],
+  wordRecord: [],
+  typingPaceRecord: [],
+  accuracyRecord: [],
+  wrongTimeRecord: [],
+  recent7: { attempts: 0, distinctWords: 0 },
+}
+
 function getDatesBetween(start: number, end: number) {
-  const dates = []
+  const dates: string[] = []
   let curr = dayjs(start).startOf('day')
   const last = dayjs(end).endOf('day')
-
   while (curr.diff(last) < 0) {
-    dates.push(curr.clone().format('YYYY-MM-DD'))
+    dates.push(curr.format('YYYY-MM-DD'))
     curr = curr.add(1, 'day')
   }
-
   return dates
 }
 
 function getLevel(value: number) {
   if (value === 0) return 0
-  else if (value < 4) return 1
-  else if (value < 8) return 2
-  else if (value < 12) return 3
-  else return 4
+  if (value < 4) return 1
+  if (value < 8) return 2
+  if (value < 12) return 3
+  return 4
+}
+
+function inputAccuracy(correctCharacters: number, wrongCount: number) {
+  const denominator = correctCharacters + wrongCount
+  return denominator > 0 ? Math.round((correctCharacters / denominator) * 100) : undefined
 }
 
 export function useWordStats(startTimeStamp: number, endTimeStamp: number) {
-  const [wordStats, setWordStats] = useState<IWordStats>({
-    exerciseRecord: [],
-    wordRecord: [],
-    wpmRecord: [],
-    accuracyRecord: [],
-    wrongTimeRecord: [],
-  })
-
-  const [error, setError] = useState(false)
+  const owner = useLearningOwner()
   const [reload, setReload] = useState(0)
   const retry = useCallback(() => setReload((value) => value + 1), [])
-
-  useEffect(() => {
-    let active = true
-    setError(false)
-    const fetchWordStats = async () => {
-      const stats = await getChapterStats(startTimeStamp, endTimeStamp)
-      if (active) setWordStats(stats)
+  const data = useLiveQuery(async () => {
+    try {
+      return { ...(await getSpellingStats(startTimeStamp, endTimeStamp, owner)), error: false }
+    } catch {
+      return { ...emptyStats, error: true }
     }
+  }, [startTimeStamp, endTimeStamp, owner, reload])
 
-    void fetchWordStats().catch(() => { if (active) setError(true) })
-    return () => { active = false }
-  }, [startTimeStamp, endTimeStamp, reload])
-
-  return { ...wordStats, error, retry }
+  return data ?? { ...emptyStats, isEmpty: undefined, error: false, retry }
 }
 
-async function getChapterStats(startTimeStamp: number, endTimeStamp: number): Promise<IWordStats> {
-  // indexedDB查找某个数字范围内的数据
-  const records: IWordRecord[] = await db.wordRecords.where('timeStamp').between(startTimeStamp, endTimeStamp, true, true).toArray()
+async function getSpellingStats(startTimeStamp: number, endTimeStamp: number, ownerUserId?: string): Promise<IWordStats> {
+  const startMs = startTimeStamp * 1000
+  const endMs = endTimeStamp * 1000
+  const events = await db.learningEvents.where('occurredAt').between(startMs, endMs, true, true).toArray()
+  const records = visibleSpellingAttempts(events, ownerUserId)
+  if (records.length === 0) return { ...emptyStats, isEmpty: true }
 
-  if (records.length === 0) {
-    return { isEmpty: true, exerciseRecord: [], wordRecord: [], wpmRecord: [], accuracyRecord: [], wrongTimeRecord: [] }
+  const data: Record<string, {
+    attempts: number
+    words: string[]
+    activeTypingMs: number
+    correctCharacters: number
+    wrongCount: number
+    wrongKeys: string[]
+  }> = {}
+  for (const date of getDatesBetween(startMs, endMs)) {
+    data[date] = { attempts: 0, words: [], activeTypingMs: 0, correctCharacters: 0, wrongCount: 0, wrongKeys: [] }
   }
 
-  let data: {
-    [x: string]: {
-      exerciseTime: number //练习次数
-      words: string[] //练习词数组（不去重）
-      totalTime: number //总计用时
-      wrongCount: number //错误次数
-      wrongKeys: string[] //按错的按键
-    }
-  } = {}
-
-  const dates = getDatesBetween(startTimeStamp * 1000, endTimeStamp * 1000)
-  data = dates
-    .map((date) => ({ [date]: { exerciseTime: 0, words: [], totalTime: 0, wrongCount: 0, wrongKeys: [] } }))
-    .reduce((acc, curr) => ({ ...acc, ...curr }), {})
-
-  for (let i = 0; i < records.length; i++) {
-    const date = dayjs(records[i].timeStamp * 1000).format('YYYY-MM-DD')
-
-    data[date].exerciseTime = data[date].exerciseTime + 1
-    data[date].words = [...data[date].words, records[i].word]
-    data[date].totalTime = data[date].totalTime + records[i].timing.reduce((acc, curr) => acc + curr, 0)
-    data[date].wrongCount = data[date].wrongCount + records[i].wrongCount
-    data[date].wrongKeys = [...(data[date].wrongKeys || []), ...(Object.values(records[i].mistakes).flat() || [])]
+  for (const record of records) {
+    const date = dayjs(record.occurredAt).format('YYYY-MM-DD')
+    if (!data[date]) data[date] = { attempts: 0, words: [], activeTypingMs: 0, correctCharacters: 0, wrongCount: 0, wrongKeys: [] }
+    const day = data[date]
+    day.attempts += 1
+    day.words.push(record.word)
+    day.activeTypingMs += record.totalTime
+    day.correctCharacters += Array.from(record.word).length
+    day.wrongCount += record.wrongCount
+    day.wrongKeys.push(...Object.values(record.mistakes).flat())
   }
 
-  const RecordArray = Object.entries(data)
-
-  // 练习次数统计
-  const exerciseRecord: IWordStats['exerciseRecord'] = RecordArray.map(([date, { exerciseTime }]) => ({
+  const recordArray = Object.entries(data).sort(([a], [b]) => a.localeCompare(b))
+  const attemptRecord: IWordStats['attemptRecord'] = recordArray.map(([date, day]) => ({
     date,
-    count: exerciseTime,
-    level: getLevel(exerciseTime),
+    count: day.attempts,
+    level: getLevel(day.attempts),
   }))
-  // 练习词数统计（去重）
-  const wordRecord: IWordStats['wordRecord'] = RecordArray.map(([date, { words }]) => ({
-    date,
-    count: Array.from(new Set(words)).length,
-    level: getLevel(Array.from(new Set(words)).length),
-  }))
-  // wpm=练习词数（不去重）/总时间
-  const wpmRecord: IWordStats['wpmRecord'] = RecordArray.map<[string, number]>(([date, { words, totalTime }]) => [
-    date,
-    totalTime > 0 ? Math.round(words.length / (totalTime / 1000 / 60)) : 0,
-  ]).filter((d) => d[1])
-  // 正确率=每个单词的长度合计/(每个单词的长度合计+总错误次数)
-  const accuracyRecord: IWordStats['accuracyRecord'] = RecordArray.map<[string, number]>(([date, { words, wrongCount }]) => [
-    date,
-    Math.round((words.join('').length / (words.join('').length + wrongCount)) * 100),
-  ]).filter((d) => d[1])
-  // 错误次数统计
-  const wrongTimeRecord: IWordStats['wrongTimeRecord'] = []
-  const allWrongTime = RecordArray.map(([, { wrongKeys }]) => wrongKeys)
-    .flat()
-    .map((key) => key.toUpperCase())
-  allWrongTime.forEach((key) => {
-    const index = wrongTimeRecord.findIndex((item) => item.name === key)
-    if (index === -1) {
-      wrongTimeRecord.push({ name: key, value: 1 })
-    } else {
-      wrongTimeRecord[index].value++
-    }
+  const wordRecord: IWordStats['wordRecord'] = recordArray.map(([date, day]) => {
+    const count = new Set(day.words.map((word) => word.normalize('NFKC').toLocaleLowerCase())).size
+    return { date, count, level: getLevel(count) }
   })
+  const typingPaceRecord: IWordStats['typingPaceRecord'] = recordArray
+    .map<[string, number]>(([date, day]) => [
+      date,
+      day.activeTypingMs > 0 ? Math.round(day.attempts / (day.activeTypingMs / 60_000)) : 0,
+    ])
+    .filter(([, value]) => value > 0)
+  const accuracyRecord: IWordStats['accuracyRecord'] = recordArray
+    .map<[string, number]>(([date, day]) => [date, inputAccuracy(day.correctCharacters, day.wrongCount) ?? 0])
+    .filter(([, value]) => value > 0)
 
-  return { isEmpty: false, exerciseRecord, wordRecord, wpmRecord, accuracyRecord, wrongTimeRecord }
+  const wrongCounts = new Map<string, number>()
+  for (const [, day] of recordArray) {
+    for (const rawKey of day.wrongKeys) {
+      const key = rawKey.toUpperCase()
+      wrongCounts.set(key, (wrongCounts.get(key) ?? 0) + 1)
+    }
+  }
+  const wrongTimeRecord = Array.from(wrongCounts, ([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name))
+
+  const recentCutoff = endMs - 7 * 86_400_000
+  const recent = records.filter((record) => record.occurredAt >= recentCutoff && record.occurredAt <= endMs)
+  const recentWords = new Set(recent.map((record) => `${record.dict}:${record.word.normalize('NFKC').toLocaleLowerCase()}`))
+  const recentCharacters = recent.reduce((total, record) => total + Array.from(record.word).length, 0)
+  const recentWrong = recent.reduce((total, record) => total + record.wrongCount, 0)
+
+  return {
+    isEmpty: false,
+    attemptRecord,
+    wordRecord,
+    typingPaceRecord,
+    accuracyRecord,
+    wrongTimeRecord,
+    recent7: {
+      attempts: recent.length,
+      distinctWords: recentWords.size,
+      inputAccuracy: inputAccuracy(recentCharacters, recentWrong),
+    },
+  }
 }
