@@ -71,8 +71,8 @@ const RowDetail: React.FC<RowDetailProps> = ({ currentRowDetail, allRecords }) =
             ))}
           </div>
           <div className="relative mt-1 flex h-8 items-center">
-            {word ? <Phonetic word={word} /> : <LoadingWordUI isLoading={isLoading} hasError={hasError} />}
-            {word && (
+            {word ? <Phonetic word={word} /> : <LoadingWordUI isLoading={isLoading} hasError={hasError || !dictInfo} />}
+            {word && dictInfo && (
               <WordPronunciationIcon
                 lang={dictInfo.language}
                 word={word}
@@ -82,7 +82,7 @@ const RowDetail: React.FC<RowDetailProps> = ({ currentRowDetail, allRecords }) =
             )}
           </div>
           <div className="wenyan-body mt-2 max-w-md text-sm leading-7">
-            {word ? word.trans.join('；') : <LoadingWordUI isLoading={isLoading} hasError={hasError} />}
+            {word ? word.trans.join('；') : <LoadingWordUI isLoading={isLoading} hasError={hasError || !dictInfo} />}
           </div>
         </div>
 
