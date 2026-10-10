@@ -42,6 +42,11 @@ interface RuntimeOptions {
   sessionId?: string
 }
 
+interface BlockExecutionState {
+  isFinished: boolean
+  abandoned: boolean
+}
+
 export function createSmartSessionId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
   return `smart-${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -107,6 +112,29 @@ function sameOwner(state: SmartSessionRuntime, ownerUserId: string | undefined) 
   return ownerUserId ? state.ownerUserId === ownerUserId : state.ownerUserId === undefined
 }
 
+async function readBlockExecutionState(block: SmartBlockRuntime, ownerUserId?: string): Promise<BlockExecutionState | undefined> {
+  if (block.semanticRunId) {
+    const run = await db.semanticRuns.get(block.semanticRunId)
+    if (!run || run.ownerUserId !== ownerUserId) return undefined
+    return {
+      isFinished: run.completedAt !== undefined || run.endedAt !== undefined,
+      abandoned: run.endedAt !== undefined && run.completedAt === undefined,
+    }
+  }
+  if (block.reviewRecordId === undefined) return undefined
+  const record = await db.reviewRecords.get(block.reviewRecordId)
+  if (!record) return undefined
+  // Pre-owner Smart spelling records cannot be safely resumed after this boundary.
+  // Their learning facts remain intact; only the stale execution cursor is abandoned.
+  if (record.origin !== 'smart' || record.ownerUserId !== ownerUserId) {
+    return { isFinished: true, abandoned: true }
+  }
+  return {
+    isFinished: record.isFinished || record.endedAt !== undefined,
+    abandoned: record.endedAt !== undefined && !record.isFinished,
+  }
+}
+
 export function getCurrentSmartSessionId(ownerUserId?: string, now = Date.now()) {
   const state = readStored()
   if (!state || !sameOwner(state, ownerUserId) || now - state.updatedAt > MAX_IDLE_MS) return undefined
@@ -124,10 +152,8 @@ export async function getRecoverableSmartSessionFocusDictionary(ownerUserId?: st
   if (pending) return pending.dictionaryId
   const state = readStored()
   if (!state?.currentBlock || !sameOwner(state, ownerUserId) || now - state.updatedAt > MAX_IDLE_MS) return undefined
-  const record = state.currentBlock.semanticRunId
-    ? await db.semanticRuns.get(state.currentBlock.semanticRunId).then((run) => run && ({ isFinished: run.completedAt !== undefined || run.endedAt !== undefined, abandoned: run.endedAt !== undefined && run.completedAt === undefined }))
-    : state.currentBlock.reviewRecordId === undefined ? undefined : await db.reviewRecords.get(state.currentBlock.reviewRecordId)
-  return record && !record.isFinished ? state.focusDictionary : undefined
+  const execution = await readBlockExecutionState(state.currentBlock, ownerUserId)
+  return execution && !execution.isFinished && !execution.abandoned ? state.focusDictionary : undefined
 }
 
 export async function loadSmartSessionRuntime(
@@ -165,18 +191,17 @@ export async function loadSmartSessionRuntime(
   }
 
   if (state.currentBlock) {
-    const record = state.currentBlock.semanticRunId
-    ? await db.semanticRuns.get(state.currentBlock.semanticRunId).then((run) => run && ({ isFinished: run.completedAt !== undefined || run.endedAt !== undefined, abandoned: run.endedAt !== undefined && run.completedAt === undefined }))
-    : state.currentBlock.reviewRecordId === undefined ? undefined : await db.reviewRecords.get(state.currentBlock.reviewRecordId)
-    if (!record) {
+    const execution = await readBlockExecutionState(state.currentBlock, options.ownerUserId)
+    if (!execution) {
       state = { ...state, currentBlock: undefined, updatedAt: now }
       persist(state)
-    } else if (record.isFinished) {
+    } else if (execution.isFinished) {
+      const creditedSeconds = execution.abandoned ? 0 : state.currentBlock.estimatedSeconds
       state = {
         ...state,
-        completedBlocks: state.completedBlocks + ('abandoned' in record && record.abandoned ? 0 : 1),
-        estimatedActiveSeconds: state.estimatedActiveSeconds + state.currentBlock.estimatedSeconds,
-        estimatedActiveSecondsSinceBreak: state.estimatedActiveSecondsSinceBreak + state.currentBlock.estimatedSeconds,
+        completedBlocks: state.completedBlocks + (execution.abandoned ? 0 : 1),
+        estimatedActiveSeconds: state.estimatedActiveSeconds + creditedSeconds,
+        estimatedActiveSecondsSinceBreak: state.estimatedActiveSecondsSinceBreak + creditedSeconds,
         currentBlock: undefined,
         updatedAt: now,
       }
