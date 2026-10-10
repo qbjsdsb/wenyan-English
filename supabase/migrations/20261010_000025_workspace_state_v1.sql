@@ -52,7 +52,9 @@ create policy wenyan_workspace_state_update_own_browser
     and nullif((select auth.jwt()) ->> 'client_id', '') is null
   );
 
-create or replace function public.get_wenyan_workspace_state()
+create or replace function public.get_wenyan_workspace_state(
+  p_expected_user_id uuid
+)
 returns jsonb
 language plpgsql
 stable
@@ -65,6 +67,9 @@ declare
 begin
   if v_user_id is null then
     raise exception 'authentication_required' using errcode = '28000';
+  end if;
+  if p_expected_user_id is null or p_expected_user_id <> v_user_id then
+    raise exception 'workspace_owner_changed' using errcode = '42501';
   end if;
   if nullif(auth.jwt() ->> 'client_id', '') is not null then
     raise exception 'workspace_state_browser_only' using errcode = '42501';
@@ -91,6 +96,7 @@ end;
 $$;
 
 create or replace function public.save_wenyan_workspace_state(
+  p_expected_user_id uuid,
   p_dict_id text,
   p_chapter_index integer,
   p_practice_mode text,
@@ -108,6 +114,9 @@ declare
 begin
   if v_user_id is null then
     raise exception 'authentication_required' using errcode = '28000';
+  end if;
+  if p_expected_user_id is null or p_expected_user_id <> v_user_id then
+    raise exception 'workspace_owner_changed' using errcode = '42501';
   end if;
   if nullif(auth.jwt() ->> 'client_id', '') is not null then
     raise exception 'workspace_state_browser_only' using errcode = '42501';
@@ -148,12 +157,12 @@ begin
     practice_limit = excluded.practice_limit,
     updated_at = now();
 
-  return public.get_wenyan_workspace_state();
+  return public.get_wenyan_workspace_state(v_user_id);
 end;
 $$;
 
-revoke all on function public.get_wenyan_workspace_state() from public, anon, authenticated;
-grant execute on function public.get_wenyan_workspace_state() to authenticated;
+revoke all on function public.get_wenyan_workspace_state(uuid) from public, anon, authenticated;
+grant execute on function public.get_wenyan_workspace_state(uuid) to authenticated;
 
-revoke all on function public.save_wenyan_workspace_state(text, integer, text, text, integer) from public, anon, authenticated;
-grant execute on function public.save_wenyan_workspace_state(text, integer, text, text, integer) to authenticated;
+revoke all on function public.save_wenyan_workspace_state(uuid, text, integer, text, text, integer) from public, anon, authenticated;
+grant execute on function public.save_wenyan_workspace_state(uuid, text, integer, text, text, integer) to authenticated;
