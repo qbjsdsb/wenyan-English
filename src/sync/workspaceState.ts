@@ -1,5 +1,5 @@
-import type { PracticeChoices } from '@/semantic/practiceChoices'
 import type { PracticeMode, PracticePool } from '@/semantic/practice'
+import { practiceChoicesStorageKey, type PracticeChoices } from '@/semantic/practiceChoices'
 import { supabase } from '@/supabase/client'
 
 export type WorkspaceState = {
@@ -13,6 +13,89 @@ export type WorkspaceState = {
 }
 
 export type WorkspaceStateInput = Omit<WorkspaceState, 'schemaVersion' | 'updatedAt'>
+
+export type WorkspaceRequestTicket = {
+  generation: number
+  ownerUserId?: string
+}
+
+export function createWorkspaceRequestGate() {
+  let generation = 0
+  return {
+    begin(ownerUserId?: string): WorkspaceRequestTicket {
+      generation += 1
+      return { generation, ownerUserId }
+    },
+    invalidate() {
+      generation += 1
+    },
+    accepts(ticket: WorkspaceRequestTicket, currentOwnerUserId?: string) {
+      return ticket.generation === generation && ticket.ownerUserId === currentOwnerUserId
+    },
+  }
+}
+
+type LocalWorkspaceSnapshot = {
+  dictId: string | null
+  chapterIndex: string | null
+  practiceChoices: string | null
+}
+
+export type LocalWorkspacePersistenceResult =
+  | { ok: true; snapshot: LocalWorkspaceSnapshot }
+  | { ok: false; snapshot: LocalWorkspaceSnapshot; rollbackOk: boolean }
+
+const CURRENT_DICT_STORAGE_KEY = 'currentDict'
+const CURRENT_CHAPTER_STORAGE_KEY = 'currentChapter'
+
+function snapshotLocalWorkspace(ownerUserId: string): LocalWorkspaceSnapshot {
+  return {
+    dictId: localStorage.getItem(CURRENT_DICT_STORAGE_KEY),
+    chapterIndex: localStorage.getItem(CURRENT_CHAPTER_STORAGE_KEY),
+    practiceChoices: localStorage.getItem(practiceChoicesStorageKey(ownerUserId)),
+  }
+}
+
+function replaceStorageValue(key: string, value: string | null) {
+  if (value === null) localStorage.removeItem(key)
+  else localStorage.setItem(key, value)
+  return localStorage.getItem(key) === value
+}
+
+export function restoreLocalWorkspaceSnapshot(ownerUserId: string, snapshot: LocalWorkspaceSnapshot) {
+  try {
+    const results = [
+      replaceStorageValue(CURRENT_DICT_STORAGE_KEY, snapshot.dictId),
+      replaceStorageValue(CURRENT_CHAPTER_STORAGE_KEY, snapshot.chapterIndex),
+      replaceStorageValue(practiceChoicesStorageKey(ownerUserId), snapshot.practiceChoices),
+    ]
+    return results.every(Boolean)
+  } catch {
+    return false
+  }
+}
+
+export function persistLocalWorkspace(ownerUserId: string, state: WorkspaceState): LocalWorkspacePersistenceResult {
+  const snapshot = snapshotLocalWorkspace(ownerUserId)
+  const choices: PracticeChoices = {
+    mode: state.practiceMode,
+    pool: state.practicePool,
+    limit: state.practiceLimit,
+  }
+
+  try {
+    const writes = [
+      replaceStorageValue(CURRENT_DICT_STORAGE_KEY, JSON.stringify(state.dictId)),
+      replaceStorageValue(CURRENT_CHAPTER_STORAGE_KEY, JSON.stringify(state.chapterIndex)),
+      replaceStorageValue(practiceChoicesStorageKey(ownerUserId), JSON.stringify(choices)),
+    ]
+    if (writes.every(Boolean)) return { ok: true, snapshot }
+  } catch {
+    // The rollback below owns failure reporting.
+  }
+
+  return { ok: false, snapshot, rollbackOk: restoreLocalWorkspaceSnapshot(ownerUserId, snapshot) }
+}
 
 function isPracticeMode(value: unknown): value is PracticeMode {
   return value === 'spelling' || value === 'recall' || value === 'discrimination'
