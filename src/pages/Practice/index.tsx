@@ -15,21 +15,21 @@ import { wordListFetcher } from '@/utils/wordListFetcher'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { ArrowRight, Keyboard, ListChecks, MessageCircle } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import useSWR from 'swr'
 
 const modes = [
   { id: 'spelling', title: '拼写', hint: '练准词形', detail: '沿用熟悉的输入练习。想挑战回忆，可以在练习里开启默写。', icon: Keyboard },
   { id: 'recall', title: '词义回想', hint: '主动想意思', detail: '先在心里说出词义，再揭示释义，如实自评。没有选项提示。', icon: MessageCircle },
-  { id: 'discrimination', title: '选择词义', hint: '辨认参考释义', detail: '从真实词书释义中辨认。选对会记录为辨认正确，与主动回想分开。', icon: ListChecks },
+  { id: 'discrimination', title: '选择词义', hint: '辨认参考释义', detail: '从真实词书释义中选择。选对会记录为客观辨认结果，与主动回想分开。', icon: ListChecks },
 ] as const
 
 const pools = [
   { id: 'chapter', title: '当前章节', detail: '从眼前这章挑一小段，适合刚学完后的巩固。' },
   { id: 'learned', title: '已经练过', detail: '只用当前词书里有真实拼写记录的词。优先较久没练这一模式的词。' },
   { id: 'errors', title: '拼写错词', detail: '最近 14 天，最近一次输入仍有错误的词。拼对后会退出这组。' },
-  { id: 'uncertain', title: '词义模糊', detail: '最近 14 天仍未想全，或最近一次辨认选错的词。两类证据各自保留。' },
+  { id: 'uncertain', title: '词义模糊', detail: '最近 14 天仍未想全，或最近一次选择词义选错的词。两类证据各自保留。' },
 ] as const
 
 export default function PracticePage() {
@@ -84,7 +84,13 @@ export default function PracticePage() {
     return () => { active = false }
   }, [chapter, dict.id, limit, mode, pool, selection, words])
 
-  const start = async () => {
+  const change = useCallback((key: string, value: string) => setParams((old) => {
+    const next = new URLSearchParams(old)
+    next.set(key, value)
+    return next
+  }, { replace: true }), [setParams])
+
+  const start = useCallback(async () => {
     if (!prepared || !prepared.count || lock.current) return
     lock.current = true
     setBusy(true)
@@ -115,13 +121,7 @@ export default function PracticePage() {
       lock.current = false
       setBusy(false)
     }
-  }
-
-  const change = (key: string, value: string) => setParams((old) => {
-    const next = new URLSearchParams(old)
-    next.set(key, value)
-    return next
-  }, { replace: true })
+  }, [dict.id, limit, mode, navigate, owner, pool, prepared, setReview])
 
   const selectedMode = modes.find((item) => item.id === mode) ?? modes[1]
   const selectedPool = pools.find((item) => item.id === pool) ?? pools[0]
@@ -132,19 +132,38 @@ export default function PracticePage() {
     : loading
       ? '正在整理这一小段…'
       : prepared?.count
-        ? `本段 ${prepared.count} 个${mode === 'discrimination' ? '可辨认的词' : '词'}${mode === 'spelling' && pool === 'chapter' ? ' · 继续章节原有进度' : ' · 较久没练的优先'}`
+        ? `本段 ${prepared.count} 个${mode === 'discrimination' ? '可选择的词' : '词'}${mode === 'spelling' && pool === 'chapter' ? ' · 继续章节原有进度' : ' · 较久没练的优先'}`
         : pool === 'chapter' && mode === 'discrimination'
           ? '当前章节没有足够的不同释义组成题目，试试词义回想。'
           : '这一组暂时没有可练的词。没有记录不代表不会，先选当前章节即可。'
 
+  useEffect(() => {
+    const keydown = (event: KeyboardEvent) => {
+      if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return
+      const target = event.target as HTMLElement | null
+      if (target?.closest('button, a, input, textarea, select, summary, [contenteditable="true"]')) return
+      if (['1', '2', '3'].includes(event.key)) {
+        event.preventDefault()
+        change('mode', modes[Number(event.key) - 1].id)
+        return
+      }
+      if (event.key === 'Enter' && !busy && !loading && !contentError && prepared?.count) {
+        event.preventDefault()
+        void start()
+      }
+    }
+    window.addEventListener('keydown', keydown)
+    return () => window.removeEventListener('keydown', keydown)
+  }, [busy, change, contentError, loading, prepared?.count, start])
+
   return (
     <div className="wenyan-studio-shell min-h-screen text-[var(--wenyan-ink)]">
       <Header />
-      <main className="mx-auto max-w-4xl px-6 pb-14 pt-10">
-        <div className="mb-7 flex items-end justify-between gap-6">
+      <main className="mx-auto max-w-4xl px-6 pb-14 pt-9">
+        <div className="mb-6 flex items-end justify-between gap-6">
           <div>
             <h1 className="wenyan-page-title">专项训练</h1>
-            <p className="wenyan-muted mt-2 text-sm">专门练一件事，选好就开始。</p>
+            <p className="wenyan-muted mt-2 text-sm">想练哪一件，就从这里开始。</p>
           </div>
           <Link to="/today" className="wenyan-link text-sm">按今天的安排学 <ArrowRight className="ml-1 inline" size={13} /></Link>
         </div>
@@ -155,13 +174,14 @@ export default function PracticePage() {
           <fieldset>
             <legend className="sr-only">训练方式</legend>
             <div className="wenyan-practice-tabs" role="radiogroup" aria-label="训练方式">
-              {modes.map((item) => (
+              {modes.map((item, index) => (
                 <label key={item.id} className={`wenyan-practice-tab ${mode === item.id ? 'is-selected' : ''}`}>
                   <input
                     type="radio"
                     name="practice-mode"
                     className="sr-only"
                     value={item.id}
+                    aria-keyshortcuts={String(index + 1)}
                     checked={mode === item.id}
                     onChange={() => change('mode', item.id)}
                   />
@@ -170,6 +190,7 @@ export default function PracticePage() {
                     <span className="block text-sm font-semibold">{item.title}</span>
                     <span className="wenyan-muted mt-1 block text-[11px]">{item.hint}</span>
                   </span>
+                  <kbd aria-hidden="true" className="wenyan-practice-tab-key wenyan-mono">{index + 1}</kbd>
                 </label>
               ))}
             </div>
@@ -193,6 +214,25 @@ export default function PracticePage() {
                     <h2 id="practice-pool-title" className="text-sm font-semibold">练这些词</h2>
                     <p className="wenyan-muted mt-1 text-xs leading-5">{selectedPool.detail}</p>
                   </div>
+                  {!(mode === 'spelling' && pool === 'chapter') && (
+                    <fieldset className="wenyan-practice-count-group flex shrink-0 items-center gap-1.5">
+                      <legend className="sr-only">每段词数</legend>
+                      <span className="wenyan-muted mr-1 text-[10px]">每段</span>
+                      {[6, 12].map((count) => (
+                        <label key={count} className={`wenyan-practice-count ${limit === count ? 'is-selected' : ''}`}>
+                          <input
+                            className="sr-only"
+                            type="radio"
+                            name="practice-count"
+                            aria-label={`最多 ${count} 个`}
+                            checked={limit === count}
+                            onChange={() => change('limit', String(count))}
+                          />
+                          {count}
+                        </label>
+                      ))}
+                    </fieldset>
+                  )}
                 </div>
                 <fieldset className="mt-4">
                   <legend className="sr-only">练习范围</legend>
@@ -207,74 +247,53 @@ export default function PracticePage() {
                 </fieldset>
               </section>
 
-              {!(mode === 'spelling' && pool === 'chapter') && (
-                <section className="wenyan-practice-section wenyan-practice-length" aria-labelledby="practice-length-title">
-                  <div>
-                    <h2 id="practice-length-title" className="text-sm font-semibold">这一段</h2>
-                    <p className="wenyan-muted mt-1 text-xs">短一点更容易开始，练完可以继续下一段。</p>
-                  </div>
-                  <fieldset className="flex items-center gap-1.5">
-                    <legend className="sr-only">每段词数</legend>
-                    {[6, 12].map((count) => (
-                      <label key={count} className={`wenyan-practice-count ${limit === count ? 'is-selected' : ''}`}>
-                        <input
-                          className="sr-only"
-                          type="radio"
-                          name="practice-count"
-                          aria-label={`最多 ${count} 个`}
-                          checked={limit === count}
-                          onChange={() => change('limit', String(count))}
-                        />
-                        {count} 个
-                      </label>
-                    ))}
-                  </fieldset>
-                </section>
-              )}
-
               <section className="wenyan-practice-launch" aria-live="polite">
                 <div className="min-w-0">
                   <p className="wenyan-muted text-[10px] font-medium tracking-[0.05em]">{selectedMode.title}</p>
                   <p className="mt-2 max-w-2xl text-sm leading-6">{selectedMode.detail}</p>
                   <p className="wenyan-muted mt-3 text-xs leading-5">{statusText}</p>
                   {previewWords.length > 0 && (
-                    <p className="wenyan-practice-preview mt-2 truncate text-xs" title={prepared?.items.map((item) => item.word).join(' · ')}>
+                    <p className="wenyan-practice-preview wenyan-mono mt-2 truncate text-xs" title={prepared?.items.map((item) => item.word).join(' · ')}>
                       {previewWords.join(' · ')}{(prepared?.items.length ?? 0) > previewWords.length ? ' …' : ''}
                     </p>
                   )}
                   {error && <p role="alert" className="mt-3 text-sm text-[var(--wenyan-danger)]">{error}</p>}
                 </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  {contentError && <button className="wenyan-button-secondary" onClick={() => void mutate()}>重试加载</button>}
-                  {!loading && !prepared?.count && pool !== 'chapter' && (
-                    <button className="wenyan-link text-sm" onClick={() => change('pool', 'chapter')}>练当前章节</button>
-                  )}
-                  <button
-                    className="wenyan-button-primary inline-flex items-center gap-2"
-                    disabled={loading || busy || !prepared?.count || Boolean(contentError)}
-                    onClick={() => void start()}
-                  >
-                    {busy
-                      ? '正在准备…'
-                      : mode === 'spelling' && pool === 'chapter'
-                        ? '继续拼写这一章'
-                        : mode === 'spelling'
-                          ? '开始拼写训练'
-                          : `开始${selectedMode.title}`}
-                    <ArrowRight size={14} aria-hidden="true" />
-                  </button>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <span className="wenyan-muted wenyan-mono text-[9px]">1–3 切换 · Enter 开始</span>
+                  <div className="flex items-center gap-3">
+                    {contentError && <button className="wenyan-button-secondary" onClick={() => void mutate()}>重试加载</button>}
+                    {!loading && !prepared?.count && pool !== 'chapter' && (
+                      <button className="wenyan-link text-sm" onClick={() => change('pool', 'chapter')}>练当前章节</button>
+                    )}
+                    <button
+                      className="wenyan-button-primary inline-flex items-center gap-2"
+                      aria-keyshortcuts="Enter"
+                      disabled={loading || busy || !prepared?.count || Boolean(contentError)}
+                      onClick={() => void start()}
+                    >
+                      {busy
+                        ? '正在准备…'
+                        : mode === 'spelling' && pool === 'chapter'
+                          ? '继续拼写这一章'
+                          : mode === 'spelling'
+                            ? '开始拼写训练'
+                            : `开始${selectedMode.title}`}
+                      <ArrowRight size={14} aria-hidden="true" />
+                    </button>
+                  </div>
                 </div>
               </section>
             </>
           )}
         </section>
 
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <p className="wenyan-muted">拼写、主动回想与辨认分别留下真实记录；随时可以暂停。</p>
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <p className="wenyan-muted">拼写、词义回想与选择词义分别留下真实记录；随时可以暂停。</p>
           <Link className="wenyan-link" to="/error-book">查看拼写错词</Link>
         </div>
 
-        <details className="mt-7 border-t border-[var(--wenyan-line-soft)] pt-4">
+        <details className="mt-6 border-t border-[var(--wenyan-line-soft)] pt-4">
           <summary className="wenyan-muted cursor-pointer text-xs">怎么选更合适？</summary>
           <div className="wenyan-muted mt-3 space-y-2 text-xs leading-6">
             <p>词形不稳：练拼写。看着词却说不出意思：先回想。意思相近、容易选错：用选择词义核对。模糊词来自你真实的自评或选错记录，不会凭空生成。</p>

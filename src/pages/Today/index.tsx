@@ -74,11 +74,11 @@ export default function TodayPage() {
   const today = dateInTimezone(now)
   const data = useLiveQuery(async () => {
     const start = new Date(`${today}T00:00:00+08:00`).getTime()
-    const [events, plans, runs, pending] = await Promise.all([
+    const [events, plans, runs, pendingEvents] = await Promise.all([
       db.learningEvents.where('occurredAt').between(start, start + 86_400_000, true, false).toArray(),
       db.studyPlans.orderBy('importedAt').reverse().toArray(),
       db.studyPlanRuns.toArray(),
-      db.learningEvents.where('syncState').anyOf('pending', 'failed').count(),
+      db.learningEvents.where('syncState').anyOf('pending', 'failed').toArray(),
     ])
     const visibleEvents = events.filter((event) => event.ownerUserId === owner)
     const attempts = visibleEvents.filter((event) => event.eventType === 'word_attempted')
@@ -87,7 +87,7 @@ export default function TodayPage() {
     return {
       plans: visiblePlans,
       runs,
-      pending,
+      pending: pendingEvents.filter((event) => event.ownerUserId === owner).length,
       attempts: attempts.length,
       correct,
       semantic: visibleEvents.filter((event) => event.eventType === 'semantic_recall_attempted').length,
@@ -175,41 +175,41 @@ export default function TodayPage() {
         </div>
 
         <SmartSessionDock />
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-[var(--wenyan-line-soft)] pb-5">
-          <div><h2 className="text-sm font-medium">想集中练一种？</h2><p className="wenyan-muted mt-1 text-xs">拼写、词义回想、选择词义；也可以只巩固错词或模糊词。</p></div>
-          <Link className="wenyan-button-secondary" to="/practice">进入专项训练</Link>
-        </div>
 
-        <section aria-label="今日概况" className="wenyan-overview-surface mb-10 grid grid-cols-2 items-center gap-6 px-6 py-5 sm:grid-cols-4 lg:grid-cols-[minmax(0,1fr)_repeat(4,88px)]">
-          <div className="col-span-2 min-w-0 sm:col-span-4 lg:col-span-1">
-            <div className="mb-1 text-[10px] font-medium tracking-[0.02em] text-[var(--wenyan-ink-muted)]">当前词书</div>
-            <div className="truncate text-[14px] font-semibold text-[var(--wenyan-ink)]">{dict.name}</div>
-            <div className="wenyan-muted mt-1 text-[11px]">第 {chapter + 1} 章</div>
-            <div className="mt-3 flex items-center gap-4">
+        <nav aria-label="专项训练快捷入口" className="wenyan-direct-practice">
+          <span className="wenyan-muted text-[11px] font-medium">专项</span>
+          <Link to="/practice?mode=spelling">拼写</Link>
+          <Link to="/practice?mode=recall">词义回想</Link>
+          <Link to="/practice?mode=discrimination">选择词义</Link>
+          <span className="wenyan-direct-practice-spacer" aria-hidden="true" />
+          <Link to="/practice" className="wenyan-muted">更多设置</Link>
+        </nav>
+
+        <section aria-label="今日概况" className="wenyan-overview-surface wenyan-today-overview mb-10">
+          <div className="min-w-0">
+            <div className="wenyan-muted text-[10px] font-medium tracking-[0.02em]">当前词书</div>
+            <div className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+              <div className="truncate text-[14px] font-semibold text-[var(--wenyan-ink)]">{dict.name}</div>
+              <div className="wenyan-muted text-[11px]">第 {chapter + 1} 章</div>
+            </div>
+            <div className="mt-2.5 flex items-center gap-4">
               <Link to="/" className={quietLink}>打开</Link>
               <Link to="/gallery" className={quietLink}>切换词书</Link>
             </div>
           </div>
 
-          {[
-            [data?.attempts ?? '—', '拼写次数', 'text-[var(--wenyan-accent)]'],
-            [data && data.attempts ? `${Math.round((data.correct / data.attempts) * 100)}%` : '—', '拼写无错', 'text-[var(--wenyan-success)]'],
-            [data?.semantic ?? '—', '词义回想', 'text-[var(--wenyan-accent)]'],
-            [data?.recognition ?? '—', '词义辨认', 'text-[var(--wenyan-warm)]'],
-          ].map(([value, label, tone], index) => (
-            <div key={label} className="border-l border-[var(--wenyan-line-soft)] pl-5 text-right">
-              <div className={`wenyan-metric-value wenyan-mono text-[22px] font-semibold tracking-[-0.035em] ${tone}`} style={{ animationDelay: `${index * 45}ms` }}>{value}</div>
-              <div className="wenyan-muted mt-1 text-[10px]">{label}</div>
-            </div>
-          ))}
+          <div className="wenyan-today-summary" aria-label="今日学习记录摘要">
+            <span className="wenyan-muted text-[10px] font-medium">今天</span>
+            <span><strong>{data?.attempts ?? '—'}</strong> 拼写</span>
+            <span><strong>{data?.correct ?? '—'}</strong> 无错</span>
+            <span><strong>{data?.semantic ?? '—'}</strong> 回想</span>
+            <span><strong>{data?.recognition ?? '—'}</strong> 选择</span>
+          </div>
         </section>
 
         <section aria-label="学习计划" className="mb-10">
           <div className="mb-4 flex items-center justify-between gap-6">
-            <div className="flex items-center gap-2.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-[var(--wenyan-warm)]" aria-hidden="true" />
-              <h2 className="wenyan-section-title">计划</h2>
-            </div>
+            <h2 className="wenyan-section-title">计划</h2>
             <div className="flex items-center gap-4">
               <button disabled={cloudBusy} onClick={() => void refreshCloudPlan(true)} className="wenyan-link inline-flex items-center gap-1.5 text-[13px] disabled:opacity-50">
                 <RefreshCw aria-hidden="true" size={12} className={cloudBusy ? 'animate-spin' : ''} />
