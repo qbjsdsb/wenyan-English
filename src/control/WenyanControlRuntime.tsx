@@ -120,6 +120,10 @@ export default function WenyanControlRuntime() {
     }),
     [activeTaskRunId, chapter, deviceId, deviceName, dictId, location.pathname, location.search, practiceMode]
   )
+  // Realtime subscribe callbacks must publish the state that is current when the
+  // channel actually connects, not the render snapshot from when subscription began.
+  const deviceStateRef = useRef(deviceState)
+  deviceStateRef.current = deviceState
 
   const heartbeat = useCallback(async () => {
     if (!userId || !enabled) return false
@@ -294,14 +298,15 @@ export default function WenyanControlRuntime() {
       .subscribe((status) => {
         subscribedRef.current = status === 'SUBSCRIBED'
         if (status === 'SUBSCRIBED' && !disposed) {
+          const latest = deviceStateRef.current
           void channel.track({
             deviceId,
             deviceName,
-            path: deviceState.currentPath,
-            dictId: deviceState.currentDictId,
-            chapter: deviceState.currentChapter,
-            practiceMode: deviceState.practiceMode,
-            activeTaskRunId: deviceState.activeTaskRunId,
+            path: latest.currentPath,
+            dictId: latest.currentDictId,
+            chapter: latest.currentChapter,
+            practiceMode: latest.practiceMode,
+            activeTaskRunId: latest.activeTaskRunId,
           })
           void fetchPending()
         }
