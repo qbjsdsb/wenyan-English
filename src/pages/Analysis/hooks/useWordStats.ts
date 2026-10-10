@@ -1,5 +1,5 @@
 import { useLearningOwner } from '@/hooks/useLearningOwner'
-import { visibleSpellingAttempts } from '@/learning/spellingEvidence'
+import { visibleSpellingAttemptsWithLegacy } from '@/learning/spellingEvidence'
 import { db } from '@/utils/db'
 import dayjs from 'dayjs'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -13,6 +13,7 @@ interface IWordStats {
   typingPaceRecord: [string, number][]
   accuracyRecord: [string, number][]
   wrongTimeRecord: { name: string; value: number }[]
+  legacyAttempts: number
   recent7: {
     attempts: number
     distinctWords: number
@@ -26,6 +27,7 @@ const emptyStats: IWordStats = {
   typingPaceRecord: [],
   accuracyRecord: [],
   wrongTimeRecord: [],
+  legacyAttempts: 0,
   recent7: { attempts: 0, distinctWords: 0 },
 }
 
@@ -73,8 +75,13 @@ export function useWordStats(startTimeStamp: number, endTimeStamp: number) {
 async function getSpellingStats(startTimeStamp: number, endTimeStamp: number, ownerUserId?: string): Promise<IWordStats> {
   const startMs = startTimeStamp * 1000
   const endMs = endTimeStamp * 1000
-  const events = await db.learningEvents.where('occurredAt').between(startMs, endMs, true, true).toArray()
-  const records = visibleSpellingAttempts(events, ownerUserId)
+  const [events, wordRecords] = await Promise.all([
+    db.learningEvents.where('occurredAt').between(startMs - 1000, endMs + 1000, true, true).toArray(),
+    db.wordRecords.where('timeStamp').between(startTimeStamp - 1, endTimeStamp + 1, true, true).toArray(),
+  ])
+  const evidence = visibleSpellingAttemptsWithLegacy(events, wordRecords, ownerUserId)
+  const records = evidence.records.filter((record) => record.occurredAt >= startMs && record.occurredAt <= endMs)
+  const legacyAttempts = records.filter((record) => record.source === 'legacy').length
   if (records.length === 0) return { ...emptyStats, isEmpty: true }
 
   const data: Record<string, {
@@ -144,6 +151,7 @@ async function getSpellingStats(startTimeStamp: number, endTimeStamp: number, ow
     typingPaceRecord,
     accuracyRecord,
     wrongTimeRecord,
+    legacyAttempts,
     recent7: {
       attempts: recent.length,
       distinctWords: recentWords.size,
