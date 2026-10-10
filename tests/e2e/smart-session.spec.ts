@@ -74,7 +74,9 @@ test('Smart Session persists the real spelling cursor, resumes at the next word,
     content: `
       import { db } from '/src/utils/db/index.ts'
       const events = await db.learningEvents.toArray()
-      const wordFacts = events.filter(event => event.eventType === 'word_attempted')
+      const wordFacts = events
+        .filter(event => event.eventType === 'word_attempted')
+        .sort((a, b) => a.occurredAt - b.occurredAt || a.id.localeCompare(b.id))
       const reviewRecords = await db.reviewRecords.toArray()
       const smartRecord = reviewRecords.find(record => record.origin === 'smart')
       window.__smartSessionFacts = {
@@ -128,7 +130,9 @@ test('Smart Session persists the real spelling cursor, resumes at the next word,
     content: `
       import { db } from '/src/utils/db/index.ts'
       const events = await db.learningEvents.toArray()
-      const wordFacts = events.filter(event => event.eventType === 'word_attempted')
+      const wordFacts = events
+        .filter(event => event.eventType === 'word_attempted')
+        .sort((a, b) => a.occurredAt - b.occurredAt || a.id.localeCompare(b.id))
       const smartRecord = (await db.reviewRecords.toArray()).find(record => record.origin === 'smart')
       window.__smartCompletion = {
         wordCount: wordFacts.length,
