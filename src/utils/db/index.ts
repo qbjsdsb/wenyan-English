@@ -65,9 +65,6 @@ class RecordDB extends Dexie {
       learningSyncCursors: '&userId',
     })
     this.version(8).stores({ typingCheckpoints: '&id,updatedAt' })
-    // Learning facts grow for the lifetime of the app. Owner-aware compound
-    // indexes keep high-frequency Today/Practice reads bounded to the active
-    // account without changing event identity or rewriting historical facts.
     this.version(9).stores({
       learningEvents: '&id,eventType,occurredAt,syncState,ownerUserId,[syncState+occurredAt],[ownerUserId+eventType],[ownerUserId+occurredAt]',
     })
@@ -225,7 +222,7 @@ export function useSaveChapterRecord() {
 
           await db.learningEvents.add(event)
           if (completedRun) {
-            await db.studyPlanRuns.update(completedRun.id, { completionEventId: event.id })
+            await db.studyPlanRuns.update(completedRun.id, { completedAt: event.occurredAt, completionEventId: event.id })
           }
           if (typingState.checkpoint) {
             const checkpoint = await db.typingCheckpoints.get(typingState.checkpoint.id)
@@ -240,71 +237,125 @@ export function useSaveChapterRecord() {
   return saveChapterRecord
 }
 
+export type WordKeyLogger = {
+  letterTimeArray: number[]
+  letterMistake: LetterMistakes
+}
+
 export function useSaveWordRecord() {
   const isRevision = useAtomValue(isReviewModeAtom)
   const review = useAtomValue(reviewModeInfoAtom).reviewRecord
   const ownedReview = isRevision && isOwnedReview(review) ? review : undefined
-  const dictID = useAtomValue(currentDictIdAtom)
   const currentChapter = useAtomValue(currentChapterAtom)
-  const loopWordConfig = useAtomValue(loopWordConfigAtom)
+  const dictID = useAtomValue(currentDictIdAtom)
   const wordDictationConfig = useAtomValue(wordDictationConfigAtom)
-  const { state, dispatch } = useContext(TypingContext)!
+  const { times: loopTimes } = useAtomValue(loopWordConfigAtom)
 
-  return useCallback(
-    async (inputState: TypingState, wordIndex: number) => {
-      const word = inputState.chapterData.words[wordIndex]
-      const inputLog = inputState.chapterData.userInputLogs[wordIndex]
-      if (!word || !inputLog) throw new Error('当前单词记录不可用。')
+  const { state, dispatch } = useContext(TypingContext) ?? {}
+
+  const saveWordRecord = useCallback(
+    async ({
+      word,
+      wrongCount,
+      letterTimeArray,
+      letterMistake,
+    }: {
+      word: string
+      wrongCount: number
+      letterTimeArray: number[]
+      letterMistake: LetterMistakes
+    }) => {
       if (ownedReview && ownedReview.ownerUserId !== getLocalLearningOwnerId()) throw new Error('学习账号已变化，请重新打开练习。')
+      const timing = []
+      for (let i = 1; i < letterTimeArray.length; i++) {
+        const diff = letterTimeArray[i] - letterTimeArray[i - 1]
+        timing.push(diff)
+      }
 
       const chapter = isRevision ? -1 : currentChapter
-      const wordRecord = new WordRecord(
-        word.name,
-        inputLog.timing,
-        inputLog.LetterMistakes as LetterMistakes,
-        dictID,
-        chapter,
-        inputLog.wrongCount,
+      const taskRunId = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('taskRun')
+      const wordRecord = new WordRecord(word, dictID, chapter, timing, wrongCount, letterMistake)
+      const event = createLearningEvent<WordAttemptedPayload>(
+        'word_attempted',
+        {
+          word,
+          dict: dictID,
+          chapter,
+          reviewMode: isRevision,
+          wrongCount,
+          durationMs: timing.reduce((total, value) => total + value, 0),
+          timing,
+          mistakes: letterMistake,
+          dictationEnabled: wordDictationConfig.isOpen,
+          dictationType: wordDictationConfig.type,
+        },
+        2,
       )
-      const event = createLearningEvent<WordAttemptedPayload>('word_attempted', {
-        word: word.name,
-        dict: dictID,
-        chapter,
-        reviewMode: isRevision,
-        wrongCount: inputLog.wrongCount,
-        durationMs: inputLog.timing.reduce((sum, item) => sum + item, 0),
-        timing: inputLog.timing,
-        mistakes: inputLog.LetterMistakes,
-        dictationEnabled: wordDictationConfig.isOpen,
-        dictationType: wordDictationConfig.type,
-      }, 2)
+      if (ownedReview) event.ownerUserId = ownedReview.ownerUserId
 
-      let recordId: number | undefined
-      await db.transaction('rw', [db.wordRecords, db.learningEvents, db.reviewRecords, db.typingCheckpoints], async () => {
-        if (ownedReview && ownedReview.ownerUserId !== getLocalLearningOwnerId()) throw new Error('学习账号已变化，请重新打开练习。')
-        recordId = await db.wordRecords.add(wordRecord)
-        await db.learningEvents.add(event)
-        if (ownedReview?.id) {
-          await advanceCommittedWord(db.reviewRecords, ownedReview.id, wordIndex, ownedReview.ownerUserId)
-        }
-        if (inputState.checkpoint) {
-          const checkpoint = await db.typingCheckpoints.get(inputState.checkpoint.id)
-          if (checkpoint?.runId === inputState.runId) {
-            await db.typingCheckpoints.update(checkpoint.id, {
-              committedIndex: wordIndex,
-              updatedAt: Date.now(),
-            })
-          }
-        }
-      })
-
-      if (typeof recordId === 'number') {
-        dispatch({ type: TypingStateActionType.SET_WORD_RECORD_ID, index: wordIndex, recordId })
+      let dbID = -1
+      try {
+        dbID = await db.transaction(
+          'rw',
+          [db.wordRecords, db.learningEvents, db.studyPlans, db.studyPlanRuns, db.typingCheckpoints, db.reviewRecords],
+          async () => {
+            if (ownedReview && ownedReview.ownerUserId !== getLocalLearningOwnerId()) throw new Error('学习账号已变化，请重新打开练习。')
+            if (state?.checkpoint && state.checkpoint.ownerUserId !== getLocalLearningOwnerId())
+              throw new Error('学习账号已变化，请重新打开练习。')
+            const wordRecordId = await db.wordRecords.add(wordRecord)
+            if (!isRevision && chapter >= 0) {
+              const taskContext = await getActiveChapterTaskContext(taskRunId, event.occurredAt, dictID, chapter)
+              if (taskContext) event.payload = { ...event.payload, ...taskContext.context }
+            }
+            await db.learningEvents.add(event)
+            if (ownedReview?.id && state) {
+              const current = await db.reviewRecords.get(ownedReview.id)
+              if (
+                !current ||
+                current.origin !== ownedReview.origin ||
+                current.ownerUserId !== ownedReview.ownerUserId ||
+                current.index !== state.chapterData.index ||
+                current.isFinished ||
+                current.endedAt !== undefined
+              ) {
+                throw new Error('练习进度已变化，请重新打开这一段。')
+              }
+              const next = advanceCommittedWord(state, loopTimes)
+              await db.reviewRecords.update(ownedReview.id, { index: next.chapterData.index, isFinished: next.isFinished })
+            }
+            if (state?.checkpoint) {
+              const next = advanceCommittedWord(state, loopTimes)
+              next.chapterData.wordRecordIds.push(wordRecordId)
+              await db.typingCheckpoints.put({ ...state.checkpoint, schemaVersion: 1, updatedAt: Date.now(), state: next })
+            }
+            return wordRecordId
+          },
+        )
+      } catch (error) {
+        console.error('保存单词记录与学习事实失败：', error)
+        throw error
       }
-      if (loopWordConfig.isOpen && state.loopData.wordIndex === wordIndex) {
-        dispatch({ type: TypingStateActionType.INCREMENT_LOOP_COUNT })
+
+      if (dispatch) {
+        dbID > 0 && dispatch({ type: TypingStateActionType.ADD_WORD_RECORD_ID, payload: dbID })
+        dispatch({ type: TypingStateActionType.SET_IS_SAVING_RECORD, payload: false })
       }
     },
-    [currentChapter, dictID, dispatch, isRevision, loopWordConfig.isOpen, ownedReview, state.loopData.wordIndex, wordDictationConfig.isOpen, wordDictationConfig.type],
+    [currentChapter, dictID, dispatch, isRevision, wordDictationConfig.isOpen, wordDictationConfig.type, loopTimes, state, ownedReview],
   )
+
+  return saveWordRecord
+}
+
+export function useDeleteWordRecord() {
+  const deleteWordRecord = useCallback(async (word: string, dict: string) => {
+    try {
+      const deletedCount = await db.wordRecords.where({ word, dict }).delete()
+      return deletedCount
+    } catch (error) {
+      console.error(`删除单词记录时出错：`, error)
+    }
+  }, [])
+
+  return { deleteWordRecord }
 }
