@@ -5,6 +5,7 @@ import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
 import { db } from '@/utils/db'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useSetAtom } from 'jotai'
+import { ArrowRight } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -28,6 +29,7 @@ export default function PracticeResume({ dictionaryId }: { dictionaryId: string 
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const lock = useRef(false)
+
   const pending = useLiveQuery(async () => {
     const [semantic, spelling] = await Promise.all([
       db.semanticRuns
@@ -51,6 +53,7 @@ export default function PracticeResume({ dictionaryId }: { dictionaryId: string 
         )
         .toArray(),
     ])
+
     return [
       ...semantic.map((run) => ({
         id: run.id,
@@ -70,6 +73,7 @@ export default function PracticeResume({ dictionaryId }: { dictionaryId: string 
       })),
     ].sort((a, b) => b.at - a.at)
   }, [dictionaryId, owner])
+
   const act = async (entry: NonNullable<typeof pending>[number], finish: boolean) => {
     if (lock.current) return
     lock.current = true
@@ -77,8 +81,9 @@ export default function PracticeResume({ dictionaryId }: { dictionaryId: string 
     setError('')
     try {
       if (owner !== getLocalLearningOwnerId()) throw new Error('账号已改变，请重新打开。')
-      if (finish) await endManualPractice(entry.kind, entry.id, owner)
-      else {
+      if (finish) {
+        await endManualPractice(entry.kind, entry.id, owner)
+      } else {
         if (entry.kind === 'spelling') {
           const record = await db.reviewRecords.get(Number(entry.id))
           if (!record || record.ownerUserId !== getLocalLearningOwnerId() || record.endedAt !== undefined || record.isFinished)
@@ -94,54 +99,50 @@ export default function PracticeResume({ dictionaryId }: { dictionaryId: string 
       setBusy(false)
     }
   }
+
   if (!pending?.length && !error) return null
+  const visible = expanded ? pending : pending?.slice(0, 1)
+
   return (
-    <section className="wenyan-practice-resume mb-7 px-5 py-4" aria-label="未完成的专项训练">
-      <div className="flex items-baseline justify-between gap-4">
-        <h2 className="text-sm font-medium">接着上次的位置</h2>
-        <span className="wenyan-muted text-xs">{pending?.length ?? 0} 段未结束</span>
-      </div>
-      <div className="mt-2 divide-y divide-[var(--wenyan-line-soft)]">
-        {(expanded ? pending : pending?.slice(0, 1))?.map((entry) => (
-          <div key={`${entry.kind}:${entry.id}`} className="flex flex-wrap items-center justify-between gap-4 py-3">
-            <div>
-              <p className="text-sm">{entry.title}</p>
-              <p className="wenyan-muted mt-1 text-xs">
+    <section className="wenyan-practice-resume mb-7" aria-label="未完成的专项训练">
+      {visible?.map((entry, index) => (
+        <div key={`${entry.kind}:${entry.id}`} className={`wenyan-practice-resume-row ${index > 0 ? 'is-secondary' : ''}`}>
+          <div className="min-w-0">
+            <p className="wenyan-muted text-[10px] font-medium tracking-[0.05em]">{index === 0 ? '继续上次' : '更早的一段'}</p>
+            <div className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+              <p className="text-sm font-semibold">{entry.title}</p>
+              <p className="wenyan-muted text-xs">
                 {entry.detail} · {new Date(entry.at).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })}
               </p>
             </div>
-            <div className="flex items-center gap-4">
-              <button
-                className="wenyan-button-secondary"
-                disabled={busy}
-                onClick={() => void act(entry, false)}
-                aria-label={`继续${entry.title}`}
-              >
-                继续
-              </button>
-              <button
-                className="wenyan-link text-xs"
-                disabled={busy}
-                onClick={() => void act(entry, true)}
-                aria-label={`结束${entry.title}，保留记录`}
-              >
-                结束这段
-              </button>
-            </div>
           </div>
-        ))}
-      </div>
+          <div className="flex shrink-0 items-center gap-4">
+            <button
+              className="wenyan-practice-resume-continue inline-flex items-center gap-1.5 text-sm"
+              disabled={busy}
+              onClick={() => void act(entry, false)}
+              aria-label={`继续${entry.title}`}
+            >
+              继续 <ArrowRight size={13} aria-hidden="true" />
+            </button>
+            <button
+              className="wenyan-link text-xs"
+              disabled={busy}
+              onClick={() => void act(entry, true)}
+              aria-label={`结束${entry.title}，保留记录`}
+            >
+              结束这段
+            </button>
+          </div>
+        </div>
+      ))}
+
       {pending && pending.length > 1 && (
         <button className="wenyan-link mt-2 text-xs" onClick={() => setExpanded(!expanded)}>
-          {expanded ? '收起' : `展开其余 ${pending.length - 1} 段`}
+          {expanded ? '收起较早进度' : `还有 ${pending.length - 1} 段未结束`}
         </button>
       )}
-      <p className="wenyan-muted mt-2 text-[11px]">结束只收起未完成进度，已经保存的练习记录会保留。</p>
-      {error && (
-        <p role="alert" className="mt-3 text-sm">
-          {error}
-        </p>
-      )}
+      {error && <p role="alert" className="mt-3 text-sm text-[var(--wenyan-danger)]">{error}</p>}
     </section>
   )
 }
