@@ -13,7 +13,7 @@ import { useLearningOwner } from '@/hooks/useLearningOwner'
 import { buildActiveSpellingErrors } from '@/learning/spellingEvidence'
 import { db } from '@/utils/db'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useAtomValue } from 'jotai'
+import { useAtom } from 'jotai'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -22,7 +22,12 @@ export function ErrorBook() {
   const [currentPage, setCurrentPage] = useState(1)
   const [sortType, setSortType] = useState<ISortType>('desc')
   const [retry, setRetry] = useState(0)
-  const currentRowDetail = useAtomValue(currentRowDetailAtom)
+  const [currentRowDetail, setCurrentRowDetail] = useAtom(currentRowDetailAtom)
+
+  useEffect(() => {
+    setCurrentRowDetail(null)
+    setCurrentPage(1)
+  }, [owner, setCurrentRowDetail])
 
   const data = useLiveQuery(async () => {
     try {
