@@ -9,21 +9,34 @@ import { currentRowDetailAtom } from './store'
 import type { groupedWordRecords } from './type'
 import { LoadingUI } from '@/components/Loading'
 import Header from '@/components/Header'
-import { db, useDeleteWordRecord } from '@/utils/db'
-import type { WordRecord } from '@/utils/db/record'
+import { useLearningOwner } from '@/hooks/useLearningOwner'
+import { buildActiveSpellingErrors } from '@/learning/spellingEvidence'
+import { db } from '@/utils/db'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { useAtomValue } from 'jotai'
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 export function ErrorBook() {
-  const [groupedRecords, setGroupedRecords] = useState<groupedWordRecords[]>([])
-  const [loading, setLoading] = useState(true)
+  const owner = useLearningOwner()
   const [currentPage, setCurrentPage] = useState(1)
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(groupedRecords.length / ITEM_PER_PAGE)), [groupedRecords.length])
-  const [sortType, setSortType] = useState<ISortType>('asc')
+  const [sortType, setSortType] = useState<ISortType>('desc')
+  const [retry, setRetry] = useState(0)
   const currentRowDetail = useAtomValue(currentRowDetailAtom)
-  const { deleteWordRecord } = useDeleteWordRecord()
-  const [reload, setReload] = useState(false)
-  const [loadError, setLoadError] = useState(false)
+
+  const data = useLiveQuery(async () => {
+    try {
+      const events = await db.learningEvents.where('eventType').equals('word_attempted').toArray()
+      return { records: buildActiveSpellingErrors(events, owner) as groupedWordRecords[], error: false }
+    } catch {
+      return { records: [] as groupedWordRecords[], error: true }
+    }
+  }, [owner, retry])
+  const loading = data === undefined
+  const loadError = data?.error ?? false
+  const groupedRecords = data?.records ?? []
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(groupedRecords.length / ITEM_PER_PAGE)), [groupedRecords.length])
+
   useEffect(() => { setCurrentPage((page) => Math.min(page, totalPages)) }, [totalPages])
 
   const setPage = (page: number) => {
@@ -46,41 +59,6 @@ export function ErrorBook() {
     return sortedRecords.slice(start, start + ITEM_PER_PAGE)
   }, [currentPage, sortedRecords])
 
-  useEffect(() => {
-    let active = true
-    setLoading(true)
-    setLoadError(false)
-    db.wordRecords
-      .where('wrongCount')
-      .above(0)
-      .toArray()
-      .then((records) => {
-        const byWord = new Map<string, groupedWordRecords>()
-        records.forEach((record) => {
-          const key = JSON.stringify([record.dict, record.word])
-          let group = byWord.get(key)
-          if (!group) {
-            group = { word: record.word, dict: record.dict, records: [], wrongCount: 0 }
-            byWord.set(key, group)
-          }
-          group.records.push(record as WordRecord)
-        })
-        const groups = Array.from(byWord.values())
-        groups.forEach((group) => {
-          group.wrongCount = group.records.reduce((total, current) => total + current.wrongCount, 0)
-        })
-        if (active) setGroupedRecords(groups)
-      })
-      .catch(() => { if (active) setLoadError(true) })
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
-  }, [reload])
-
-  const handleDelete = async (word: string, dict: string) => {
-    await deleteWordRecord(word, dict)
-    setReload((previous) => !previous)
-  }
-
   return (
     <div className="wenyan-studio-shell flex min-h-screen flex-col text-[var(--wenyan-ink)]">
       <div className={`transition-[filter] duration-150 ${currentRowDetail ? 'blur-[1px]' : ''}`}>
@@ -90,31 +68,39 @@ export function ErrorBook() {
         <div className="mb-7 flex items-end justify-between gap-6">
           <div>
             <h1 className="wenyan-page-title">错词</h1>
-            <p className="wenyan-muted mt-2 text-sm">{loading ? '正在整理…' : `${groupedRecords.length} 个词`}</p>
+            <p className="wenyan-muted mt-2 text-sm">{loading ? '正在整理…' : `${groupedRecords.length} 个最近一次仍拼错的词`}</p>
           </div>
-          {!loading && <DropdownExport renderRecords={sortedRecords} />}
+          {!loading && !loadError && (
+            <div className="flex items-center gap-3">
+              {groupedRecords.length > 0 && <Link to="/practice?mode=spelling&pool=errors" className="wenyan-button-secondary no-underline">练这些错词</Link>}
+              <DropdownExport renderRecords={sortedRecords} />
+            </div>
+          )}
         </div>
+
+        <p className="wenyan-muted mb-5 max-w-3xl text-xs leading-6">
+          这里按当前账号可见的真实拼写事实整理：只有最近一次仍有拼写错误的词会留下；之后拼对会自动离开。历史学习事实不会被“删除”。
+        </p>
 
         {loading ? (
           <section className="wenyan-surface flex min-h-[260px] items-center justify-center">
             <LoadingUI label="正在整理错词" />
           </section>
         ) : loadError ? (
-          <section className="wenyan-surface p-7" role="alert"><p>暂时无法读取本机错词记录。</p><button className="wenyan-button-secondary mt-4" onClick={() => setReload((value) => !value)}>重新读取</button></section>
+          <section className="wenyan-surface p-7" role="alert"><p>暂时无法读取当前账号的拼写记录。</p><button className="wenyan-button-secondary mt-4" onClick={() => setRetry((value) => value + 1)}>重新读取</button></section>
         ) : groupedRecords.length === 0 ? (
-          <EmptyState title="还没有错词记录" description="练习中拼错的词会留在这里，方便下一次回看。" />
+          <EmptyState title="目前没有待处理错词" description="最近一次已经拼对的词会自动离开这里；没有记录也不会被当成已经掌握。" />
         ) : (
           <div className="overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]">
-            <div className="wenyan-muted grid grid-cols-[1.2fr_3fr_100px_140px_36px] items-center gap-4 border-b border-[var(--wenyan-line-soft)] px-4 py-3 text-[10px]">
+            <div className="wenyan-muted grid grid-cols-[1.2fr_3fr_110px_150px] items-center gap-4 border-b border-[var(--wenyan-line-soft)] px-4 py-3 text-[10px]">
               <span>单词</span>
               <span>释义</span>
               <HeadWrongNumber sortType={sortType} setSortType={setSort} />
               <span>词书</span>
-              <span />
             </div>
             <div className="divide-y divide-[var(--wenyan-line-soft)]">
               {renderRecords.map((record) => (
-                <ErrorRow key={`${record.dict}-${record.word}`} record={record} onDelete={() => handleDelete(record.word, record.dict)} />
+                <ErrorRow key={`${record.dict}-${record.word}`} record={record} />
               ))}
             </div>
           </div>
