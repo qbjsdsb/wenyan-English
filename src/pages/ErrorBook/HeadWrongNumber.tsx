@@ -20,7 +20,7 @@ const HeadWrongNumber: FC<IHeadWrongNumberProps> = ({ className, sortType, setSo
 
   return (
     <button type="button" className={`flex items-center gap-1.5 text-left ${className ?? ''}`} onClick={onClick}>
-      <span>错误次数</span>
+      <span>累计按错</span>
       <span className="flex flex-col text-[9px] leading-[7px]">
         <UPIcon className={classNames({ 'text-gray-800 dark:text-gray-300': sortType === 'asc', 'text-gray-300 dark:text-gray-700': sortType !== 'asc' })} />
         <DownIcon className={classNames({ 'text-gray-800 dark:text-gray-300': sortType === 'desc', 'text-gray-300 dark:text-gray-700': sortType !== 'desc' })} />
