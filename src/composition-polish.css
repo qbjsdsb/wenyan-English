@@ -3,7 +3,7 @@
  * Keep material selective: one visual anchor per task, quiet supporting UI.
  */
 
-/* Today: treat Smart Session + current-book context as one continuous stage. */
+/* Today: treat Smart Session + direct-practice escape hatch + current-book context as one continuous stage. */
 section[aria-label='智能学习'] {
   margin-bottom: 0 !important;
   padding: 1.5rem 1.75rem 1.3rem !important;
@@ -23,7 +23,43 @@ section[aria-label='智能学习']::before {
   opacity: 0.62;
 }
 
-section[aria-label='智能学习'] + section[aria-label='今日概况'] {
+section[aria-label='智能学习'] + div {
+  margin: 0 !important;
+  padding: 0.8rem 1.75rem 1rem !important;
+  border: 1px solid color-mix(in srgb, var(--wenyan-accent) 18%, var(--wenyan-line-soft));
+  border-top: 0;
+  border-bottom: 0;
+  background: color-mix(in srgb, var(--wenyan-paper-raised) 84%, var(--wenyan-paper-focus));
+}
+
+section[aria-label='智能学习'] + div h2 {
+  font-size: 12px;
+  font-weight: 620;
+  color: var(--wenyan-ink-secondary);
+}
+
+section[aria-label='智能学习'] + div p {
+  margin-top: 0.2rem !important;
+  font-size: 11px;
+}
+
+section[aria-label='智能学习'] + div .wenyan-button-secondary {
+  min-height: auto;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--wenyan-accent);
+  box-shadow: none;
+}
+
+section[aria-label='智能学习'] + div .wenyan-button-secondary:hover:not(:disabled) {
+  border: 0;
+  background: transparent;
+  color: var(--wenyan-accent-hover);
+}
+
+section[aria-label='智能学习'] + section[aria-label='今日概况'],
+section[aria-label='智能学习'] + div + section[aria-label='今日概况'] {
   margin-bottom: 2.5rem !important;
   padding-block: 1rem !important;
   border-top-color: color-mix(in srgb, var(--wenyan-accent) 12%, var(--wenyan-line-soft));
@@ -40,6 +76,172 @@ section[aria-label='今日概况'] > div:nth-child(4) > div:first-child {
 
 section[aria-label='学习计划'] > div:first-child > div:first-child > span:first-child {
   opacity: 0.5;
+}
+
+/* Practice: a desk, not a task configurator. Selection is quiet until the final action. */
+.wenyan-practice-desk {
+  border-block: 1px solid var(--wenyan-line-soft);
+}
+
+.wenyan-practice-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--wenyan-line-soft);
+}
+
+.wenyan-practice-tab {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  cursor: pointer;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 1rem 0.9rem 0.95rem;
+  color: var(--wenyan-ink-secondary);
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.wenyan-practice-tab::after {
+  content: '';
+  position: absolute;
+  right: 0.9rem;
+  bottom: -1px;
+  left: 0.9rem;
+  height: 2px;
+  border-radius: 999px 999px 0 0;
+  background: var(--wenyan-accent);
+  opacity: 0;
+  transform: scaleX(0.65);
+  transition: opacity 140ms ease, transform 160ms ease;
+}
+
+.wenyan-practice-tab:hover {
+  background: color-mix(in srgb, var(--wenyan-accent) 3%, transparent);
+  color: var(--wenyan-ink);
+}
+
+.wenyan-practice-tab.is-selected {
+  background: color-mix(in srgb, var(--wenyan-accent) 4%, transparent);
+  color: var(--wenyan-ink);
+}
+
+.wenyan-practice-tab.is-selected::after {
+  opacity: 0.86;
+  transform: scaleX(1);
+}
+
+.wenyan-practice-tab:focus-within,
+.wenyan-practice-pool:focus-within,
+.wenyan-practice-count:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--wenyan-accent) 60%, transparent);
+  outline-offset: 2px;
+}
+
+.wenyan-practice-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.15rem 0.15rem;
+  border-bottom: 1px solid var(--wenyan-line-soft);
+}
+
+.wenyan-practice-section {
+  padding: 1.25rem 0.15rem;
+  border-bottom: 1px solid var(--wenyan-line-soft);
+}
+
+.wenyan-practice-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.wenyan-practice-length {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.wenyan-practice-pool,
+.wenyan-practice-count {
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: var(--wenyan-radius-sm);
+  background: color-mix(in srgb, var(--wenyan-paper-muted) 78%, transparent);
+  color: var(--wenyan-ink-secondary);
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.wenyan-practice-pool {
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
+.wenyan-practice-count {
+  padding: 7px 11px;
+  font-size: 12px;
+}
+
+.wenyan-practice-pool:hover,
+.wenyan-practice-count:hover {
+  background: color-mix(in srgb, var(--wenyan-paper-muted) 64%, var(--wenyan-accent-soft));
+  color: var(--wenyan-ink);
+}
+
+.wenyan-practice-pool.is-selected,
+.wenyan-practice-count.is-selected {
+  border-color: color-mix(in srgb, var(--wenyan-accent) 17%, transparent);
+  background: color-mix(in srgb, var(--wenyan-accent-soft) 82%, var(--wenyan-paper-raised));
+  color: var(--wenyan-ink);
+}
+
+.wenyan-practice-launch {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 1.45rem 0.15rem 1.55rem;
+  background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--wenyan-accent) 2.5%, transparent) 100%);
+}
+
+.wenyan-practice-preview {
+  color: color-mix(in srgb, var(--wenyan-accent) 58%, var(--wenyan-ink-muted));
+}
+
+.wenyan-practice-resume {
+  border: 0;
+  border-block: 1px solid var(--wenyan-line-soft);
+  border-radius: 0;
+  padding: 0.15rem 0;
+  background: transparent;
+}
+
+.wenyan-practice-resume-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 0.8rem 0.15rem;
+}
+
+.wenyan-practice-resume-row.is-secondary {
+  border-top: 1px solid var(--wenyan-line-soft);
+}
+
+.wenyan-practice-resume-continue {
+  color: var(--wenyan-accent);
+}
+
+.wenyan-practice-resume-continue:hover:not(:disabled) {
+  color: var(--wenyan-accent-hover);
+}
+
+.wenyan-practice-resume-continue:disabled {
+  cursor: wait;
+  opacity: 0.45;
 }
 
 /* Typing: a broad focus field rather than a visible spotlight. */
@@ -89,5 +291,14 @@ section[aria-label='学习计划'] > div:first-child > div:first-child > span:fi
   .wenyan-library-group {
     grid-template-columns: 7.5rem minmax(0, 1fr);
     gap: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wenyan-practice-tab,
+  .wenyan-practice-tab::after,
+  .wenyan-practice-pool,
+  .wenyan-practice-count {
+    transition: none;
   }
 }
