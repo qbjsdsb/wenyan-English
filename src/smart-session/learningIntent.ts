@@ -207,10 +207,9 @@ export function mergeActiveLearningIntents(
     if (intent) constraints = { ...constraints, ...intent.constraints }
   }
 
-  // Smart Session v1 can execute vocabulary only. Never let a future activity
-  // preference make today's existing executor unusable.
-  constraints = { ...constraints, preferredActivities: ['vocabulary'] }
-
+  // parseConstraints already removed activities this client cannot execute.
+  // Preserve the surviving preference so the deterministic planner can honor
+  // semantic_recall when both the intent and local executor support it.
   return {
     constraints,
     source: parsed.length > 0 ? source : 'local-defaults',
