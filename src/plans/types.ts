@@ -38,6 +38,12 @@ export interface StudyPlanRun {
   planId: string
   taskId: string
   startedAt: number
+  /** Owner is required for new Cloud Plan runs; local/import runs remain portable. */
+  ownerUserId?: string
+  /** Revision observed when this run started. Provenance only; taskFingerprint decides target compatibility. */
+  planRevision?: number
+  /** Stable execution target captured at launch so a revised task cannot inherit stale completion. */
+  taskFingerprint?: string
   completedAt?: number
   completionEventId?: string
 }
