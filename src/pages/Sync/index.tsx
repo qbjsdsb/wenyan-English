@@ -6,7 +6,7 @@ import { currentChapterAtom, currentDictIdAtom, reviewModeInfoAtom } from '@/sto
 import { getWenyanRedirectUrl, supabase } from '@/supabase/client'
 import { type LearningQueueSummary, claimUnownedLearningEvents, getLearningQueueSummary } from '@/sync/learningQueue'
 import { type LearningDataSyncResult, syncLearningData } from '@/sync/syncLearningEvents'
-import { getWorkspaceState, saveWorkspaceState, workspaceStateInput, type WorkspaceState } from '@/sync/workspaceState'
+import { type WorkspaceState, getWorkspaceState, saveWorkspaceState, workspaceStateInput } from '@/sync/workspaceState'
 import type { Session } from '@supabase/supabase-js'
 import { useAtom, useSetAtom } from 'jotai'
 import { useCallback, useEffect, useState } from 'react'
