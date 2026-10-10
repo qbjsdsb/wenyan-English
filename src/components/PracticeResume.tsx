@@ -138,7 +138,11 @@ export default function PracticeResume({ dictionaryId }: { dictionaryId: string 
       ))}
 
       {pending && pending.length > 1 && (
-        <button className="wenyan-link mt-2 text-xs" onClick={() => setExpanded(!expanded)}>
+        <button
+          className="wenyan-link mt-2 text-xs"
+          aria-label={expanded ? '收起' : `展开其余 ${pending.length - 1} 段`}
+          onClick={() => setExpanded(!expanded)}
+        >
           {expanded ? '收起较早进度' : `还有 ${pending.length - 1} 段未结束`}
         </button>
       )}
