@@ -40,6 +40,52 @@ test('rejects invalid instructions and cannot import fake completion', async ({ 
   await expect(page.getByRole('button', { name: '开始任务' })).toHaveCount(1)
 })
 
+test('cloud task runs capture owner, revision and execution target at launch', async ({ page }) => {
+  await page.addScriptTag({
+    type: 'module',
+    content: `
+      import { db } from '/src/utils/db/index.ts'
+      import { startStudyTask } from '/src/plans/repository.ts'
+      import { setLocalLearningOwnerId } from '/src/sync/localLearningOwner.ts'
+
+      await db.studyPlans.clear()
+      await db.studyPlanRuns.clear()
+      setLocalLearningOwnerId('owner-a')
+      await db.studyPlans.put({
+        schemaVersion: 1,
+        id: 'cloud-plan',
+        title: '云端明确任务',
+        timezone: 'Asia/Shanghai',
+        importedAt: Date.now(),
+        origin: 'cloud',
+        ownerUserId: 'owner-a',
+        cloudRevision: 7,
+        cloudStatus: 'active',
+        cloudCompletions: {},
+        tasks: [{
+          id: 'first', title: '练习第一章', kind: 'chapter', dictId: 'cet4', chapterIndex: 0,
+          dueDate: '2026-10-10', estimatedMinutes: 10, reason: '验证执行身份。'
+        }],
+      })
+      const run = await startStudyTask('cloud-plan', 'first')
+      setLocalLearningOwnerId('owner-b')
+      let ownerError = ''
+      try {
+        await startStudyTask('cloud-plan', 'first')
+      } catch (error) {
+        ownerError = error instanceof Error ? error.message : String(error)
+      }
+      window.__cloudRunResult = { run, ownerError }
+    `,
+  })
+  await page.waitForFunction(() => Boolean((window as unknown as { __cloudRunResult?: unknown }).__cloudRunResult))
+  const result = await page.evaluate(() => (window as unknown as { __cloudRunResult: { run: Record<string, unknown>; ownerError: string } }).__cloudRunResult)
+  expect(result.run.ownerUserId).toBe('owner-a')
+  expect(result.run.planRevision).toBe(7)
+  expect(result.run.taskFingerprint).toBe('chapter:cet4:0')
+  expect(result.ownerError).toContain('账号')
+})
+
 test('a plan launches the right chapter and only real completed practice updates progress', async ({ page }) => {
   await page.getByLabel('粘贴任务 JSON').fill(JSON.stringify(plan))
   await page.getByRole('button', { name: '保存任务' }).click()
@@ -73,12 +119,14 @@ test('a plan launches the right chapter and only real completed practice updates
         wordCount: wordFacts.length,
         allWordsV2: wordFacts.every(event => event.sourceVersion === 2),
         allWordsLinked: wordFacts.every(event => event.payload.planId === 'test-plan' && event.payload.taskId === 'first' && event.payload.taskRunId),
+        allWordsFingerprint: wordFacts.every(event => event.payload.taskFingerprint === 'chapter:cet4:0'),
         wordRunIds: [...new Set(wordFacts.map(event => event.payload.taskRunId))],
         rawDictationCaptured: wordFacts.every(event => event.payload.dictationEnabled === false && event.payload.dictationType === 'hideAll'),
         chapterVersion: chapterFact?.sourceVersion,
         chapterPlanId: chapterFact?.payload?.planId,
         chapterTaskId: chapterFact?.payload?.taskId,
         chapterTaskRunId: chapterFact?.payload?.taskRunId,
+        chapterTaskFingerprint: chapterFact?.payload?.taskFingerprint,
       }
     `,
   })
@@ -87,12 +135,14 @@ test('a plan launches the right chapter and only real completed practice updates
   expect(factResult.wordCount).toBe(words.length)
   expect(factResult.allWordsV2).toBe(true)
   expect(factResult.allWordsLinked).toBe(true)
+  expect(factResult.allWordsFingerprint).toBe(true)
   expect(factResult.wordRunIds).toEqual([runId])
   expect(factResult.rawDictationCaptured).toBe(true)
   expect(factResult.chapterVersion).toBe(2)
   expect(factResult.chapterPlanId).toBe('test-plan')
   expect(factResult.chapterTaskId).toBe('first')
   expect(factResult.chapterTaskRunId).toBe(runId)
+  expect(factResult.chapterTaskFingerprint).toBe('chapter:cet4:0')
 
   await page.reload()
   await expect(page.getByText('已完成 ✓', { exact: true })).toBeVisible()
