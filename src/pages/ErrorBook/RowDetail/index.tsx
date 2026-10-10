@@ -31,16 +31,14 @@ const RowDetail: React.FC<RowDetailProps> = ({ currentRowDetail, allRecords }) =
   const wordPronunciationIconRef = useRef<WordPronunciationIconRef>(null)
 
   const rowDetailData: RowDetailData = useMemo(() => {
-    const time = currentRowDetail.records.length > 0
+    const activeTypingMs = currentRowDetail.records.length > 0
       ? currentRowDetail.records.reduce((acc, cur) => acc + cur.totalTime, 0) / currentRowDetail.records.length
       : 0
-    const correctCount = currentRowDetail.records.length
-    const wrongCount = currentRowDetail.wrongCount
     return {
-      time: (time / 1000).toFixed(2),
-      sumCount: correctCount + wrongCount,
-      correctCount,
-      wrongCount,
+      activeTypingSeconds: (activeTypingMs / 1000).toFixed(2),
+      attemptCount: currentRowDetail.records.length,
+      errorFreeAttempts: currentRowDetail.records.filter((record) => record.wrongCount === 0).length,
+      wrongCount: currentRowDetail.wrongCount,
     }
   }, [currentRowDetail.records, currentRowDetail.wrongCount])
 
@@ -89,11 +87,12 @@ const RowDetail: React.FC<RowDetailProps> = ({ currentRowDetail, allRecords }) =
         </div>
 
         <div className="mt-8 grid grid-cols-2 gap-x-8 gap-y-4 border-y border-[var(--wenyan-line-soft)] py-5">
-          <DataTag icon={ClockIcon} name="平均用时" data={rowDetailData.time} />
-          <DataTag icon={HashtagIcon} name="练习次数" data={rowDetailData.sumCount} />
-          <DataTag icon={CheckCircle} name="正确次数" data={rowDetailData.correctCount} />
-          <DataTag icon={XCircle} name="错误次数" data={rowDetailData.wrongCount} />
+          <DataTag icon={ClockIcon} name="平均键入秒数" data={rowDetailData.activeTypingSeconds} />
+          <DataTag icon={HashtagIcon} name="拼写尝试" data={rowDetailData.attemptCount} />
+          <DataTag icon={CheckCircle} name="无错尝试" data={rowDetailData.errorFreeAttempts} />
+          <DataTag icon={XCircle} name="累计按错" data={rowDetailData.wrongCount} />
         </div>
+        <p className="wenyan-muted mt-4 text-[11px] leading-5">键入秒数只累计正确按键之间的间隔，不包含看词、回忆和首次反应时间。</p>
 
         <RowPagination className="mt-6 justify-center" allRecords={allRecords} />
       </section>
@@ -102,9 +101,9 @@ const RowDetail: React.FC<RowDetailProps> = ({ currentRowDetail, allRecords }) =
 }
 
 type RowDetailData = {
-  time: string
-  sumCount: number
-  correctCount: number
+  activeTypingSeconds: string
+  attemptCount: number
+  errorFreeAttempts: number
   wrongCount: number
 }
 
