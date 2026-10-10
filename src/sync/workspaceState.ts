@@ -42,8 +42,10 @@ export function parseWorkspaceState(value: unknown): WorkspaceState | undefined 
   }
 }
 
-export async function getWorkspaceState(): Promise<WorkspaceState | undefined> {
-  const { data, error } = await supabase.rpc('get_wenyan_workspace_state')
+export async function getWorkspaceState(expectedUserId: string): Promise<WorkspaceState | undefined> {
+  const { data, error } = await supabase.rpc('get_wenyan_workspace_state', {
+    p_expected_user_id: expectedUserId,
+  })
   if (error) throw error
   if (data == null) return undefined
   const state = parseWorkspaceState(data)
@@ -51,8 +53,9 @@ export async function getWorkspaceState(): Promise<WorkspaceState | undefined> {
   return state
 }
 
-export async function saveWorkspaceState(input: WorkspaceStateInput): Promise<WorkspaceState> {
+export async function saveWorkspaceState(expectedUserId: string, input: WorkspaceStateInput): Promise<WorkspaceState> {
   const { data, error } = await supabase.rpc('save_wenyan_workspace_state', {
+    p_expected_user_id: expectedUserId,
     p_dict_id: input.dictId,
     p_chapter_index: input.chapterIndex,
     p_practice_mode: input.practiceMode,
