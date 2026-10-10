@@ -26,7 +26,8 @@ export interface CloudTaskCompletion {
 export interface StoredStudyPlan extends StudyPlan {
   importedAt: number
   origin: 'local' | 'import' | 'cloud'
-  /** Cloud metadata is a cache only. Supabase Cloud Plan v2 remains authoritative. */
+  /** Cloud metadata is an execution cache only. Supabase Cloud Plan v2 remains authoritative. */
+  ownerUserId?: string
   cloudRevision?: number
   cloudStatus?: 'active' | 'archived'
   cloudCompletions?: Record<string, CloudTaskCompletion>

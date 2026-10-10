@@ -21,7 +21,7 @@ const secondary = 'wenyan-button-secondary'
 const quietLink = 'wenyan-link text-[13px]'
 
 function planSource(plan: StoredStudyPlan) {
-  if (plan.origin === 'cloud') return '云端'
+  if (plan.origin === 'cloud') return 'ChatGPT'
   if (plan.origin === 'local') return '本机'
   return '导入'
 }
@@ -53,15 +53,15 @@ export default function TodayPage() {
       if (result.status === 'signed-out') {
         setCloudMessage(announce ? '尚未登录云同步' : '')
       } else if (result.status === 'none') {
-        setCloudMessage(announce ? '云端没有活动计划' : '')
+        setCloudMessage(announce ? '云端没有待完成的明确任务' : '')
       } else if (result.status === 'failed') {
-        setCloudMessage(`云计划暂时无法更新：${result.message}`)
+        setCloudMessage(`云端任务暂时无法更新：${result.message}`)
       } else {
         const deferred = result.deferredTasks ? `，${result.deferredTasks} 项暂不可执行` : ''
-        setCloudMessage(announce ? `已同步 ${result.executableTasks} 项${deferred}` : '')
+        setCloudMessage(announce ? `已同步 ${result.executableTasks} 项明确任务${deferred}` : '')
       }
     } catch (error) {
-      setCloudMessage(`云计划暂时无法更新：${error instanceof Error ? error.message : String(error)}`)
+      setCloudMessage(`云端任务暂时无法更新：${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setCloudBusy(false)
     }
@@ -83,7 +83,14 @@ export default function TodayPage() {
     const visibleEvents = events.filter((event) => event.ownerUserId === owner)
     const attempts = visibleEvents.filter((event) => event.eventType === 'word_attempted')
     const correct = attempts.filter((event) => (event.payload as WordAttemptedPayload).wrongCount === 0).length
-    const visiblePlans = plans.filter((plan) => plan.origin !== 'cloud' || plan.cloudStatus !== 'archived')
+    const visiblePlans = plans.filter((plan) => {
+      if (plan.origin !== 'cloud') return true
+      if (!owner || plan.ownerUserId !== owner || plan.cloudStatus !== 'active') return false
+      return plan.tasks.some((task) => {
+        if (plan.cloudCompletions?.[task.id]) return false
+        return !runs.some((run) => run.planId === plan.id && run.taskId === task.id && run.completionEventId)
+      })
+    })
     return {
       plans: visiblePlans,
       runs,
@@ -102,7 +109,7 @@ export default function TodayPage() {
       await importStudyPlan(json)
       setJson('')
       setShowImport(false)
-      setMessage('计划已保存到本机，可以开始学习了。')
+      setMessage('任务已保存到本机，可以开始学习了。')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '保存失败，请检查浏览器存储空间。')
     } finally {
@@ -134,7 +141,7 @@ export default function TodayPage() {
         ],
       }
       await importStudyPlan(JSON.stringify(plan), 'local')
-      setMessage('今日计划已保存。')
+      setMessage('明确任务已保存。')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '保存失败，请重试。')
     } finally {
@@ -145,10 +152,31 @@ export default function TodayPage() {
   const launch = async (plan: StoredStudyPlan, task: StudyTask) => {
     setBusy(true)
     try {
-      const run = await startStudyTask(plan.id, task.id)
+      let executablePlan = plan
+      let executableTask = task
+
+      if (plan.origin === 'cloud') {
+        if (!owner || plan.ownerUserId !== owner) throw new Error('这项云端任务不属于当前账号，请刷新后重试。')
+        const sync = await syncCloudPlanToLocal(plan.id)
+        if (sync.status !== 'synced') {
+          if (sync.status === 'signed-out') throw new Error('登录状态已失效，请重新登录后再开始。')
+          if (sync.status === 'none') throw new Error('这项云端任务已经不可用，请刷新任务列表。')
+          throw new Error(`无法确认云端任务：${sync.message}`)
+        }
+        const refreshed = await db.studyPlans.get(plan.id)
+        if (!refreshed || refreshed.origin !== 'cloud' || refreshed.ownerUserId !== owner || refreshed.cloudStatus !== 'active') {
+          throw new Error('这项云端任务已经不是当前可执行任务。')
+        }
+        const refreshedTask = refreshed.tasks.find((candidate) => candidate.id === task.id)
+        if (!refreshedTask) throw new Error('云端已经调整了这项任务，请刷新后重试。')
+        executablePlan = refreshed
+        executableTask = refreshedTask
+      }
+
+      const run = await startStudyTask(executablePlan.id, executableTask.id)
       setReview({ isReviewMode: false, reviewRecord: undefined })
-      setDict(task.dictId)
-      setChapter(task.chapterIndex)
+      setDict(executableTask.dictId)
+      setChapter(executableTask.chapterIndex)
       navigate(`/?taskRun=${encodeURIComponent(run.id)}`)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '无法开始任务，请重试。')
@@ -208,15 +236,18 @@ export default function TodayPage() {
         </section>
 
         <section aria-label="学习计划" className="mb-10">
-          <div className="mb-4 flex items-center justify-between gap-6">
-            <h2 className="wenyan-section-title">计划</h2>
+          <div className="mb-4 flex items-end justify-between gap-6">
+            <div>
+              <h2 className="wenyan-section-title">明确任务</h2>
+              <p className="wenyan-muted mt-1 text-[11px]">只放需要明确完成的安排；上方智能学习会按当前策略实时生成下一段。</p>
+            </div>
             <div className="flex items-center gap-4">
               <button disabled={cloudBusy} onClick={() => void refreshCloudPlan(true)} className="wenyan-link inline-flex items-center gap-1.5 text-[13px] disabled:opacity-50">
                 <RefreshCw aria-hidden="true" size={12} className={cloudBusy ? 'animate-spin' : ''} />
                 {cloudBusy ? '同步中' : '刷新'}
               </button>
               <button onClick={() => setShowImport(!showImport)} className="wenyan-link text-[13px]">
-                {showImport ? '收起导入' : '导入计划'}
+                {showImport ? '收起导入' : '导入任务'}
               </button>
             </div>
           </div>
@@ -226,7 +257,7 @@ export default function TodayPage() {
 
           {showImport && (
             <div className="wenyan-surface mb-5 p-5">
-              <label htmlFor="plan-json" className="text-sm font-medium">粘贴计划 JSON</label>
+              <label htmlFor="plan-json" className="text-sm font-medium">粘贴任务 JSON</label>
               <textarea
                 id="plan-json"
                 value={json}
@@ -236,19 +267,19 @@ export default function TodayPage() {
                 className="wenyan-input mt-3 w-full select-text p-3 font-mono text-xs outline-none"
               />
               <div className="mt-3 flex items-center gap-3">
-                <button disabled={busy || !json.trim()} onClick={handleImport} className={secondary}>保存计划</button>
+                <button disabled={busy || !json.trim()} onClick={handleImport} className={secondary}>保存任务</button>
                 <a href="https://github.com/qbjsdsb/wenyan-English/blob/main/docs/PLAN_FORMAT.md" target="_blank" rel="noreferrer" className="wenyan-link text-xs">格式说明</a>
               </div>
             </div>
           )}
 
           {!data ? (
-            <p className="wenyan-muted py-5 text-sm">正在读取计划…</p>
+            <p className="wenyan-muted py-5 text-sm">正在读取任务…</p>
           ) : data.plans.length === 0 ? (
             <div className="wenyan-overview-surface flex flex-wrap items-center justify-between gap-4 px-5 py-4">
               <div>
-                <p className="text-sm text-[var(--wenyan-ink-secondary)]">不用先做计划，也可以开始。</p>
-                <p className="wenyan-muted mt-1 text-xs">使用上方的学习安排，或给今天留下一章。</p>
+                <p className="text-sm text-[var(--wenyan-ink-secondary)]">现在没有必须完成的明确任务。</p>
+                <p className="wenyan-muted mt-1 text-xs">直接使用上方智能学习即可；需要时也可以给今天留下一章。</p>
               </div>
               <button disabled={busy} onClick={createToday} className={secondary}>安排一章</button>
             </div>

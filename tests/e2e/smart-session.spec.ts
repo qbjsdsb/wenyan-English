@@ -7,6 +7,8 @@ const smartWords = ['alpha', 'beta', 'gamma'].map((name) => ({
   ukphone: '',
 }))
 
+const authenticatedUserId = '00000000-0000-4000-8000-000000000001'
+
 const installAuthenticatedSession = async (page: Page) => {
   await page.addInitScript(() => {
     const now = Math.floor(Date.now() / 1000)
@@ -134,6 +136,47 @@ test('active Learning Intent is merged by scope and safely shapes the next block
   await expect(dock).toHaveAttribute('data-intent-source', 'cloud')
   await expect(dock.getByText('继续推进 1 个新词', { exact: true })).toBeVisible()
   await expect(dock.getByText(/已按你最近的学习安排自动调整/)).toBeVisible()
+})
+
+test('semantic Learning Intent reaches the semantic executor instead of being overwritten to vocabulary', async ({ page }) => {
+  await page.route('**/rest/v1/rpc/get_learning_intents', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      json: [
+        {
+          id: '00000000-0000-4000-8000-000000000005',
+          timezone: 'Asia/Shanghai',
+          scope: 'ongoing',
+          revision: 1,
+          constraints: { preferredActivities: ['semantic_recall'], newWordCeiling: 3 },
+        },
+      ],
+    }),
+  )
+  await installAuthenticatedSession(page)
+  await page.goto('/today')
+
+  await page.addScriptTag({
+    type: 'module',
+    content: `
+      import { db } from '/src/utils/db/index.ts'
+      import { createLearningEvent } from '/src/learning/types.ts'
+      const event = createLearningEvent('word_attempted', {
+        word: 'alpha', dict: 'cet4', chapter: 0, reviewMode: false,
+        wrongCount: 0, durationMs: 100, timing: [], mistakes: {}
+      })
+      await db.learningEvents.add({ ...event, ownerUserId: '${authenticatedUserId}' })
+      window.__semanticIntentSeeded = true
+    `,
+  })
+  await page.waitForFunction(() => Boolean((window as unknown as { __semanticIntentSeeded?: boolean }).__semanticIntentSeeded))
+  await page.reload()
+
+  const dock = page.getByRole('region', { name: '智能学习' })
+  await expect(dock).toHaveAttribute('data-intent-source', 'cloud')
+  await expect(dock.getByText('回想 1 个熟悉单词的词义', { exact: true })).toBeVisible()
+  await dock.getByRole('button', { name: '开始学习', exact: true }).click()
+  await expect(page).toHaveURL(/\/semantic\//)
 })
 
 test('review-only intent has an actionable empty state instead of a dead disabled button', async ({ page }) => {
