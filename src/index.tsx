@@ -14,7 +14,7 @@ import { useLearningOwner } from '@/hooks/useLearningOwner'
 import { startLearningSync } from '@/sync/syncLearningEvents'
 import 'animate.css'
 import { useAtom, useAtomValue } from 'jotai'
-import React, { Suspense, lazy, useEffect, useState } from 'react'
+import React, { Suspense, lazy, useEffect } from 'react'
 import 'react-app-polyfill/stable'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
@@ -34,7 +34,8 @@ function Root() {
   const owner = useLearningOwner()
   const [review, setReview] = useAtom(reviewModeInfoAtom)
   useEffect(() => {
-    if (review.reviewRecord?.origin === 'manual' && review.reviewRecord.ownerUserId !== owner) {
+    const origin = review.reviewRecord?.origin
+    if ((origin === 'manual' || origin === 'smart') && review.reviewRecord?.ownerUserId !== owner) {
       setReview({ isReviewMode: false, reviewRecord: undefined })
     }
   }, [owner, review, setReview])
@@ -45,18 +46,6 @@ function Root() {
 
   useEffect(() => startLearningSync(), [])
 
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 600)
-
-  useEffect(() => {
-    const handleResize = () => {
-      const isMobile = window.innerWidth <= 600
-      setIsMobile(isMobile)
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
   return (
     <React.StrictMode>
       <BrowserRouter basename={REACT_APP_DEPLOY_ENV === 'pages' ? '/wenyan-English' : ''}>
@@ -64,26 +53,20 @@ function Root() {
         <Suspense fallback={<Loading />}>
           <Routes>
             <Route path="/oauth/consent" element={<OAuthConsentPage />} />
-            {isMobile ? (
-              <Route path="/*" element={<Navigate to="/mobile" />} />
-            ) : (
-              <>
-                <Route index element={<TypingPage />} />
-                <Route path="/practice" element={<PracticePage />} />
-                <Route path="/today" element={<TodayPage />} />
-                <Route path="/semantic/:runId" element={<SemanticPage />} />
-                <Route path="/semantic-check/:runId" element={<SemanticCheckPage />} />
-                <Route path="/reading/:contentId" element={<ReadingPage />} />
-                <Route path="/gallery" element={<GalleryPage />} />
-                <Route path="/analysis" element={<AnalysisPage />} />
-                <Route path="/error-book" element={<ErrorBook />} />
-                <Route path="/friend-links" element={<FriendLinks />} />
-                <Route path="/sync" element={<SyncPage />} />
-                <Route path="/preferences" element={<PreferencesPage />} />
-                <Route path="/*" element={<Navigate to="/" />} />
-              </>
-            )}
+            <Route index element={<TypingPage />} />
+            <Route path="/practice" element={<PracticePage />} />
+            <Route path="/today" element={<TodayPage />} />
+            <Route path="/semantic/:runId" element={<SemanticPage />} />
+            <Route path="/semantic-check/:runId" element={<SemanticCheckPage />} />
+            <Route path="/reading/:contentId" element={<ReadingPage />} />
+            <Route path="/gallery" element={<GalleryPage />} />
+            <Route path="/analysis" element={<AnalysisPage />} />
+            <Route path="/error-book" element={<ErrorBook />} />
+            <Route path="/friend-links" element={<FriendLinks />} />
+            <Route path="/sync" element={<SyncPage />} />
+            <Route path="/preferences" element={<PreferencesPage />} />
             <Route path="/mobile" element={<MobilePage />} />
+            <Route path="/*" element={<Navigate to="/" />} />
           </Routes>
         </Suspense>
       </BrowserRouter>
