@@ -34,13 +34,13 @@ export function parseWordAttemptEvent(event: LearningEventRecord): SpellingAttem
   if (!event.payload || typeof event.payload !== 'object' || Array.isArray(event.payload)) return undefined
   const payload = event.payload as Partial<WordAttemptedPayload>
   if (typeof payload.word !== 'string' || !payload.word.trim() || typeof payload.dict !== 'string' || !payload.dict.trim()) return undefined
-  if (!Number.isInteger(payload.wrongCount) || Number(payload.wrongCount) < 0) return undefined
+  if (typeof payload.wrongCount !== 'number' || !Number.isInteger(payload.wrongCount) || payload.wrongCount < 0) return undefined
 
   const timing = Array.isArray(payload.timing)
-    ? payload.timing.filter((value): value is number => Number.isFinite(value) && value >= 0)
+    ? payload.timing.filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0)
     : []
-  const durationMs = Number.isFinite(payload.durationMs) && Number(payload.durationMs) >= 0
-    ? Number(payload.durationMs)
+  const durationMs = typeof payload.durationMs === 'number' && Number.isFinite(payload.durationMs) && payload.durationMs >= 0
+    ? payload.durationMs
     : timing.reduce((total, value) => total + value, 0)
   const rawMistakes = payload.mistakes && typeof payload.mistakes === 'object' && !Array.isArray(payload.mistakes)
     ? payload.mistakes
@@ -61,7 +61,7 @@ export function parseWordAttemptEvent(event: LearningEventRecord): SpellingAttem
     timeStamp: Math.floor(event.occurredAt / 1000),
     reviewMode: Boolean(payload.reviewMode),
     timing,
-    wrongCount: Number(payload.wrongCount),
+    wrongCount: payload.wrongCount,
     mistakes,
     totalTime: durationMs,
   }
