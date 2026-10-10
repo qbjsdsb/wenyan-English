@@ -28,6 +28,7 @@ export default function DictionaryComponent({ dictionary, withTopBorder = false 
     () => (dictStats ? Math.ceil((dictStats.exercisedChapterCount / chapterCount) * 100) : 0),
     [dictStats, chapterCount],
   )
+  const legacyFallbackCount = dictStats?.legacyFallbackCount ?? 0
 
   return (
     <Dialog>
@@ -74,7 +75,18 @@ export default function DictionaryComponent({ dictionary, withTopBorder = false 
 
           <div className="wenyan-muted flex shrink-0 items-center gap-4 text-[11px]">
             <span className="wenyan-mono">{dictionary.length} 词</span>
-            {progress > 0 && <span className="wenyan-mono tabular-nums" title="有练习记录的章节占比，不代表词义掌握">已练 {progress}% 章节</span>}
+            {progress > 0 && (
+              <span
+                className="wenyan-mono tabular-nums"
+                title={
+                  legacyFallbackCount > 0
+                    ? `有练习记录的章节占比，不代表词义掌握；其中 ${legacyFallbackCount} 章来自旧版本机记录`
+                    : '有练习记录的章节占比，不代表词义掌握'
+                }
+              >
+                已练 {progress}% 章节{legacyFallbackCount > 0 ? ' · 含旧记录' : ''}
+              </span>
+            )}
             <ChevronRight aria-hidden="true" size={14} strokeWidth={1.6} className="transition-transform group-hover:translate-x-0.5" />
           </div>
         </button>
