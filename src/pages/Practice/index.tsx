@@ -45,7 +45,9 @@ export default function PracticePage() {
   const pool: PracticePool = pools.some((item) => item.id === params.get('pool')) ? params.get('pool') as PracticePool : savedChoices.pool
   const limit = params.get('limit') === '12' ? 12 : params.get('limit') === '6' ? 6 : savedChoices.limit
 
-  useEffect(() => savePracticeChoices({ mode, pool, limit }, owner), [mode, pool, limit, owner])
+  useEffect(() => {
+    savePracticeChoices({ mode, pool, limit }, owner)
+  }, [mode, pool, limit, owner])
 
   const [prepared, setPrepared] = useState<{ items: SemanticItem[]; references: SemanticItem[]; words: ReturnType<typeof selectPracticeWords>['candidates']; count: number }>()
   const [preparing, setPreparing] = useState(true)
