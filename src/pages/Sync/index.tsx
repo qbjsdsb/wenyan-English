@@ -102,7 +102,7 @@ export default function SyncPage() {
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 pb-16 pt-9">
         <div className="mb-7">
           <h1 className="wenyan-page-title">同步</h1>
-          <p className="wenyan-muted mt-2 text-sm">学习记录在设备之间保持一致</p>
+          <p className="wenyan-muted mt-2 text-sm">让真实学习事实在设备之间保持一致</p>
         </div>
 
         {!authReady ? (
@@ -144,8 +144,8 @@ export default function SyncPage() {
 
             <div className="relative z-[1] flex items-center justify-between gap-5 border-t border-[var(--wenyan-line-soft)] px-5 py-5">
               <div>
-                <p className="text-sm font-medium text-[var(--wenyan-ink)]">云端学习记录</p>
-                <p className="wenyan-muted mt-1 text-xs">上传本机新记录，并恢复云端缺失记录</p>
+                <p className="text-sm font-medium text-[var(--wenyan-ink)]">云端学习事实</p>
+                <p className="wenyan-muted mt-1 text-xs">上传本机新事实，并恢复云端缺失事实</p>
               </div>
               <button className="wenyan-button-primary" disabled={busy} onClick={syncNow}>{busy ? '同步中…' : '立即同步'}</button>
             </div>
@@ -153,7 +153,7 @@ export default function SyncPage() {
         ) : (
           <section className="wenyan-surface p-6">
             <h2 className="mb-2 text-lg font-medium">让学习记录随你回来</h2>
-            <p className="wenyan-muted mb-6 text-sm leading-6">登录后同步已有记录；暂不登录，也可以继续在本机学习。</p>
+            <p className="wenyan-muted mb-6 text-sm leading-6">登录后同步已有学习事实；暂不登录，也可以继续在本机学习。</p>
             <form onSubmit={(event) => { event.preventDefault(); if (!busy) void sendMagicLink() }}>
             <label className="mb-2 block text-sm font-medium" htmlFor="wenyan-sync-email">邮箱</label>
             <div className="flex gap-3">
@@ -181,7 +181,8 @@ export default function SyncPage() {
           <summary className="wenyan-link cursor-pointer select-none text-xs">同步说明</summary>
           <div className="mt-3 space-y-2 leading-6">
             <p>学习事件先保存在本机；登录后只上传明确归属于当前账号的记录。未归属记录需要你手动认领。</p>
-            <p>云端恢复使用独立游标，重复同步不会复制同一事件。旧 Qwerty 设置、当前词书位置和 legacy 错词表暂不跨设备恢复。</p>
+            <p>错词、记录页和词库已练章节现在都从当前账号可见的学习事实派生；同步这些事实后，相关历史可以在另一台设备重新计算。</p>
+            <p>当前词书位置、界面偏好和旧 Qwerty 本机表仍属于设备状态，不会被伪装成跨设备学习事实。</p>
           </div>
         </details>
       </main>
