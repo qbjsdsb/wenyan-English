@@ -65,7 +65,9 @@ export function useWordStats(startTimeStamp: number, endTimeStamp: number) {
     }
   }, [startTimeStamp, endTimeStamp, owner, reload])
 
-  return data ?? { ...emptyStats, isEmpty: undefined, error: false, retry }
+  return data
+    ? { ...data, retry }
+    : { ...emptyStats, isEmpty: undefined, error: false, retry }
 }
 
 async function getSpellingStats(startTimeStamp: number, endTimeStamp: number, ownerUserId?: string): Promise<IWordStats> {
