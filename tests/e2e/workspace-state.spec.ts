@@ -5,6 +5,15 @@ async function waitForResult(page: Page, key: string) {
   return page.evaluate((name: string) => (window as unknown as Record<string, unknown>)[name], key)
 }
 
+async function callWorkspaceHarness(page: Page, method: string, argument?: string) {
+  return page.evaluate(({ method, argument }) => {
+    const harness = (window as unknown as {
+      __workspaceHarness: Record<string, (value?: string) => unknown>
+    }).__workspaceHarness
+    return harness[method](argument)
+  }, { method, argument })
+}
+
 test('workspace request gate rejects stale account and pre-write reads', async ({ page }) => {
   await page.route('**/*.supabase.co/**', (route) => route.abort())
   await page.goto('/today')
@@ -194,4 +203,102 @@ test('a complete local workspace persists across reload', async ({ page }) => {
     chapter: 7,
     choices: { mode: 'discrimination', pool: 'uncertain', limit: 12 },
   })
+})
+
+test('SyncPage orders saves over stale reads, reconciles uncertain saves, and clears state on account failure', async ({ page }) => {
+  await page.route('**/*.supabase.co/**', (route) => route.abort())
+  await page.goto('/today')
+
+  await page.addScriptTag({
+    type: 'module',
+    content: `
+      import { supabase } from '/src/supabase/client.ts'
+
+      const sessionA = { user: { id: 'user-a', email: 'a@example.com' } }
+      const sessionB = { user: { id: 'user-b', email: 'b@example.com' } }
+      const workspace = (chapterIndex) => ({
+        schemaVersion: 1,
+        dictId: 'cet4',
+        chapterIndex,
+        practiceMode: 'recall',
+        practicePool: 'chapter',
+        practiceLimit: 6,
+        updatedAt: '2026-10-10T00:00:00.000Z',
+      })
+
+      let authCallback
+      let mode = 'initial'
+      let pendingSave
+      let pendingRead
+      let getCount = 0
+      let saveCount = 0
+
+      supabase.auth.getSession = async () => ({ data: { session: sessionA }, error: null })
+      supabase.auth.onAuthStateChange = (callback) => {
+        authCallback = callback
+        return { data: { subscription: { unsubscribe() {} } } }
+      }
+      supabase.rpc = async (name) => {
+        if (name === 'get_wenyan_workspace_state') {
+          getCount += 1
+          if (mode === 'save-race') {
+            return await new Promise((resolve) => { pendingRead = () => resolve({ data: workspace(2), error: null }) })
+          }
+          if (mode === 'ambiguous') return { data: workspace(9), error: null }
+          if (mode === 'account-b-fail') return { data: null, error: { message: 'offline-b' } }
+          return { data: workspace(2), error: null }
+        }
+        if (name === 'save_wenyan_workspace_state') {
+          saveCount += 1
+          if (mode === 'save-race') {
+            return await new Promise((resolve) => { pendingSave = () => resolve({ data: workspace(6), error: null }) })
+          }
+          if (mode === 'ambiguous') return { data: null, error: { message: 'response-lost' } }
+        }
+        return { data: null, error: null }
+      }
+
+      window.__workspaceHarness = {
+        setMode(value) { mode = value },
+        fireA() { authCallback?.('TOKEN_REFRESHED', sessionA) },
+        fireB() { authCallback?.('SIGNED_IN', sessionB) },
+        resolveSave() { pendingSave?.(); pendingSave = null },
+        resolveRead() { pendingRead?.(); pendingRead = null },
+        hasPendingSave() { return Boolean(pendingSave) },
+        hasPendingRead() { return Boolean(pendingRead) },
+        getCount() { return getCount },
+        saveCount() { return saveCount },
+      }
+    `,
+  })
+
+  await page.getByLabel('同步').click()
+  await expect(page.getByText(/云端：.*第 3 章/)).toBeVisible()
+  await expect(page.getByRole('button', { name: '恢复云端位置' })).toBeEnabled()
+
+  await callWorkspaceHarness(page, 'setMode', 'save-race')
+  await page.getByRole('button', { name: '保存本机位置' }).click()
+  await page.waitForFunction(() => Boolean((window as unknown as {
+    __workspaceHarness?: { hasPendingSave?: () => boolean }
+  }).__workspaceHarness?.hasPendingSave?.()))
+  await callWorkspaceHarness(page, 'fireA')
+  await page.waitForFunction(() => Boolean((window as unknown as {
+    __workspaceHarness?: { hasPendingRead?: () => boolean }
+  }).__workspaceHarness?.hasPendingRead?.()))
+  await callWorkspaceHarness(page, 'resolveSave')
+  await expect(page.getByText(/云端：.*第 7 章/)).toBeVisible()
+  await callWorkspaceHarness(page, 'resolveRead')
+  await expect(page.getByText(/云端：.*第 7 章/)).toBeVisible()
+
+  await callWorkspaceHarness(page, 'setMode', 'ambiguous')
+  await page.getByRole('button', { name: '保存本机位置' }).click()
+  await expect(page.getByText('保存结果未能直接确认，已重新读取云端位置。请核对后再继续。')).toBeVisible()
+  await expect(page.getByText(/云端：.*第 10 章/)).toBeVisible()
+  await expect(page.getByRole('button', { name: '恢复云端位置' })).toBeEnabled()
+
+  await callWorkspaceHarness(page, 'setMode', 'account-b-fail')
+  await callWorkspaceHarness(page, 'fireB')
+  await expect(page.getByText('b@example.com')).toBeVisible()
+  await expect(page.getByText('云端：还没有保存过云端位置')).toBeVisible()
+  await expect(page.getByRole('button', { name: '恢复云端位置' })).toBeDisabled()
 })
