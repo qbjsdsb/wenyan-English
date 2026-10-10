@@ -37,12 +37,12 @@ export function useDictStats(dictID: string, isStartLoad: boolean) {
       legacyChapters.add(record.chapter)
     }
 
-    const displayedChapters = new Set(factChapters)
+    const displayedChapters = new Set<number>(Array.from(factChapters))
     let legacyFallbackCount = 0
-    for (const chapter of legacyChapters) {
+    legacyChapters.forEach((chapter) => {
       if (!factChapters.has(chapter)) legacyFallbackCount += 1
       displayedChapters.add(chapter)
-    }
+    })
 
     return {
       exercisedChapterCount: displayedChapters.size,
