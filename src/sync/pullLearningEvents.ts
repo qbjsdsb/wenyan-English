@@ -63,6 +63,12 @@ function asNonNegativeInteger(value: unknown, label: string) {
   return number
 }
 
+function asPositiveInteger(value: unknown, label: string) {
+  const number = asNumber(value, label)
+  if (!Number.isInteger(number) || number < 1) throw new Error(`${label}格式无效。`)
+  return number
+}
+
 function asIntegerOrNull(value: unknown, label: string): number | null {
   if (value === null) return null
   const number = asNumber(value, label)
@@ -104,7 +110,20 @@ function parseTaskContext(payload: Record<string, unknown>): PlanTaskFactContext
   const taskId = asOptionalString(payload.taskId, '任务 ID')
   const taskContextCount = [taskRunId, planId, taskId].filter(Boolean).length
   if (taskContextCount !== 0 && taskContextCount !== 3) throw new Error('任务关联记录格式无效。')
-  return taskRunId && planId && taskId ? { taskRunId, planId, taskId } : {}
+  if (!taskRunId || !planId || !taskId) {
+    if (payload.planRevision !== undefined || payload.taskFingerprint !== undefined) throw new Error('任务版本记录缺少任务关联。')
+    return {}
+  }
+
+  const planRevision = payload.planRevision === undefined ? undefined : asPositiveInteger(payload.planRevision, '计划版本')
+  const taskFingerprint = asOptionalString(payload.taskFingerprint, '任务执行指纹')
+  return {
+    taskRunId,
+    planId,
+    taskId,
+    ...(planRevision ? { planRevision } : {}),
+    ...(taskFingerprint ? { taskFingerprint } : {}),
+  }
 }
 
 function parseWordPayload(value: unknown, sourceVersion: LearningEventSourceVersion): WordAttemptedPayload {

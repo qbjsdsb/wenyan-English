@@ -31,6 +31,10 @@ export interface PlanTaskFactContext {
   taskRunId?: string
   planId?: string
   taskId?: string
+  /** Cloud revision observed at run start. Kept for provenance, not treated as learning evidence. */
+  planRevision?: number
+  /** Stable execution target; completion can only satisfy a task whose current target still matches. */
+  taskFingerprint?: string
 }
 
 export interface WordAttemptedPayload extends PlanTaskFactContext {

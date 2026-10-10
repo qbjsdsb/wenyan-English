@@ -1,46 +1,54 @@
 # Cloud Plan v2
 
-更新：2026-10-07。
+更新：2026-10-10。
 
-Cloud Plan v2 是 Wenyan English 从“本机可导入计划”走向“ChatGPT 可分析、可安排、网站可执行”的云端计划协议。它不替代学习事实；计划只描述未来安排，完成状态永远由真实学习事件推导。
+Cloud Plan 是 Wenyan 的 **明确任务 / commitment 层**。它不承担日常动态学习编排；日常策略由 Learning Intent 表达，具体下一小段由 Smart Session 根据最新事实实时生成。
 
-## 目标
+核心边界：
 
-- 跨设备保存计划与任务。
-- ChatGPT 可以读取计划状态，并在明确授权后创建/修订未来计划。
-- 网站可以把计划任务解析成真实学习入口。
-- 所有变更可追溯、可做 revision，并支持幂等写入。
-- AI 永远不能伪造 `completed`、学习时长或历史事实。
+> Fact = 过去真实发生的学习；Intent = 未来策略；Smart Session = 动态下一段；Cloud Plan = 少量明确、持久、可追踪的任务。
 
-## 当前已落地
+Cloud Plan 不能替代学习事实，也不能自行声明完成。完成状态永远由匹配的 immutable learning event 推导。
+
+## 当前真实用途
+
+适合 Cloud Plan 的任务应同时具备较强的显式身份，例如：
+
+- 指定词书的指定章节；
+- 明确 due date；
+- 需要跨设备持久存在；
+- 需要 plan/task identity 与真实 completion evidence；
+- ChatGPT 需要后续读取任务状态。
+
+“不超过 30 分钟”“今天复习优先”“少学新词”“多做词义回想”属于 Learning Intent，不应冻结成 Cloud Plan。
+
+## 当前生产合同
 
 数据库：
 
 - `public.study_plans`
 - `public.plan_tasks`
 - `public.study_plan_revisions`
+- `public.plan_mutation_receipts`
 - `public.oauth_client_capabilities`
 - `public.get_plan_status(uuid)`（SECURITY INVOKER）
 
-RLS：
+当前网站与 MCP **唯一可执行的 task kind 是 `chapter`**。
 
-- 所有表按 `auth.uid()` 隔离。
-- 普通 Wenyan 浏览器会话可以直接维护自己的未来计划/任务。
-- OAuth client 当前只能读取；计划表的直接写策略明确拒绝带 `client_id` 的 OAuth session。
-- `oauth_client_capabilities` 只能由普通 Wenyan 会话授予/撤销，不允许 OAuth client 给自己提权。
+底层表的历史 check constraint 可能仍包含 `smart_review / word_set / dictation / weak_words / mixed_session` 等早期预留名字；这些不是当前产品能力。网站会把非 `chapter` task 视为 deferred，MCP 写工具也不会创建它们。不要根据数据库预留枚举宣称功能已实现。
 
-## Task kinds
+## 生命周期
 
-第一批结构允许：
+2026-10-10 `plan_lifecycle_closure` 已上线：
 
-- `chapter`
-- `smart_review`
-- `word_set`
-- `dictation`
-- `weak_words`
-- `mixed_session`
+- 同一 owner 最多一个 `status='active'` 的 Cloud Plan；
+- create 使用 owner 级 transaction advisory lock；
+- 新建显式 Plan 会 supersede 旧 active Plan：旧 Plan archive、revision +1，并保留 revision snapshot；
+- `get_plan_status(null)` 只返回仍有网站可执行且尚未完成的 active chapter task 的 Plan；
+- `get_plan_status(explicitPlanId)` 仍可读取 archived / exhausted 历史；
+- 没有删除历史 Plan，也没有修改任何 Learning Fact。
 
-`config` 保存各任务类型自己的窄参数。不要把任意命令、SQL、URL 或脚本塞入 `config`。
+如果未来引入第二个真实学习域（例如 Literature）并确实需要并行 commitment，可再把 single-active 边界升级为 owner + domain/lane；当前不要提前复杂化。
 
 ## Completion 规则
 
@@ -49,35 +57,71 @@ RLS：
 - `active`
 - `cancelled`
 
-它没有 `completed`。
+没有 `completed` 状态。
 
-`get_plan_status` 只会把与 plan/task 精确匹配的不可变 `learning_events` 作为完成证据。目前仅识别真实 `chapter_completed` 事件中的 `planId / taskId` 关联；后续 Smart Session 会扩展到更细的任务证据。
+当前 chapter completion 必须来自真实 `chapter_completed` event，并精确匹配：
 
-## OAuth capability 模型
+- owner；
+- `planId`；
+- `taskId`；
+- 实际 dict/chapter；
+- 对新 run，还必须匹配 task execution fingerprint。
 
-预留能力：
+### Run execution identity
 
-- `plans:read`
-- `plans:write`
-- `navigation:control`
-- `session:control`
-- `preferences:write`
-- `coach:auto_adjust`
+新 run 在启动时记录：
 
-当前不自动授予任何 capability。第一次真实 ChatGPT OAuth/DCR 完成并确认稳定 `client_id` 后，才允许用户在 Wenyan 设置页显式开启写能力。
+- `ownerUserId`（Cloud Plan）；
+- `planRevision`；
+- `taskFingerprint`。
 
-## 下一批
+当前 fingerprint 只描述执行目标：
 
-1. MCP 增加只读 `get_plan_status`。
-2. 网站增加 Cloud Plan v2 pull/merge，保留本地优先执行。
-3. 增加 revision/idempotency 写 RPC；写 RPC 必须校验明确 capability 与 expected revision。
-4. 第一批写工具：`create_study_plan`、`revise_study_plan`、`archive_study_plan`。
-5. 再做 Command Bus / device presence，让 ChatGPT 能启动已授权的网站动作。
+`chapter:<dictId>:<chapterIndex>`
+
+它故意不包含 title / reason / dueDate / estimatedMinutes：这些规划元数据变化不应该作废仍指向同一学习目标的 run。
+
+`planRevision` 用于 provenance；是否还能完成当前 task 由 fingerprint 决定。这样可以允许“只改截止日期”而不丢掉正在进行的学习，同时阻止“任务已改成另一章”后旧 run 误完成新任务。
+
+服务端 `get_plan_status` 对带 `taskFingerprint` 的新 completion fact 会重新与当前 task config 比对。历史 completion fact 早于 fingerprint 合同，继续按旧 plan/task identity 兼容读取；已有 completion evidence 的 task 本身仍受计划写合同保护，不允许静默改写历史。
+
+启动任务本身永远不等于完成；Command Bus 的 completed receipt 也只代表网页动作执行成功。
+
+## 本机缓存与账号边界
+
+Cloud Plan 拉到 Dexie 后只是 **owner-bound execution cache**：
+
+- 写入 `ownerUserId`；
+- 旧的无 owner cloud cache 不自动继承当前账号；
+- Today 手动开始 cloud task 前按 planId 重新向 Supabase 读取，通过 RLS 验证 owner / active 状态 / task；
+- 新 Cloud Plan run 再次绑定 owner / revision / fingerprint；
+- 换账号或缓存过期不能把旧计划上下文附到新的学习事实。
+
+网络失败仍不能阻止普通本地学习。若 Cloud Plan 身份无法可靠确认，学习事实可以正常保存，但不得伪造 Plan completion。
+
+## OAuth capability
+
+- `plans:read`：读取计划；
+- `plans:write`：创建 / 修订 / 归档显式计划；
+- `session:control`：启动明确任务；
+- `coach:auto_adjust` 属于 Learning Intent，不等于 Cloud Plan write。
+
+OAuth client 不能自授权，不能修改 `learning_events`。
+
+## 当前工具
+
+- `get_plan_status`
+- `create_study_plan`
+- `revise_study_plan`
+- `archive_study_plan`
+- `start_task`（Command Bus，启动不等于完成）
+
+写操作使用 requestId 幂等；revision 更新使用 optimistic concurrency。
 
 ## 不做
 
-- 不开放任意 SQL。
-- 不开放任意 URL 导航或 JavaScript 执行。
-- 不允许 OAuth client 自授权限。
-- 不允许 AI 修改 `learning_events` 历史事实。
-- 不把“打开页面”“开始任务”当作“任务完成”。
+- 不开放任意 SQL / JavaScript / URL；
+- 不允许 AI 修改历史学习事实；
+- 不把 Cloud Plan 重新扩成第二套 Smart Session；
+- 不为了“支持更多 task kind”机械实现数据库里早期预留的枚举；
+- 不把页面打开、任务启动、Command receipt 当作学习完成。

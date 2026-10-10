@@ -44,6 +44,8 @@ const moduleScript = `
       taskRunId: 'run-1',
       planId: 'test-plan',
       taskId: 'first',
+      planRevision: 7,
+      taskFingerprint: 'chapter:cet4:0',
     },
   }
   const insertedV2 = await storePulledLearningEventPage('user-a', [v2])
@@ -89,6 +91,8 @@ const moduleScript = `
     v2TaskRunId: restoredV2?.payload?.taskRunId,
     v2PlanId: restoredV2?.payload?.planId,
     v2TaskId: restoredV2?.payload?.taskId,
+    v2PlanRevision: restoredV2?.payload?.planRevision,
+    v2TaskFingerprint: restoredV2?.payload?.taskFingerprint,
     v2DictationEnabled: restoredV2?.payload?.dictationEnabled,
     v2DictationType: restoredV2?.payload?.dictationType,
     cursorEventId: cursorBeforeConflict?.eventId,
@@ -116,6 +120,8 @@ test('restored facts are idempotent, versioned, and cursor updates atomically', 
   expect(result.v2TaskRunId).toBe('run-1')
   expect(result.v2PlanId).toBe('test-plan')
   expect(result.v2TaskId).toBe('first')
+  expect(result.v2PlanRevision).toBe(7)
+  expect(result.v2TaskFingerprint).toBe('chapter:cet4:0')
   expect(result.v2DictationEnabled).toBe(true)
   expect(result.v2DictationType).toBe('hideAll')
   expect(result.cursorEventId).toBe('55555555-5555-4555-8555-555555555555')
