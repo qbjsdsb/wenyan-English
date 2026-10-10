@@ -91,7 +91,12 @@ export default function SyncPage() {
     const applySession = (nextSession: Session | null) => {
       if (!alive) return
       const nextUserId = nextSession?.user.id ?? null
+      const userChanged = sessionUserRef.current !== nextUserId
       sessionUserRef.current = nextUserId
+      if (userChanged) {
+        setBusy(false)
+        setMessage('')
+      }
       setSession(nextSession)
       setAuthReady(true)
       void refreshQueue(nextUserId ?? undefined)
