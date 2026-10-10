@@ -9,7 +9,7 @@ import { type LearningDataSyncResult, syncLearningData } from '@/sync/syncLearni
 import { type WorkspaceState, getWorkspaceState, saveWorkspaceState, workspaceStateInput } from '@/sync/workspaceState'
 import type { Session } from '@supabase/supabase-js'
 import { useAtom, useSetAtom } from 'jotai'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 function describeResult(result: LearningDataSyncResult) {
   const parts: string[] = []
@@ -56,40 +56,61 @@ export default function SyncPage() {
   const [currentDictId, setCurrentDictId] = useAtom(currentDictIdAtom)
   const [currentChapter, setCurrentChapter] = useAtom(currentChapterAtom)
   const setReview = useSetAtom(reviewModeInfoAtom)
+  const sessionUserRef = useRef<string | null>(null)
+  const workspaceRequestRef = useRef(0)
 
   const refreshQueue = useCallback(async (userId?: string) => {
-    setQueue(await getLearningQueueSummary(userId))
+    const summary = await getLearningQueueSummary(userId)
+    if ((sessionUserRef.current ?? undefined) !== userId) return
+    setQueue(summary)
   }, [])
 
-  const refreshWorkspace = useCallback(async (signedIn: boolean) => {
-    if (!signedIn) {
+  const refreshWorkspace = useCallback(async (userId?: string) => {
+    const requestId = ++workspaceRequestRef.current
+    if (!userId) {
       setCloudWorkspace(undefined)
+      setWorkspaceLoading(false)
       return
     }
     setWorkspaceLoading(true)
     try {
-      setCloudWorkspace(await getWorkspaceState())
+      const state = await getWorkspaceState()
+      if (requestId !== workspaceRequestRef.current || sessionUserRef.current !== userId) return
+      setCloudWorkspace(state)
     } catch (error) {
+      if (requestId !== workspaceRequestRef.current || sessionUserRef.current !== userId) return
       setMessage(`云端学习位置暂时无法读取：${error instanceof Error ? error.message : String(error)}`)
     } finally {
-      setWorkspaceLoading(false)
+      if (requestId === workspaceRequestRef.current && sessionUserRef.current === userId) setWorkspaceLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setAuthReady(true)
-      void refreshQueue(data.session?.user.id)
-      void refreshWorkspace(Boolean(data.session))
-    })
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    let alive = true
+    let authEventSeen = false
+    const applySession = (nextSession: Session | null) => {
+      if (!alive) return
+      const nextUserId = nextSession?.user.id ?? null
+      sessionUserRef.current = nextUserId
       setSession(nextSession)
       setAuthReady(true)
-      void refreshQueue(nextSession?.user.id)
-      void refreshWorkspace(Boolean(nextSession))
+      void refreshQueue(nextUserId ?? undefined)
+      void refreshWorkspace(nextUserId ?? undefined)
+    }
+
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!alive || authEventSeen) return
+      applySession(data.session)
     })
-    return () => data.subscription.unsubscribe()
+    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      authEventSeen = true
+      applySession(nextSession)
+    })
+    return () => {
+      alive = false
+      workspaceRequestRef.current += 1
+      data.subscription.unsubscribe()
+    }
   }, [refreshQueue, refreshWorkspace])
 
   const sendMagicLink = async () => {
@@ -134,45 +155,49 @@ export default function SyncPage() {
 
   const publishWorkspace = async () => {
     if (!session || busy) return
+    const ownerUserId = session.user.id
     setBusy(true)
     setMessage('')
     try {
       const dict = idDictionaryMap[currentDictId]
       if (!dict || currentChapter < 0 || currentChapter >= dict.chapterCount) throw new Error('当前词书位置无效，请先重新选择章节。')
-      const choices = readPracticeChoices(session.user.id)
+      const choices = readPracticeChoices(ownerUserId)
       const saved = await saveWorkspaceState(workspaceStateInput(currentDictId, currentChapter, choices))
+      if (sessionUserRef.current !== ownerUserId) throw new Error('账号已经改变，请在当前账号下重新保存。')
       setCloudWorkspace(saved)
       setMessage('本机学习位置已保存到云端。学习事实没有被改写。')
     } catch (error) {
-      setMessage(`保存学习位置失败：${error instanceof Error ? error.message : String(error)}`)
+      if (sessionUserRef.current === ownerUserId) setMessage(`保存学习位置失败：${error instanceof Error ? error.message : String(error)}`)
     } finally {
-      setBusy(false)
+      if (sessionUserRef.current === ownerUserId) setBusy(false)
     }
   }
 
   const restoreWorkspace = async () => {
     if (!session || !cloudWorkspace || busy) return
+    const ownerUserId = session.user.id
+    const state = cloudWorkspace
     setBusy(true)
     setMessage('')
     try {
-      const dict = idDictionaryMap[cloudWorkspace.dictId]
+      const dict = idDictionaryMap[state.dictId]
       if (!dict) throw new Error('云端位置使用了当前版本不认识的词书。')
-      if (cloudWorkspace.chapterIndex < 0 || cloudWorkspace.chapterIndex >= dict.chapterCount) {
-        throw new Error('云端章节已经超出当前词书范围。')
-      }
+      if (state.chapterIndex < 0 || state.chapterIndex >= dict.chapterCount) throw new Error('云端章节已经超出当前词书范围。')
+      if (sessionUserRef.current !== ownerUserId) throw new Error('账号已经改变，请重新读取云端位置。')
+      const choicesSaved = savePracticeChoices({
+        mode: state.practiceMode,
+        pool: state.practicePool,
+        limit: state.practiceLimit,
+      }, ownerUserId)
+      if (!choicesSaved) throw new Error('专项训练选择无法写入本机存储，请检查浏览器存储设置。')
       setReview({ isReviewMode: false, reviewRecord: undefined })
-      setCurrentDictId(cloudWorkspace.dictId)
-      setCurrentChapter(cloudWorkspace.chapterIndex)
-      savePracticeChoices({
-        mode: cloudWorkspace.practiceMode,
-        pool: cloudWorkspace.practicePool,
-        limit: cloudWorkspace.practiceLimit,
-      }, session.user.id)
+      setCurrentDictId(state.dictId)
+      setCurrentChapter(state.chapterIndex)
       setMessage('云端学习位置已恢复到这台设备。历史学习事实没有变化。')
     } catch (error) {
-      setMessage(`恢复学习位置失败：${error instanceof Error ? error.message : String(error)}`)
+      if (sessionUserRef.current === ownerUserId) setMessage(`恢复学习位置失败：${error instanceof Error ? error.message : String(error)}`)
     } finally {
-      setBusy(false)
+      if (sessionUserRef.current === ownerUserId) setBusy(false)
     }
   }
 
@@ -181,10 +206,7 @@ export default function SyncPage() {
     try {
       const { error } = await supabase.auth.signOut()
       setMessage(error ? `退出失败：${error.message}` : '已退出登录。')
-      if (!error) {
-        await refreshQueue()
-        setCloudWorkspace(undefined)
-      }
+      if (!error) setCloudWorkspace(undefined)
     } catch { setMessage('退出暂未完成，请检查网络后重试。') }
     finally { setBusy(false) }
   }
