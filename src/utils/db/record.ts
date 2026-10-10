@@ -116,9 +116,11 @@ export class ChapterRecord implements IChapterRecord {
   }
 }
 
+export type ReviewRecordOrigin = 'manual' | 'smart' | 'correction'
+
 export interface IReviewRecord {
-  /** New direct/smart executions are owner-bound. Missing origin is legacy local review data. */
-  origin?: 'manual' | 'smart'
+  /** New direct/smart/correction executions are owner-bound. Missing origin is legacy local review data. */
+  origin?: ReviewRecordOrigin
   endedAt?: number
   ownerUserId?: string
   id?: number
@@ -134,8 +136,8 @@ export interface IReviewRecord {
 }
 
 export class ReviewRecord implements IReviewRecord {
-  /** New direct/smart executions are owner-bound. Missing origin is legacy local review data. */
-  origin?: 'manual' | 'smart'
+  /** New direct/smart/correction executions are owner-bound. Missing origin is legacy local review data. */
+  origin?: ReviewRecordOrigin
   endedAt?: number
   ownerUserId?: string
   id?: number
