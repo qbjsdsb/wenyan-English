@@ -1,3 +1,4 @@
+import { idDictionaryMap } from '@/resources/dictionary'
 import type { PracticeMode, PracticePool } from '@/semantic/practice'
 import { type PracticeChoices, practiceChoicesStorageKey } from '@/semantic/practiceChoices'
 import { supabase } from '@/supabase/client'
@@ -48,6 +49,11 @@ export type LocalWorkspacePersistenceResult =
 const CURRENT_DICT_STORAGE_KEY = 'currentDict'
 const CURRENT_CHAPTER_STORAGE_KEY = 'currentChapter'
 
+export function isKnownDictionaryId(value: unknown): value is string {
+  return typeof value === 'string'
+    && Object.prototype.hasOwnProperty.call(idDictionaryMap, value)
+}
+
 function snapshotLocalWorkspace(ownerUserId: string): LocalWorkspaceSnapshot {
   return {
     dictId: localStorage.getItem(CURRENT_DICT_STORAGE_KEY),
@@ -77,6 +83,7 @@ export function restoreLocalWorkspaceSnapshot(ownerUserId: string, snapshot: Loc
 
 export function persistLocalWorkspace(ownerUserId: string, state: WorkspaceState): LocalWorkspacePersistenceResult {
   const snapshot = snapshotLocalWorkspace(ownerUserId)
+  if (!isKnownDictionaryId(state.dictId)) return { ok: false, snapshot, rollbackOk: true }
   const choices: PracticeChoices = {
     mode: state.practiceMode,
     pool: state.practicePool,
@@ -109,7 +116,7 @@ export function parseWorkspaceState(value: unknown): WorkspaceState | undefined 
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
   const row = value as Record<string, unknown>
   if (row.schemaVersion !== 1) return undefined
-  if (typeof row.dictId !== 'string' || !row.dictId.trim()) return undefined
+  if (!isKnownDictionaryId(row.dictId)) return undefined
   if (!Number.isInteger(row.chapterIndex) || (row.chapterIndex as number) < 0) return undefined
   if (!isPracticeMode(row.practiceMode) || !isPracticePool(row.practicePool)) return undefined
   if (row.practiceLimit !== 6 && row.practiceLimit !== 12) return undefined
@@ -137,6 +144,7 @@ export async function getWorkspaceState(expectedUserId: string): Promise<Workspa
 }
 
 export async function saveWorkspaceState(expectedUserId: string, input: WorkspaceStateInput): Promise<WorkspaceState> {
+  if (!isKnownDictionaryId(input.dictId)) throw new Error('当前词书位置无效，请先重新选择词书。')
   const { data, error } = await supabase.rpc('save_wenyan_workspace_state', {
     p_expected_user_id: expectedUserId,
     p_dict_id: input.dictId,
