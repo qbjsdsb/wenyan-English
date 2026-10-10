@@ -195,9 +195,11 @@ const App: React.FC = () => {
       }
       if (!active) return
       const initialIndex = isReviewMode && reviewModeInfo.reviewRecord?.index ? reviewModeInfo.reviewRecord.index : 0
+      const ownerBoundReview =
+        isReviewMode && ['manual', 'smart', 'correction'].includes(reviewModeInfo.reviewRecord?.origin ?? '')
       dispatch({
         type: TypingStateActionType.SETUP_CHAPTER,
-        payload: { words, shouldShuffle: reviewModeInfo.reviewRecord?.origin === 'manual' && isReviewMode ? false : randomConfig.isOpen, initialIndex, checkpoint: identity },
+        payload: { words, shouldShuffle: ownerBoundReview ? false : randomConfig.isOpen, initialIndex, checkpoint: identity },
       })
       setPreparingChapter(false)
     })()
