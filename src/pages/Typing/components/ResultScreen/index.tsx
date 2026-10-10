@@ -76,11 +76,27 @@ const ResultScreen = () => {
   }, [state.chapterData.userInputLogs, state.chapterData.words])
 
   const isLastChapter = useMemo(() => currentChapter >= currentDictInfo.chapterCount - 1, [currentChapter, currentDictInfo])
-  const practisedCount = state.chapterData.completedWordIndexes.length
+  const segmentPractisedCount = state.chapterData.completedWordIndexes.length
+  const isOwnerBoundReview =
+    isReviewMode && ['manual', 'smart', 'correction'].includes(reviewRecord?.origin ?? '')
+  // ReviewRecord.index/isFinished is the authoritative cursor for owner-bound review execution.
+  // A resumed page only knows the inputs completed since it was reopened, so do not mistake that
+  // partial UI state for the progress of the whole persisted block.
+  const practisedCount = isOwnerBoundReview && reviewRecord
+    ? reviewRecord.isFinished
+      ? state.chapterData.words.length
+      : Math.min(state.chapterData.words.length, Math.max(reviewRecord.index, segmentPractisedCount))
+    : segmentPractisedCount
   const unpractisedCount = state.chapterData.words.length - practisedCount
   const firstTryCorrect = state.chapterData.completedWordIndexes.filter(
     (index) => state.chapterData.userInputLogs[index]?.wrongCount === 0,
   ).length
+  const resumedOwnedReview = isOwnerBoundReview && practisedCount > segmentPractisedCount
+  const firstTryValue = resumedOwnedReview
+    ? segmentPractisedCount > 0
+      ? `${firstTryCorrect} / ${segmentPractisedCount}`
+      : '—'
+    : `${firstTryCorrect} / ${practisedCount}`
 
   const timeString = useMemo(() => {
     const seconds = state.timerData.time
@@ -215,8 +231,10 @@ const ResultScreen = () => {
                 <Dialog.Title as="h2" className="mt-1 text-[18px] font-semibold tracking-[-0.02em] text-[var(--wenyan-ink)]">
                   {title}
                 </Dialog.Title>
-                {wrongWords.length === 0 && practisedCount > 0 && (
-                  <p className="mt-2 text-xs text-[var(--wenyan-success)]">本次已练的词没有出现拼写错误。</p>
+                {wrongWords.length === 0 && segmentPractisedCount > 0 && (
+                  <p className="mt-2 text-xs text-[var(--wenyan-success)]">
+                    {resumedOwnedReview ? '这次继续完成的词没有出现拼写错误。' : '本次已练的词没有出现拼写错误。'}
+                  </p>
                 )}
                 {unpractisedCount > 0 && (
                   <p className="wenyan-muted mt-2 text-xs">{unpractisedCount} 个词尚未完成输入，可以再练一遍补上。</p>
@@ -234,8 +252,8 @@ const ResultScreen = () => {
 
             <div className="grid grid-cols-3 divide-x divide-[var(--wenyan-line-soft)] border-b border-[var(--wenyan-line-soft)] px-7 py-5">
               {[
-                [`${practisedCount} / ${state.chapterData.words.length}`, '已练单词'],
-                [`${firstTryCorrect} / ${practisedCount}`, '拼写无错'],
+                [`${practisedCount} / ${state.chapterData.words.length}`, isOwnerBoundReview ? '练习进度' : '已练单词'],
+                [firstTryValue, resumedOwnedReview ? '本次打开无错' : '拼写无错'],
                 [timeString, '用时'],
               ].map(([value, label]) => (
                 <div key={label} className="text-center">
@@ -247,13 +265,17 @@ const ResultScreen = () => {
 
             <div className="px-7 py-6">
               <p className="wenyan-muted mb-5 text-xs leading-6">
-                拼写无错只描述本次输入；是否理解词义，还需要单独回想。按键准确率 {state.timerData.accuracy}% · {state.timerData.wpm} 词/分钟
+                拼写无错只描述{resumedOwnedReview ? '这次打开后完成的输入' : '本次输入'}；是否理解词义，还需要单独回想。按键准确率 {state.timerData.accuracy}% · {state.timerData.wpm} 词/分钟
               </p>
               <div className="mb-3 flex items-center justify-between gap-4">
                 <div>
                   <h3 className="text-sm font-semibold text-[var(--wenyan-ink)]">错词</h3>
                   <p className="wenyan-muted mt-1 text-xs">
-                    {wrongWords.length ? `${wrongWords.length} 个词出现过拼写错误` : '本段没有拼写错词'}
+                    {wrongWords.length
+                      ? `${wrongWords.length} 个词出现过拼写错误`
+                      : resumedOwnedReview
+                        ? '这次继续完成的词没有拼写错误'
+                        : '本段没有拼写错词'}
                   </p>
                 </div>
                 {!isReviewMode && (
