@@ -164,8 +164,16 @@ export function visibleSpellingAttemptsWithLegacy(
   }
 }
 
-export function buildActiveSpellingErrorsFromAttempts(attempts: readonly SpellingAttemptRecord[]): SpellingErrorGroup[] {
-  const recentFirst = [...attempts].sort((a, b) => b.occurredAt - a.occurredAt || a.id.localeCompare(b.id))
+export function buildActiveSpellingErrorsFromAttempts(
+  attempts: readonly SpellingAttemptRecord[],
+  now = Date.now(),
+): SpellingErrorGroup[] {
+  // A clock-skewed synced observation in the future is not evidence about the
+  // learner's current state yet. Ignoring it here keeps a later real correction
+  // able to clear the Error Book and matches the Practice selector's time boundary.
+  const recentFirst = attempts
+    .filter((attempt) => attempt.occurredAt <= now)
+    .sort((a, b) => b.occurredAt - a.occurredAt || a.id.localeCompare(b.id))
   const latest = new Map<string, SpellingAttemptRecord>()
   const history = new Map<string, SpellingAttemptRecord[]>()
 
