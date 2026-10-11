@@ -1,4 +1,4 @@
-import { buildCloudCoachingContext as buildCloudCoachingContextV15 } from './coaching.ts'
+import { buildCloudCoachingContext as buildCloudCoachingContextV15 } from './coachingV15.ts'
 import { readSemanticProductionFacts } from './semanticProduction.ts'
 
 const MAX_CONTEXT_BYTES = 24 * 1024
