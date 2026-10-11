@@ -15,7 +15,7 @@ import { ReviewRecord } from '@/utils/db/record'
 import { wordListFetcher } from '@/utils/wordListFetcher'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useAtomValue, useSetAtom } from 'jotai'
-import { ArrowRight, Keyboard, ListChecks, MessageCircle } from 'lucide-react'
+import { ArrowRight, Keyboard, ListChecks, MessageCircle, Pencil } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import useSWR from 'swr'
@@ -24,13 +24,14 @@ const modes = [
   { id: 'spelling', title: '拼写', hint: '练准词形', detail: '按熟悉的方式输入；需要时可以开启默写。', icon: Keyboard },
   { id: 'recall', title: '词义回想', hint: '主动想意思', detail: '先想意思，再看释义并自评。', icon: MessageCircle },
   { id: 'discrimination', title: '选择词义', hint: '辨认参考释义', detail: '从词书释义中选择，用来检查辨认。', icon: ListChecks },
+  { id: 'production', title: '看义写词', hint: '从意思写出词', detail: '只看当前词书释义，输入对应英文词头。', icon: Pencil },
 ] as const
 
 const pools = [
   { id: 'chapter', title: '当前章节', detail: '从眼前这章挑一小段。' },
   { id: 'learned', title: '已经练过', detail: '从当前词书已经练过的词里选。' },
   { id: 'errors', title: '拼写错词', detail: '最近 14 天仍未拼对的词。' },
-  { id: 'uncertain', title: '词义模糊', detail: '最近仍想不全或选错词义的词。' },
+  { id: 'uncertain', title: '词义模糊', detail: '最近仍想不全、选错或写错的词。' },
 ] as const
 
 export default function PracticePage() {
@@ -57,7 +58,7 @@ export default function PracticePage() {
   const { data: words, error: contentError, mutate } = useSWR(dict.language === 'en' ? dict.url : null, wordListFetcher,
     { shouldRetryOnError: false, revalidateOnFocus: false, revalidateOnReconnect: false })
   const events = useLiveQuery(
-    () => learningEventsForOwnerByTypes(owner, ['word_attempted', 'semantic_recall_attempted', 'semantic_discrimination_attempted']),
+    () => learningEventsForOwnerByTypes(owner, ['word_attempted', 'semantic_recall_attempted', 'semantic_discrimination_attempted', 'semantic_production_attempted']),
     [owner],
   )
   const selection = useMemo(() => words && events ? selectPracticeWords(words, events, dict.id, chapter, pool, mode) : undefined,
@@ -129,23 +130,25 @@ export default function PracticePage() {
   const selectedMode = modes.find((item) => item.id === mode) ?? modes[1]
   const selectedPool = pools.find((item) => item.id === pool) ?? pools[0]
   const loading = preparing || !events || !words
-  const previewWords = prepared?.items.slice(0, 8).map((item) => item.word) ?? []
+  const previewWords = mode === 'production' ? [] : prepared?.items.slice(0, 8).map((item) => item.word) ?? []
   const statusText = contentError
     ? '词书加载失败。'
     : loading
       ? '正在准备…'
       : prepared?.count
         ? `本段 ${prepared.count} 个词${mode === 'spelling' && pool === 'chapter' ? ' · 继续当前章节' : ' · 较久没练的优先'}`
-        : pool === 'chapter' && mode === 'discrimination'
-          ? '可用释义不足，试试词义回想。'
-          : '这一组暂时没有可练内容。'
+        : mode === 'production' && pool === 'chapter'
+          ? '这一章暂时没有释义足够唯一的词，换个范围试试。'
+          : pool === 'chapter' && mode === 'discrimination'
+            ? '可用释义不足，试试词义回想。'
+            : '这一组暂时没有可练内容。'
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return
       const target = event.target as HTMLElement | null
       if (target?.closest('button, a, input, textarea, select, summary, [contenteditable="true"]')) return
-      if (['1', '2', '3'].includes(event.key)) {
+      if (['1', '2', '3', '4'].includes(event.key)) {
         event.preventDefault()
         change('mode', modes[Number(event.key) - 1].id)
         return
@@ -263,7 +266,7 @@ export default function PracticePage() {
                   {error && <p role="alert" className="mt-3 text-sm text-[var(--wenyan-danger)]">{error}</p>}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2">
-                  <span className="wenyan-muted wenyan-mono text-[9px]">1–3 切换 · Enter 开始</span>
+                  <span className="wenyan-muted wenyan-mono text-[9px]">1–4 切换 · Enter 开始</span>
                   <div className="flex items-center gap-3">
                     {contentError && <button className="wenyan-button-secondary" onClick={() => void mutate()}>重试加载</button>}
                     {!loading && !prepared?.count && pool !== 'chapter' && (
@@ -299,8 +302,8 @@ export default function PracticePage() {
         <details className="mt-6 border-t border-[var(--wenyan-line-soft)] pt-4">
           <summary className="wenyan-muted cursor-pointer text-xs">怎么选？</summary>
           <div className="wenyan-muted mt-3 space-y-2 text-xs leading-6">
-            <p>词形不稳练拼写；看着词却想不起意思练词义回想；容易混淆释义时练选择词义。</p>
-            <p>拼写页的“默写”会隐藏词形，适合从发音或释义线索回忆单词。</p>
+            <p>词形不稳练拼写；看词想不起意思练词义回想；容易混淆释义练选择词义；想把意思主动变成英文词头时练看义写词。</p>
+            <p>看义写词只考当前词书中释义足够唯一的词，避免把合理同义词误判为错。</p>
           </div>
         </details>
       </main>

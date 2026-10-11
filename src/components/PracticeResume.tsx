@@ -21,6 +21,12 @@ export async function endManualPractice(kind: 'semantic' | 'spelling', id: strin
   })
 }
 
+function semanticTitle(mode: 'recall' | 'discrimination' | 'production' | undefined) {
+  if (mode === 'discrimination') return '选择词义'
+  if (mode === 'production') return '看义写词'
+  return '词义回想'
+}
+
 export default function PracticeResume({ dictionaryId }: { dictionaryId: string }) {
   const owner = useLearningOwner()
   const navigate = useNavigate()
@@ -58,9 +64,9 @@ export default function PracticeResume({ dictionaryId }: { dictionaryId: string 
       ...semantic.map((run) => ({
         id: run.id,
         kind: 'semantic' as const,
-        title: run.mode === 'discrimination' ? '选择词义' : '词义回想',
+        title: semanticTitle(run.mode),
         at: run.startedAt,
-        detail: `已记录 ${run.index} / ${run.discriminationQuestions?.length ?? run.items.length} 次`,
+        detail: `已记录 ${run.index} / ${run.mode === 'discrimination' ? run.discriminationQuestions?.length ?? run.items.length : run.items.length} 次`,
         path: semanticRunPath(run),
       })),
       ...spelling.map((run) => ({
