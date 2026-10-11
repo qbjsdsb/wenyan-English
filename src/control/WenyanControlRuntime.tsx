@@ -1,3 +1,4 @@
+import { getWenyanDeviceId } from './deviceId'
 import { syncCloudPlanToLocal } from '@/plans/cloud'
 import { startStudyTask } from '@/plans/repository'
 import { idDictionaryMap } from '@/resources/dictionary'
@@ -7,13 +8,13 @@ import {
   reviewModeInfoAtom,
   wordDictationConfigAtom,
 } from '@/store'
+import { createAuthInitializationGate } from '@/sync/authOwner'
 import { supabase } from '@/supabase/client'
 import { db } from '@/utils/db'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-const DEVICE_ID_KEY = 'wenyanDeviceId'
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 type JsonObject = Record<string, unknown>
@@ -44,14 +45,6 @@ function parseCommand(value: unknown): Command | undefined {
   if (!id || !UUID_PATTERN.test(id)) return undefined
   if (type !== 'open_today' && type !== 'open_dictionary' && type !== 'open_chapter' && type !== 'start_task') return undefined
   return { id, type, args }
-}
-
-function getDeviceId() {
-  const existing = window.localStorage.getItem(DEVICE_ID_KEY)
-  if (existing && UUID_PATTERN.test(existing)) return existing
-  const created = crypto.randomUUID()
-  window.localStorage.setItem(DEVICE_ID_KEY, created)
-  return created
 }
 
 function getDeviceName() {
@@ -96,14 +89,14 @@ export default function WenyanControlRuntime() {
   const [reviewInfo, setReviewInfo] = useAtom(reviewModeInfoAtom)
   const dictation = useAtomValue(wordDictationConfigAtom)
   const [userId, setUserId] = useState<string | null>(null)
-  const deviceId = useMemo(getDeviceId, [])
+  const deviceId = useMemo(() => getWenyanDeviceId() ?? '', [])
   const deviceName = useMemo(getDeviceName, [])
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const subscribedRef = useRef(false)
   const inFlightRef = useRef(new Set<string>())
   const executeRef = useRef<(commandId: string) => Promise<void>>(async () => undefined)
 
-  const enabled = location.pathname !== '/oauth/consent' && location.pathname !== '/mobile'
+  const enabled = Boolean(deviceId) && location.pathname !== '/oauth/consent' && location.pathname !== '/mobile'
   const activeTaskRunId = useMemo(() => new URLSearchParams(location.search).get('taskRun'), [location.search])
   const practiceMode = reviewInfo.isReviewMode ? 'review' : dictation.isOpen ? 'dictation' : 'learn'
 
@@ -127,7 +120,8 @@ export default function WenyanControlRuntime() {
 
   const heartbeat = useCallback(async () => {
     if (!userId || !enabled) return false
-    const { error } = await supabase.rpc('upsert_wenyan_device', {
+    const { error } = await supabase.rpc('upsert_wenyan_device_for_owner', {
+      p_expected_user_id: userId,
       p_device_id: deviceState.deviceId,
       p_device_name: deviceState.deviceName,
       p_platform: deviceState.platform,
@@ -142,7 +136,9 @@ export default function WenyanControlRuntime() {
 
   const finishCommand = useCallback(
     async (commandId: string, success: boolean, result: JsonObject, failureCode?: string) => {
-      await supabase.rpc('finish_website_command', {
+      if (!userId || !enabled) return
+      await supabase.rpc('finish_website_command_for_owner', {
+        p_expected_user_id: userId,
         p_command_id: commandId,
         p_device_id: deviceId,
         p_success: success,
@@ -150,7 +146,7 @@ export default function WenyanControlRuntime() {
         p_error_code: failureCode ?? null,
       })
     },
-    [deviceId]
+    [deviceId, enabled, userId]
   )
 
   const executeCommand = useCallback(
@@ -159,7 +155,8 @@ export default function WenyanControlRuntime() {
       inFlightRef.current.add(commandId)
 
       try {
-        const { data, error } = await supabase.rpc('claim_website_command', {
+        const { data, error } = await supabase.rpc('claim_website_command_for_owner', {
+          p_expected_user_id: userId,
           p_command_id: commandId,
           p_device_id: deviceId,
         })
@@ -241,7 +238,10 @@ export default function WenyanControlRuntime() {
 
   const fetchPending = useCallback(async () => {
     if (!userId || !enabled) return
-    const { data, error } = await supabase.rpc('get_pending_website_commands', { p_device_id: deviceId })
+    const { data, error } = await supabase.rpc('get_pending_website_commands_for_owner', {
+      p_expected_user_id: userId,
+      p_device_id: deviceId,
+    })
     if (error || !Array.isArray(data)) return
     for (const value of data) {
       const command = parseCommand(value)
@@ -251,13 +251,17 @@ export default function WenyanControlRuntime() {
 
   useEffect(() => {
     let alive = true
+    const gate = createAuthInitializationGate()
+    const initialTicket = gate.ticket()
+
     void supabase.auth.getSession().then(({ data }) => {
-      if (!alive) return
+      if (!alive || !gate.accepts(initialTicket)) return
       setUserId(data.session?.user.id ?? null)
       if (data.session) void supabase.realtime.setAuth(data.session.access_token)
     })
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      gate.authChanged()
       setUserId(session?.user.id ?? null)
       if (session) void supabase.realtime.setAuth(session.access_token)
     })
