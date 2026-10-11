@@ -1,0 +1,27 @@
+name: Semantic ES5 patch once
+
+on:
+  push:
+    branches: [feat/semantic-distractor-quality]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/semantic-distractor-quality
+      - name: Patch semantic Set conversion
+        run: python scripts/patch-semantic-es5-once.py
+      - name: Commit ES5-compatible semantic patch
+        run: |
+          git diff --check
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/semantic/discrimination.ts
+          git commit -m 'fix: keep semantic set normalization ES5-compatible'
+          git push origin HEAD:feat/semantic-distractor-quality
