@@ -9,7 +9,7 @@ const defaults: PracticeChoices = { mode: 'recall', pool: 'chapter', limit: 6 }
 export const practiceChoicesStorageKey = (owner?: string) => `wenyanPracticeChoices:${owner ?? 'local'}`
 export function validPracticeChoices(value: Partial<PracticeChoices> | null | undefined): PracticeChoices {
   return {
-    mode: ['spelling', 'recall', 'discrimination'].includes(value?.mode ?? '') ? value!.mode! : defaults.mode,
+    mode: ['spelling', 'recall', 'discrimination', 'production'].includes(value?.mode ?? '') ? value!.mode! : defaults.mode,
     pool: ['chapter', 'learned', 'errors', 'uncertain'].includes(value?.pool ?? '') ? value!.pool! : defaults.pool,
     limit: value?.limit === 12 ? 12 : 6,
   }
