@@ -146,3 +146,83 @@ test('sourceVersion 5 objective semantic facts restore through the cloud-pull pa
     cursorEventId: '55555555-5555-4555-8555-555555555555',
   })
 })
+
+test('learning sync RPCs bind upload and pull to the captured owner', async ({ page }) => {
+  await page.route('**/*.supabase.co/**', (route) => route.abort())
+  await page.goto('/today')
+
+  await page.addScriptTag({
+    type: 'module',
+    content: `
+      import { supabase } from '/src/supabase/client.ts'
+      import { db } from '/src/utils/db/index.ts'
+      import { syncLearningEventsForOwner } from '/src/sync/syncLearningEvents.ts'
+      import { pullLearningEventsForOwner } from '/src/sync/pullLearningEvents.ts'
+
+      await db.learningEvents.clear()
+      await db.learningSyncCursors.clear()
+      await db.learningEvents.add({
+        id: '77777777-7777-4777-8777-777777777777',
+        eventType: 'word_attempted',
+        occurredAt: Date.now(),
+        syncState: 'pending',
+        syncAttempts: 0,
+        ownerUserId: 'user-a',
+        sourceVersion: 2,
+        payload: { word: 'alpha', dict: 'cet4', chapter: 0, reviewMode: false, wrongCount: 0, durationMs: 120, timing: [120], mistakes: {}, dictationEnabled: false, dictationType: 'hideAll' },
+      })
+
+      const calls = []
+      const originalRpc = supabase.rpc.bind(supabase)
+      supabase.rpc = async (name, args) => {
+        if (name === 'ingest_learning_events_for_owner' || name === 'pull_learning_events_for_owner') calls.push({ name, args })
+        if (name === 'ingest_learning_events_for_owner') return { data: 1, error: null }
+        if (name === 'pull_learning_events_for_owner') return { data: [], error: null }
+        return { data: null, error: null }
+      }
+
+      try {
+        await syncLearningEventsForOwner('user-a')
+        await pullLearningEventsForOwner('user-a', 20, 1)
+      } finally {
+        supabase.rpc = originalRpc
+      }
+
+      window.__ownerBoundSyncResult = calls
+    `,
+  })
+
+  const calls = await waitForResult(page, '__ownerBoundSyncResult') as Array<{ name: string; args: Record<string, unknown> }>
+  expect(calls).toHaveLength(2)
+  expect(calls[0].name).toBe('ingest_learning_events_for_owner')
+  expect(calls[0].args.p_expected_user_id).toBe('user-a')
+  expect(calls[1]).toEqual({
+    name: 'pull_learning_events_for_owner',
+    args: {
+      p_expected_user_id: 'user-a',
+      p_after_created_at: null,
+      p_after_id: null,
+      p_limit: 20,
+    },
+  })
+})
+
+test('auth initialization gate rejects an older session result after auth changes', async ({ page }) => {
+  await page.route('**/*.supabase.co/**', (route) => route.abort())
+  await page.goto('/today')
+
+  await page.addScriptTag({
+    type: 'module',
+    content: `
+      import { createAuthInitializationGate } from '/src/sync/authOwner.ts'
+      const gate = createAuthInitializationGate()
+      const initial = gate.ticket()
+      gate.authChanged()
+      const staleAccepted = gate.accepts(initial)
+      const current = gate.ticket()
+      window.__authGateResult = { staleAccepted, currentAccepted: gate.accepts(current) }
+    `,
+  })
+
+  expect(await waitForResult(page, '__authGateResult')).toEqual({ staleAccepted: false, currentAccepted: true })
+})
