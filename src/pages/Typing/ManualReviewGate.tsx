@@ -43,7 +43,7 @@ export default function ManualReviewGate({ children }: PropsWithChildren) {
       active = false
     }
   }, [id, key, origin, owner, retry, setReview])
-  if (!key || ready === key) return <>{children}</>
+  if (!origin || !key || ready === key) return <>{children}</>
   const returnPath = ownerBoundReviewReturnPath(origin)
   const returnLabel = origin === 'smart' ? '回到今天' : origin === 'correction' ? '回到错词' : '回到专项训练'
   return (
