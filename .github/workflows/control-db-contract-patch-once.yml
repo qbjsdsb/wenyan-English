@@ -1,0 +1,27 @@
+name: Control DB contract patch once
+
+on:
+  push:
+    branches: [fix/control-runtime-closure]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/control-runtime-closure
+      - name: Patch control DB contract
+        run: python scripts/patch-control-db-contract-once.py
+      - name: Commit control DB contract
+        run: |
+          git diff --check
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add supabase/migrations/20261011_000028_control_runtime_owner_binding.sql
+          git commit -m 'fix: keep control terminal receipts consistent'
+          git push origin HEAD:fix/control-runtime-closure
