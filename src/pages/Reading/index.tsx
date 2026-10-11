@@ -33,6 +33,7 @@ export default function ReadingPage() {
   const { contentId = '' } = useParams()
   const passage = getReadingPassage(contentId)
   const [ownerUserId, setOwnerUserId] = useState(() => getLocalLearningOwnerId())
+  const ownerUserIdRef = useRef(ownerUserId)
   const restored = useMemo(
     () => (passage ? readDraft(passage.id, passage.version, ownerUserId) : undefined),
     [ownerUserId, passage],
@@ -51,6 +52,7 @@ export default function ReadingPage() {
     passageIdentityRef.current = passageIdentity
     attemptGenerationRef.current += 1
     const nextOwner = getLocalLearningOwnerId()
+    ownerUserIdRef.current = nextOwner
     const nextDraft = passage ? readDraft(passage.id, passage.version, nextOwner) : undefined
     setOwnerUserId(nextOwner)
     setStartedAt(nextDraft?.startedAt ?? Date.now())
@@ -63,7 +65,11 @@ export default function ReadingPage() {
   useEffect(() => {
     const ownerChanged = () => {
       const nextOwner = getLocalLearningOwnerId()
-      if (nextOwner === ownerUserId) return
+      if (nextOwner === ownerUserIdRef.current) return
+      // Update synchronously before React commits state. Multiple auth-owner
+      // notifications can arrive in the same JS turn (A -> B -> A); comparing
+      // only against the render closure would otherwise miss the return to A.
+      ownerUserIdRef.current = nextOwner
       attemptGenerationRef.current += 1
       const nextDraft = passage ? readDraft(passage.id, passage.version, nextOwner) : undefined
       setOwnerUserId(nextOwner)
@@ -75,7 +81,7 @@ export default function ReadingPage() {
     }
     window.addEventListener('wenyan-learning-owner-changed', ownerChanged)
     return () => window.removeEventListener('wenyan-learning-owner-changed', ownerChanged)
-  }, [ownerUserId, passage])
+  }, [passage])
 
   if (!passage) {
     return (
@@ -134,6 +140,7 @@ export default function ReadingPage() {
     const submissionStillCurrent = () => (
       attemptGenerationRef.current === submittedGeneration
       && passageIdentityRef.current === passageIdentity
+      && ownerUserIdRef.current === submittedOwnerUserId
       && getLocalLearningOwnerId() === submittedOwnerUserId
     )
     setBusy(true)
