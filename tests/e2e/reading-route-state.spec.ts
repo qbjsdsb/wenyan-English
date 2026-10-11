@@ -11,6 +11,7 @@ test('stale reading submission cannot overwrite a new owner visit or delete its 
     type: 'module',
     content: `
       import { db } from '/src/utils/db/index.ts'
+      import { setLocalLearningOwnerId } from '/src/sync/localLearningOwner.ts'
       const originalBulkAdd = db.learningEvents.bulkAdd.bind(db.learningEvents)
       let release
       const gate = new Promise((resolve) => { release = resolve })
@@ -20,16 +21,17 @@ test('stale reading submission cannot overwrite a new owner visit or delete its 
         return originalBulkAdd(...args)
       }
       window.__releaseReadingSubmit = release
+      window.__switchReadingOwner = (owner) => setLocalLearningOwnerId(owner)
     `,
   })
 
   await page.getByRole('button', { name: '提交' }).click()
   await page.waitForFunction(() => Boolean((window as unknown as { __readingSubmitStarted?: boolean }).__readingSubmitStarted))
 
-  await page.evaluate(async () => {
-    const { setLocalLearningOwnerId } = await import('/src/sync/localLearningOwner.ts')
-    setLocalLearningOwnerId('owner-b')
-    setLocalLearningOwnerId('owner-a')
+  await page.evaluate(() => {
+    const controls = window as unknown as { __switchReadingOwner: (owner: string) => void }
+    controls.__switchReadingOwner('owner-b')
+    controls.__switchReadingOwner('owner-a')
     window.localStorage.setItem(
       'wenyanReadingDraft:owner-a:wenyan-demo-reading-01:1',
       JSON.stringify({ ownerUserId: 'owner-a', startedAt: 123456, answers: [{ questionId: 'q1', selectedOptionId: 'B', answerChangeCount: 0 }] }),
