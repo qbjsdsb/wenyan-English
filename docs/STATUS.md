@@ -1,20 +1,20 @@
 # 当前状态 / 续接入口
 
-更新：2026-10-10。
+更新：2026-10-11。
 
 本页只保留 **当前已核实的生产事实、不可破坏边界、正在收口的变更和下一步缺口**。历史阶段与旧 PR 结论请看 Git history；不要把旧聊天记忆当作生产状态。
 
 ## 当前生产基线
 
 - 仓库：`qbjsdsb/wenyan-English`
-- 当前 `main`：`ee07fef4573db316d433910fcc9141a39e70cb78`（PR #70）。
-- main CI run `38057018674`：**success**；lint、TypeScript、Smart Session / Semantic / Coaching / OAuth deterministic checks、MCP packaging、浏览器流程、production Pages build 与 Pages recovery checks 全部通过。
-- GitHub Pages run `38057018680`：**success**，部署源码同为 `ee07fef…`。
+- 当前生产 `main`：`9be1f2876a8afe7c19d95fbde096996399fb8d37`（PR #71，Workspace State v1）。
+- main CI run `38096486832`：**success**；lint、TypeScript、Smart Session / Semantic / Coaching / OAuth deterministic checks、MCP packaging、浏览器流程、production Pages build 与 Pages recovery checks 全部通过。
+- GitHub Pages run `38096486851`：**success**，部署源码同为 `9be1f287…`。
 - Supabase：`cmjhxvpkdeheujuteqoi`。
-- 生产 Edge Function：`wenyan-english-mcp` **v15 ACTIVE**；本轮 #63–#70 未修改 MCP/Edge contract。
+- 生产 Edge Function：`wenyan-english-mcp` **v15 ACTIVE**；#63–#72 未修改 MCP/Edge tool contract。
 - MCP server contract：0.8.x；Coaching Context：`coaching-context-v1.5`。
 
-### 2026-10-10 Existing Experience Closure 已合并
+### 2026-10-10 / 11 Existing Experience Closure 已进入主干
 
 - #63：Smart spelling owner-bound cursor / stable order / fail-closed；ErrorBook、Analysis、词库进度重新对齐 immutable facts 与 legacy compatibility。
 - #64：Vite build fallback、Docker/Yarn 可复现构建、Wenyan backup 命名。
@@ -24,28 +24,53 @@
 - #68：Smart Session 样式不再依赖中文 aria 文案。
 - #69：Realtime presence 首次连接发布最新设备状态，不发布订阅开始时的旧闭包状态。
 - #70：Today 专项快捷入口显式携带并展示上次词池/数量；Today 当日事实使用 owner + time 索引；Reading 入口明确标为“阅读实验”。
+- #71：Workspace State v1；显式保存 / 恢复当前词书、章节和专项偏好，账号切换 / stale read / ambiguous save / 本机部分写失败均 fail closed。
 
-## 正在收口：Workspace State v1（PR #71）
+## Workspace State v1：已上线
 
-目的：学习事实已经能跨设备恢复，但“当前词书 / 章节 / 专项模式与范围”不属于 Learning Fact，也不属于长期 Learning Preference，需要独立的小型工作区状态。
+Workspace State 只承担跨设备工作区连续性，不是 Learning Fact，也不属于长期 Learning Preference。
 
-当前设计：
+生产事实：
 
-- 每个用户最多一条 `wenyan_workspace_state`；
-- 只包含 `dictId / chapterIndex / practiceMode / practicePool / practiceLimit`；
-- Sync 页提供 **“保存本机位置” / “恢复云端位置”** 两个明确动作；
-- v1 **不做自动 last-write-wins**，避免一台旧设备静默覆盖另一台；
-- Workspace State **不是学习证据**，不会产生、修改或删除 Learning Facts；
-- browser-native authenticated session 可读写自己的 row；OAuth client 明确拒绝；
-- restore 前验证词书/章节，本地专项偏好写入失败则 fail closed；
-- 账号切换使用 user + request generation guard，旧账号的晚到 RPC 不能覆盖当前账号状态。
+- migration `workspace_state_v1` 已应用，生产 migration version `20261010185505`；
+- 每个用户最多一条 `wenyan_workspace_state`；内容仅为 `dictId / chapterIndex / practiceMode / practicePool / practiceLimit`；
+- Sync 页提供 **“保存本机位置” / “恢复云端位置”** 两个明确动作；v1 不做自动 last-write-wins；
+- browser-native session 通过 `p_expected_user_id = auth.uid()` 绑定 owner；OAuth client 不允许写 workspace；
+- restore 前验证词书 / 章节 / 专项偏好，并在本机持久化失败时回滚；
+- mounted `SyncPage` 浏览器回归已覆盖账号切换、TOKEN_REFRESHED、旧读取晚到、保存响应不确定后重读以及本机回滚；
+- migration 上线验收时 workspace 表为 0 行，没有测试数据污染生产；相关 RLS / RPC 未被 Supabase advisor 报新增问题；
+- PR #71 合并后的 main CI 与 Pages 均已再次通过。
 
-截至当前：
+## 正在收口：Learning Facts owner binding（PR #72）
 
-- migration SQL 已在真实生产 Postgres 中通过 `BEGIN … ROLLBACK` 预演；SQL / RLS / function 定义可解析，rollback 后确认未留下表；
-- **生产 migration 尚未应用**，因此当前线上网站仍不依赖 workspace RPC；
-- PR #71 正在完成最新 head 的 CI / review；只有全绿后才允许生产 apply → advisor → frontend merge；
-- 应用后必须再次更新本节为真实生产结果，不能把计划写成已上线。
+目的：把 Workspace 审计中发现的同类账号竞态继续收紧到最重要的历史真相层。浏览器可能先捕获账号 A，再在 RPC 真正执行前切到账号 B；Learning Facts 不能依赖返回后的 UI 检查来防串号。
+
+当前实现：
+
+- web upload 使用 `ingest_learning_events_for_owner(p_expected_user_id, p_events)`；
+- web pull 使用 `pull_learning_events_for_owner(p_expected_user_id, ...)`；
+- 两个 wrapper 均为 `SECURITY INVOKER`，要求 `p_expected_user_id = auth.uid()` 且仅允许 direct Wenyan browser session；
+- 原 generic Learning Event RPC 暂时保留，避免破坏现有 MCP / OAuth read contract；
+- sync batch 先解析同一个稳定 session/user snapshot；session 与 `getUser()` 不一致时 fail closed；
+- in-flight upload / data sync 按 owner 分桶，账号切换不再共享一个全局 Promise；
+- owner mismatch 不把原账号的 immutable local facts 标成网络失败，也不增加 retry backoff；它们保持 pending，等原账号下次重试；
+- 初始 `getSession()` 通过 auth generation gate 防止晚到结果覆盖更新后的本机 owner marker；
+- `supabase/verification/learning_sync_owner_binding.sql` 保存生产负向验收脚本。
+
+### #72 当前真实 rollout 状态
+
+- PR head 在写本页前为 `1ae6ed59…`；完整 CI run `38097051190`：**success**，包括 browser flows 与 Pages recovery；
+- migration `learning_sync_owner_binding` 已于 2026-10-11 正式应用，生产 migration version `20261011000645`；
+- 生产函数核验：
+  - `ingest_learning_events_for_owner(uuid,jsonb)`：`SECURITY INVOKER`，authenticated execute=true，anon/public=false；
+  - `pull_learning_events_for_owner(uuid,timestamptz,uuid,integer)`：`SECURITY INVOKER`，authenticated execute=true，anon/public=false；
+- 上线后负向 / 兼容验收全部通过：
+  1. direct session + matching owner：允许空 ingest；
+  2. token owner A + expected owner B：以 `learning_owner_changed` 拒绝；
+  3. OAuth-shaped token 调 browser wrapper：以 `direct_wenyan_session_required` 拒绝；
+  4. 旧 generic `pull_learning_events` 在 OAuth-shaped claims 下仍可调用；
+- Supabase security / performance advisor 对 000026 新函数没有新增 finding。当前 advisor 仍提示项目早期 private 表无 policy、三个旧 `SECURITY DEFINER` RPC 可由 authenticated 执行、leaked-password protection 未开启以及若干 unused index；这些不是 #72 引入，后续单独审计，不借 #72 顺手改旧基础设施；
+- **前端 owner-bound Learning Sync 尚未合并到 main**。正确顺序仍为：production wrapper 已就绪 → 最新 head CI / review → merge #72 → main CI / Pages 再验收。
 
 ## 当前架构边界
 
@@ -98,14 +123,15 @@ Cloud Plan run 捕获 owner / planRevision / taskFingerprint；chapter fingerpri
 
 ## 同步 / 本机边界
 
-- Learning Events：local-first，登录后只上传明确属于当前账号的事实；云端 pull 可恢复缺失事实；
+- Learning Events：local-first；只有明确 owner 的事实进入对应账号上传队列；云端 pull 可恢复缺失事实；
 - 未归属旧本机事实需要显式认领；
 - ErrorBook / Analysis / 已练章节从当前账号可见事实重新派生；
 - Dexie v9 为长期事实读取增加 owner-aware 索引；
 - 普通章节和 owner-bound review 都有明确恢复边界；保存失败不会静默推进；
 - 词书有校验后的 last-known-good CacheStorage fallback；不是完整 PWA；
 - 本地备份先 staging validate 再覆盖真实 DB；
-- Workspace State v1 当前仍在 PR #71，生产未应用（见上）。
+- Workspace State v1 已在生产，用于显式跨设备恢复非证据工作区状态；
+- #72 merge 后 Learning Event browser upload / pull 将与 Workspace 一样在数据库 RPC 边界绑定 captured owner。
 
 ## 产品真实性
 
@@ -132,13 +158,16 @@ Cloud Plan run 捕获 owner / planRevision / taskFingerprint；chapter fingerpri
 
 ## 下一阶段高价值缺口
 
-1. **完成 PR #71 rollout**：latest CI + Codex review → production migration → RLS/grants/functions verify → Supabase security/performance advisors → merge → main CI/Pages → 更新本页最终 production baseline。
-2. **真实用户语义回流验收**：本人真实 semantic recall / objective discrimination → sync → MCP v1.5 读到真实 evidence；禁止制造 synthetic personal history。
-3. **真实用户 Cloud Plan smoke**：自然出现新的 chapter Plan 时，验证 owner/revision/fingerprint → 真练习 → sync → `get_plan_status` completion。
-4. **更高质量语义测量**：contextual meaning、熟词僻义、collocation / phrase、Chinese→English production；继续保持 measurement 分离。
-5. **Reading 主闭环**：可信 provider → validation → candidate → stage gate → Smart Session → Runner → facts → evidence → Coaching Context；未完成前保持实验状态。
-6. **正式词表 provider / denominator**：没有可信完整版本前，`observedProgress` 继续保持 null。
-7. FSRS 继续延后，直到 semantic/contextual evidence 足够可靠。
+1. **完成 PR #72 frontend rollout**：最新 head CI + Codex review → merge → main CI / Pages；production 000026 已就绪并验收。
+2. **Browser owner concurrency closure v2**：复用 #72 的 captured-owner 模式继续检查 Cloud Plan browser cache、Learning Preferences 与 Control Runtime；优先修真正会影响 owner/cache 的路径，不重写 MCP/OAuth 架构。
+3. **词库 registry 完整性**：修复 `frequently_used_words02/03` 重复 ID；让 registry 拒绝重复 ID 与原型链伪词书，避免持久化异常值破坏 current dictionary。
+4. **现有训练可用率 / 恢复**：选择词义的真实同词书 distractor pool、Reading 实验 passage/version 切换状态重置、owner-bound review 规则统一。
+5. **长期性能**：Analysis / ErrorBook 继续审计 owner-aware index 的安全使用；legacy 去重需要跨 owner companion facts，不能为了快重新制造跨账号泄漏。
+6. **真实用户语义回流验收**：本人真实 semantic recall / objective discrimination → sync → MCP v1.5 读到真实 evidence；禁止制造 synthetic personal history。
+7. **真实用户 Cloud Plan smoke**：自然出现新的 chapter Plan 时，验证 owner/revision/fingerprint → 真练习 → sync → `get_plan_status` completion。
+8. **更高质量语义测量**：contextual meaning、熟词僻义、collocation / phrase、Chinese→English production；继续保持 measurement 分离。
+9. **Reading 主闭环**：可信 provider → validation → candidate → stage gate → Smart Session → Runner → facts → evidence → Coaching Context；未完成前保持实验状态。
+10. FSRS 继续延后，直到 semantic/contextual evidence 足够可靠。
 
 ## 续接顺序
 
