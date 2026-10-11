@@ -82,19 +82,16 @@ begin
   pending := public.get_pending_website_commands_for_owner(owner_a, device_id);
   insert into control_owner_binding_results
   select
-    'stale_claim_requeued',
-    c.status = 'pending'
-      and c.started_at is null
-      and jsonb_array_length(pending) = 1
-      and pending -> 0 ->> 'id' = command_id::text,
+    'slow_execution_not_requeued',
+    c.status = 'executing'
+      and c.started_at is not null
+      and jsonb_array_length(pending) = 0,
     c.status || ':' || coalesce(c.started_at::text, 'null')
   from public.website_commands as c
   where c.id = command_id;
 
   update public.website_commands
-  set status = 'executing',
-      started_at = now() - interval '30 seconds',
-      created_at = now() - interval '10 minutes',
+  set created_at = now() - interval '10 minutes',
       expires_at = now() - interval '1 second',
       updated_at = now()
   where id = command_id;
@@ -106,6 +103,23 @@ begin
       and status_payload ->> 'effectiveStatus' = 'expired',
     status_payload::text
   );
+
+  begin
+    perform public.finish_website_command_for_owner(
+      owner_a, command_id, device_id, true, '{}'::jsonb, null
+    );
+    insert into control_owner_binding_results values (
+      'expired_execution_cannot_finish', false, 'unexpected success'
+    );
+  exception when sqlstate '55000' then
+    insert into control_owner_binding_results values (
+      'expired_execution_cannot_finish', sqlerrm = 'command_expired', sqlerrm
+    );
+  when others then
+    insert into control_owner_binding_results values (
+      'expired_execution_cannot_finish', false, sqlstate || ':' || sqlerrm
+    );
+  end;
 
   perform set_config(
     'request.jwt.claims',
