@@ -175,7 +175,7 @@ test('learning sync RPCs bind upload and pull to the captured owner', async ({ p
       const calls = []
       const originalRpc = supabase.rpc.bind(supabase)
       supabase.rpc = async (name, args) => {
-        calls.push({ name, args })
+        if (name === 'ingest_learning_events_for_owner' || name === 'pull_learning_events_for_owner') calls.push({ name, args })
         if (name === 'ingest_learning_events_for_owner') return { data: 1, error: null }
         if (name === 'pull_learning_events_for_owner') return { data: [], error: null }
         return { data: null, error: null }
