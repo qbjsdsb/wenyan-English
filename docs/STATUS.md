@@ -155,7 +155,7 @@ Cloud Plan run 捕获 owner / planRevision / taskFingerprint；chapter fingerpri
 - command 在 claim 返回后以及 `start_task` 的异步边界后重新检查 owner + generation；账号切换时 fail closed，不允许 A 的 command 修改 B 的页面状态；
 - cloud `start_task` 在执行前再次要求 plan owner 与 captured owner 一致；底层 `startStudyTask` 仍保留自己的 owner 检查；
 - blocked-localStorage 回归覆盖刷新后 device ID 稳定；该 focused regression 已接入 PR CI；
-- migration `20261011_000028_control_runtime_owner_binding.sql` **尚未应用生产**；command tool 名称、capability 与 payload shape 保持兼容；executing command 不再自动重排，硬 TTL 到期后 `get_action_status` 返回 `effectiveStatus=expired`，且数据库拒绝 late finish；同一 active Cloud Plan task 的重试复用相同未完成 run，避免恢复路径制造重复 task run；
+- migration `20261011_000028_control_runtime_owner_binding.sql` **尚未应用生产**；command tool 名称、capability 与 payload shape 保持兼容；executing command 不再自动重排，硬 TTL 到期后 `get_action_status` 返回 `effectiveStatus=expired`，且数据库拒绝 late finish；显式重新发起学习任务仍保留原有 fresh-run 语义；
 - 当前下一步：#78 完整 CI + Codex/security review → 000028 生产 preflight / apply / fail-closed verification → 更新本页真实生产结果 → merge → main / Pages 复验 → 关闭旧 #76。
 
 ## 产品真实性
