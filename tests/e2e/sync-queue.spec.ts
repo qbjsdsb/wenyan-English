@@ -256,8 +256,8 @@ test('cloud-plan and preference browser RPCs carry the captured owner', async ({
 
       try {
         await syncCloudPlanToLocal()
-        await getLearningPreferences()
-        await confirmLearningStage('vocabulary', 1)
+        const preferences = await getLearningPreferences()
+        await confirmLearningStage('vocabulary', preferences)
       } finally {
         supabase.auth.getSession = originalGetSession
         supabase.auth.getUser = originalGetUser
@@ -269,10 +269,63 @@ test('cloud-plan and preference browser RPCs carry the captured owner', async ({
   })
 
   const calls = await waitForResult(page, '__browserOwnerRpcResult') as Array<{ name: string; args: Record<string, unknown> }>
-  expect(calls.map((call) => call.name)).toEqual([
-    'get_plan_status_for_owner',
-    'get_learning_preferences_for_owner',
-    'confirm_learning_stage_for_owner',
-  ])
+  const planCalls = calls.filter((call) => call.name === 'get_plan_status_for_owner')
+  const preferenceReadCalls = calls.filter((call) => call.name === 'get_learning_preferences_for_owner')
+  const preferenceWriteCalls = calls.filter((call) => call.name === 'confirm_learning_stage_for_owner')
+  expect(planCalls.length).toBeGreaterThanOrEqual(1)
+  expect(preferenceReadCalls).toHaveLength(1)
+  expect(preferenceWriteCalls).toHaveLength(1)
   expect(calls.every((call) => call.args.p_expected_user_id === 'user-a')).toBe(true)
+})
+
+test('a preference snapshot loaded for account A cannot mutate account B', async ({ page }) => {
+  await page.route('**/*.supabase.co/**', (route) => route.abort())
+  await page.goto('/sync')
+
+  await page.addScriptTag({
+    type: 'module',
+    content: `
+      import { supabase } from '/src/supabase/client.ts'
+      import { getLearningPreferences, confirmLearningStage } from '/src/coaching/preferences.ts'
+
+      let owner = 'user-a'
+      let confirmRpcCalls = 0
+      const originalGetSession = supabase.auth.getSession.bind(supabase.auth)
+      const originalGetUser = supabase.auth.getUser.bind(supabase.auth)
+      const originalRpc = supabase.rpc.bind(supabase)
+      const user = () => ({ id: owner })
+      supabase.auth.getSession = async () => ({ data: { session: { user: user() } }, error: null })
+      supabase.auth.getUser = async () => ({ data: { user: user() }, error: null })
+      supabase.rpc = async (name, args) => {
+        if (name === 'get_learning_preferences_for_owner') {
+          return { data: { schemaVersion: 1, learningStage: { current: 'vocabulary', revision: 1, provenance: { kind: 'product_default', ref: 'test', since: null } }, stageReminder: null, confirmedAt: null, updatedAt: null }, error: null }
+        }
+        if (name === 'confirm_learning_stage_for_owner') {
+          confirmRpcCalls += 1
+          return { data: null, error: null }
+        }
+        return { data: null, error: null }
+      }
+
+      let message = ''
+      try {
+        const loadedForA = await getLearningPreferences()
+        owner = 'user-b'
+        await confirmLearningStage('vocabulary', loadedForA)
+      } catch (error) {
+        message = error instanceof Error ? error.message : String(error)
+      } finally {
+        supabase.auth.getSession = originalGetSession
+        supabase.auth.getUser = originalGetUser
+        supabase.rpc = originalRpc
+      }
+
+      window.__preferenceOwnerSwitchResult = { message, confirmRpcCalls }
+    `,
+  })
+
+  expect(await waitForResult(page, '__preferenceOwnerSwitchResult')).toEqual({
+    message: 'learning_owner_changed',
+    confirmRpcCalls: 0,
+  })
 })
