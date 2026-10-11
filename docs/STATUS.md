@@ -7,9 +7,9 @@
 ## 当前生产基线
 
 - 仓库：`qbjsdsb/wenyan-English`
-- 当前生产 `main`：`c4235a66b686aecac2d5d23533f94c3c4f7e3ba2`（PR #72，Learning Facts captured-owner binding）。
-- main CI run `38098193313`：**success**；lint、TypeScript、Smart Session / Semantic / Coaching / OAuth deterministic checks、MCP packaging、Chromium 浏览器流程、production Pages build 与 Pages recovery checks 全部通过。
-- GitHub Pages run `38098193330`：**success**，部署源码同为 `c4235a66…`。
+- 当前生产 `main`：`cf5b5613d07fdac6beee446130a790dce4d8c6c3`（PR #74，Cloud Plan / Learning Preferences captured-owner closure）。
+- main CI run `38101964360`：**success**；lint、TypeScript、Smart Session / Semantic / Coaching / OAuth deterministic checks、MCP packaging、Chromium 浏览器流程、production Pages build 与 Pages recovery checks 全部通过。
+- GitHub Pages run `38101964361`：**success**，部署源码同为 `cf5b5613…`。
 - Supabase：`cmjhxvpkdeheujuteqoi`。
 - 生产 Edge Function：`wenyan-english-mcp` **v15 ACTIVE**；#63–#74 当前工作均未修改 MCP/Edge tool contract。
 - MCP server contract：0.8.x；Coaching Context：`coaching-context-v1.5`。
@@ -26,6 +26,7 @@
 - #70：Today 专项快捷入口显式携带并展示上次词池/数量；Today 当日事实使用 owner + time 索引；Reading 入口明确标为“阅读实验”。
 - #71：Workspace State v1；显式保存 / 恢复当前词书、章节和专项偏好，账号切换 / stale read / ambiguous save / 本机部分写失败均 fail closed。
 - #72：Learning Event browser upload / pull 在数据库 RPC 边界绑定 captured owner；启动 auth 初始化有 generation guard；in-flight sync 按 owner 隔离。
+- #74：Cloud Plan browser cache 与 Learning Preferences read / confirm 在 RPC 边界绑定 captured owner；偏好确认同时绑定已加载 snapshot owner；generic MCP/OAuth RPC 保持不变；已合并到生产 main。
 
 ## Workspace State v1：已上线
 
@@ -133,27 +134,27 @@ Cloud Plan run 捕获 owner / planRevision / taskFingerprint；chapter fingerpri
 
 ## 当前开放的收口工作
 
-### PR #73：Dictionary registry integrity
+### PR #77：Dictionary registry integrity（最终收口）
 
-测试已真实发现三项问题：
+#73 的临时 self-patching CI 方案已废弃；#77 从当前生产 `main` 重新建立，只保留最终产品代码与回归保护。
 
-1. `/dicts/frequently_used_word02.json` 与 level 3 共用了 `frequently_used_words03`；level 2 应为 `frequently_used_words02`；
-2. `Oxford5000` 在“中国考试 / 其他”和“国际考试 / 牛津版”重复注册，且 URL / 名称 / 长度完全相同；应保留一个 canonical 条目，不制造第二个 ID；
-3. `idDictionaryMap` 是普通对象，持久化字符串如 `toString` 可命中原型链；目标是 null-prototype registry，并在未来重复 ID 时直接失败而非静默覆盖。
+- `/dicts/frequently_used_word02.json` 使用独立稳定 ID `frequently_used_words02`；level 3 保持 `frequently_used_words03`；
+- 删除重复的“中国考试 / 其他” `Oxford5000` 注册项，保留同一真实来源的 canonical “国际考试 / 牛津版”条目；
+- `idDictionaryMap` 改为 null-prototype registry，并在未来出现重复 ID 时 fail fast，不再静默覆盖；
+- focused Playwright 覆盖 duplicate ID、Level 2/3 identity、Oxford 唯一性和 prototype-chain alias；
+- PR #77 head `b706ae7…` 的完整 CI run `38125761066`：**success**；
+- 当前仅剩 STATUS handoff review finding；修正文档后请求最终 review，再合并并关闭旧 #73。
 
-focused Playwright registry test 已加入；当前 PR 故意保持红灯，直到源 registry 真正修复。
+### Remote Control captured-owner closure（进行中）
 
-### PR #74：Browser owner concurrency closure v2
+Remote Control 单独从最新生产 `main` 重建收口分支 `fix/control-runtime-closure`，不再叠加旧 #76 分支。
 
-范围刻意小于 Remote Control：
-
-- Cloud Plan browser cache 使用 captured-owner wrapper；
-- Learning Preferences read / confirm 使用 captured-owner wrapper；
-- 原 `get_plan_status / get_learning_preferences / confirm_learning_stage` 保留，MCP/OAuth contract 不变；
-- migration 000027 尚未应用生产；SQL rollback preflight 已确认三个 wrapper 可在当前生产 schema 正常创建；
-- CI / Codex review 正在进行；未通过前不应用 000027。
-
-Remote Control device / command runtime 的 owner-race 与 localStorage fallback 仍单独审计，不塞进 #74。
+- device ID：`localStorage → sessionStorage → document memory` 降级；localStorage 被阻止时，同一 tab reload 仍保持稳定 ID；
+- auth 初始化复用 generation gate，晚到的 `getSession()` 不能覆盖更新的 auth callback；
+- heartbeat / pending / claim / finish 使用 owner-bound browser RPC，并携带 captured owner；
+- command 在 claim 返回后以及 `start_task` 的异步边界后重新检查 owner + generation；账号切换时 fail closed，不允许 A 的 command 修改 B 的页面状态；
+- migration `20261011_000028_control_runtime_owner_binding.sql` **尚未应用生产**；generic command-bus / MCP-OAuth RPC 保持不变；
+- 下一步：在 #77 合并后把 control regression 接入最新 CI，完成 Codex/security review → 000028 生产验证/rollout → main / Pages 复验，再关闭旧 #76。
 
 ## 产品真实性
 
@@ -180,9 +181,9 @@ Remote Control device / command runtime 的 owner-race 与 localStorage fallback
 
 ## 下一阶段高价值缺口
 
-1. 完成 #73 词库 registry 实修并让 focused test / 全 CI 转绿；
-2. 完成 #74 review → production 000027 → fail-closed verification → merge → main / Pages 复验；
-3. 审计 Remote Control：auth 初始化 race、device / command captured-owner、localStorage 不可用时 device ID 降级；
+1. 完成 #77 最终 review → merge → main / Pages 复验，并关闭旧 #73；
+2. 完成 Remote Control captured-owner closure：CI / security review → production 000028 → fail-closed verification → merge，并关闭旧 #76；
+3. 修复 Reading 实验在 passage id / version SPA 切换时的草稿、计时和答案状态重置；
 4. 现有训练可用率：选择词义扩展到**同词书、真实版本化释义**的有界 distractor pool，不让 AI 编造假释义；
 5. Reading 实验：passage id / version 在 SPA 切换时重置对应草稿、计时和答案状态；
 6. owner-bound review origin 规则抽成统一 helper，避免 manual / smart / correction 在不同文件继续漂移；
