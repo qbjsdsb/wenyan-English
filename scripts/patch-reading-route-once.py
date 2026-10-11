@@ -22,7 +22,7 @@ replacement = """  const [summary, setSummary] = useState<ReadingAttemptSummary>
   const passageIdentityRef = useRef(passageIdentity)
 
   useEffect(() => {
-    if (passageIdentityRef.current == passageIdentity) return
+    if (passageIdentityRef.current === passageIdentity) return
     passageIdentityRef.current = passageIdentity
     const nextOwner = getLocalLearningOwnerId()
     const nextDraft = passage ? readDraft(passage.id, passage.version, nextOwner) : undefined
