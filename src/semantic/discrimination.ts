@@ -40,9 +40,10 @@ export interface SemanticDiscriminationFact {
 }
 
 function meaningSignature(item: SemanticItem) {
-  return item.meanings
+  const normalized = item.meanings
     .map((value) => value.normalize('NFKC').trim().toLocaleLowerCase())
     .filter(Boolean)
+  return [...new Set(normalized)]
     .sort((a, b) => a.localeCompare(b))
     .join('\u241f')
 }

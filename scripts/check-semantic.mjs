@@ -66,6 +66,18 @@ assert.equal(reorderedQuestion.options.length, 4)
 assert.equal(reorderedQuestion.options.some((option) => option.contentId === 'reordered:duplicate'), false)
 assert.equal(reorderedQuestion.correctContentId, 'reordered:cue')
 
+const repeatedMeaningItems = [
+  { contentId: 'repeat:cue', key: 'repeat:cue', contentVersion: shapeVersion('6'), word: 'squabble', meanings: ['争吵'] },
+  { contentId: 'repeat:duplicate', key: 'repeat:duplicate', contentVersion: shapeVersion('7'), word: 'quarrel', meanings: ['争吵', '争吵'] },
+  { contentId: 'repeat:other-1', key: 'repeat:other-1', contentVersion: shapeVersion('8'), word: 'other4', meanings: ['协商'] },
+  { contentId: 'repeat:other-2', key: 'repeat:other-2', contentVersion: shapeVersion('9'), word: 'other5', meanings: ['沉默'] },
+  { contentId: 'repeat:other-3', key: 'repeat:other-3', contentVersion: shapeVersion('a'), word: 'other6', meanings: ['赞同'] },
+]
+const repeatedQuestion = buildSemanticDiscriminationQuestions(repeatedMeaningItems, 1, ['repeat:cue'])[0]
+assert.equal(repeatedQuestion.options.length, 4)
+assert.equal(repeatedQuestion.options.some((option) => option.contentId === 'repeat:duplicate'), false)
+assert.equal(repeatedQuestion.correctContentId, 'repeat:cue')
+
 const objectivePayload = parseSemanticDiscriminationPayload({
   domain: 'english', activity: 'semantic_discrimination', measurement: 'reference_meaning_discrimination', direction: 'en_to_meaning',
   contentId: questions[0].contentId, contentVersion: questions[0].contentVersion, dictionaryId: 'fixture', word: questions[0].word,
