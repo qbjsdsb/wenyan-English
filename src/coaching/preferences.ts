@@ -44,12 +44,17 @@ function bindOwner(snapshot: LearningPreferencesSnapshot, ownerUserId: string): 
   return { ...snapshot, ownerUserId }
 }
 
+function browserOwnerError(message: string | undefined, fallback: string) {
+  const value = message || fallback
+  return value.includes('browser_owner_changed') ? 'learning_owner_changed' : value
+}
+
 export async function getLearningPreferences(): Promise<BrowserLearningPreferencesSnapshot> {
   const ownerUserId = await requireBrowserOwner()
   const { data, error } = await supabase.rpc('get_learning_preferences_for_owner', {
     p_expected_user_id: ownerUserId,
   })
-  if (error) throw new Error(error.message || 'learning_preferences_unavailable')
+  if (error) throw new Error(browserOwnerError(error.message, 'learning_preferences_unavailable'))
   if (!isSnapshot(data)) throw new Error('invalid_learning_preferences')
   return bindOwner(data, ownerUserId)
 }
@@ -68,7 +73,7 @@ export async function confirmLearningStage(
     p_expected_revision: loadedSnapshot.learningStage.revision,
     p_change_reason: 'User explicitly confirmed the long-term learning stage in Wenyan.',
   })
-  if (error) throw new Error(error.message || 'learning_stage_update_failed')
+  if (error) throw new Error(browserOwnerError(error.message, 'learning_stage_update_failed'))
   if (!isSnapshot(data)) throw new Error('invalid_learning_preferences')
   return bindOwner(data, loadedSnapshot.ownerUserId)
 }
