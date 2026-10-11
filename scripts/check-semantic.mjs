@@ -37,6 +37,47 @@ assert.equal(questions[0].options.length, 4)
 assert.equal(new Set(questions[0].options.map((option) => option.contentId)).size, 4)
 assert.equal(buildSemanticDiscriminationQuestions(semanticItems.slice(0, 3)).length, 0)
 assert.deepEqual(buildSemanticDiscriminationQuestions(semanticItems, 4), questions)
+
+const shapeVersion = (digit) => `sha256:${digit.repeat(64)}`
+const shapeItems = [
+  { contentId: 'shape:cue', key: 'shape:cue', contentVersion: shapeVersion('a'), word: 'abandon', meanings: ['放弃', '抛弃'] },
+  { contentId: 'shape:near-1', key: 'shape:near-1', contentVersion: shapeVersion('b'), word: 'obtain', meanings: ['得到', '获得'] },
+  { contentId: 'shape:near-2', key: 'shape:near-2', contentVersion: shapeVersion('c'), word: 'permit', meanings: ['允许', '准许'] },
+  { contentId: 'shape:near-3', key: 'shape:near-3', contentVersion: shapeVersion('d'), word: 'retain', meanings: ['保存', '保留'] },
+  { contentId: 'shape:far-1', key: 'shape:far-1', contentVersion: shapeVersion('e'), word: 'verbose', meanings: ['一种非常漫长并且从答案外观就很容易排除的解释'] },
+  { contentId: 'shape:far-2', key: 'shape:far-2', contentVersion: shapeVersion('f'), word: 'catalogue', meanings: ['第一种很长的解释', '第二种同样很长的解释', '第三种解释'] },
+]
+const shapeQuestion = buildSemanticDiscriminationQuestions(shapeItems, 1, ['shape:cue'])[0]
+assert.deepEqual(
+  new Set(shapeQuestion.options.map((option) => option.contentId)),
+  new Set(['shape:cue', 'shape:near-1', 'shape:near-2', 'shape:near-3']),
+)
+assert.deepEqual(buildSemanticDiscriminationQuestions(shapeItems, 1, ['shape:cue']), [shapeQuestion])
+
+const reorderedMeaningItems = [
+  { contentId: 'reordered:cue', key: 'reordered:cue', contentVersion: shapeVersion('1'), word: 'lissome', meanings: ['adj.柔软的', 'adj.敏捷的，轻盈的'] },
+  { contentId: 'reordered:duplicate', key: 'reordered:duplicate', contentVersion: shapeVersion('2'), word: 'lithe', meanings: ['adj.敏捷的，轻盈的', 'adj.柔软的'] },
+  { contentId: 'reordered:other-1', key: 'reordered:other-1', contentVersion: shapeVersion('3'), word: 'other1', meanings: ['adj.坚定的'] },
+  { contentId: 'reordered:other-2', key: 'reordered:other-2', contentVersion: shapeVersion('4'), word: 'other2', meanings: ['adj.迟缓的'] },
+  { contentId: 'reordered:other-3', key: 'reordered:other-3', contentVersion: shapeVersion('5'), word: 'other3', meanings: ['adj.短暂的'] },
+]
+const reorderedQuestion = buildSemanticDiscriminationQuestions(reorderedMeaningItems, 1, ['reordered:cue'])[0]
+assert.equal(reorderedQuestion.options.length, 4)
+assert.equal(reorderedQuestion.options.some((option) => option.contentId === 'reordered:duplicate'), false)
+assert.equal(reorderedQuestion.correctContentId, 'reordered:cue')
+
+const repeatedMeaningItems = [
+  { contentId: 'repeat:cue', key: 'repeat:cue', contentVersion: shapeVersion('6'), word: 'squabble', meanings: ['争吵'] },
+  { contentId: 'repeat:duplicate', key: 'repeat:duplicate', contentVersion: shapeVersion('7'), word: 'quarrel', meanings: ['争吵', '争吵'] },
+  { contentId: 'repeat:other-1', key: 'repeat:other-1', contentVersion: shapeVersion('8'), word: 'other4', meanings: ['协商'] },
+  { contentId: 'repeat:other-2', key: 'repeat:other-2', contentVersion: shapeVersion('9'), word: 'other5', meanings: ['沉默'] },
+  { contentId: 'repeat:other-3', key: 'repeat:other-3', contentVersion: shapeVersion('a'), word: 'other6', meanings: ['赞同'] },
+]
+const repeatedQuestion = buildSemanticDiscriminationQuestions(repeatedMeaningItems, 1, ['repeat:cue'])[0]
+assert.equal(repeatedQuestion.options.length, 4)
+assert.equal(repeatedQuestion.options.some((option) => option.contentId === 'repeat:duplicate'), false)
+assert.equal(repeatedQuestion.correctContentId, 'repeat:cue')
+
 const objectivePayload = parseSemanticDiscriminationPayload({
   domain: 'english', activity: 'semantic_discrimination', measurement: 'reference_meaning_discrimination', direction: 'en_to_meaning',
   contentId: questions[0].contentId, contentVersion: questions[0].contentVersion, dictionaryId: 'fixture', word: questions[0].word,

@@ -40,9 +40,11 @@ export interface SemanticDiscriminationFact {
 }
 
 function meaningSignature(item: SemanticItem) {
-  return item.meanings
+  const normalized = item.meanings
     .map((value) => value.normalize('NFKC').trim().toLocaleLowerCase())
     .filter(Boolean)
+  return Array.from(new Set(normalized))
+    .sort((a, b) => a.localeCompare(b))
     .join('\u241f')
 }
 
@@ -53,6 +55,29 @@ function stableHash(value: string) {
     hash = Math.imul(hash, 16777619)
   }
   return hash >>> 0
+}
+
+function meaningShape(item: SemanticItem) {
+  const lengths = item.meanings
+    .map((value) => Array.from(value.normalize('NFKC').trim()).length)
+    .filter((length) => length > 0)
+  return {
+    senseCount: lengths.length,
+    totalLength: lengths.reduce((total, length) => total + length, 0),
+    longestSense: lengths.length ? Math.max(...lengths) : 0,
+  }
+}
+
+/**
+ * Prefer references whose visible answer shape is harder to eliminate at a glance.
+ * This deliberately measures only source-text shape, not semantic similarity or POS.
+ */
+function referenceShapeDistance(cue: SemanticItem, candidate: SemanticItem) {
+  const cueShape = meaningShape(cue)
+  const candidateShape = meaningShape(candidate)
+  return Math.abs(cueShape.senseCount - candidateShape.senseCount) * 10_000
+    + Math.abs(cueShape.totalLength - candidateShape.totalLength) * 10
+    + Math.abs(cueShape.longestSense - candidateShape.longestSense)
 }
 
 /**
@@ -75,7 +100,8 @@ export function buildSemanticDiscriminationQuestions(items: readonly SemanticIte
   return cues.slice(0, limit).map((cue) => {
     const distractors = pool
       .filter((item) => item.contentId !== cue.contentId)
-      .sort((a, b) => stableHash(`${cue.contentVersion}:${a.contentId}`) - stableHash(`${cue.contentVersion}:${b.contentId}`)
+      .sort((a, b) => referenceShapeDistance(cue, a) - referenceShapeDistance(cue, b)
+        || stableHash(`${cue.contentVersion}:${a.contentId}`) - stableHash(`${cue.contentVersion}:${b.contentId}`)
         || a.contentId.localeCompare(b.contentId))
       .slice(0, 3)
     if (distractors.length !== 3) throw new Error('insufficient_semantic_discrimination_options')
