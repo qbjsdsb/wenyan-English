@@ -2,14 +2,14 @@ name: Apply dictionary registry source fix
 
 on:
   push:
-    branches: [fix/dictionary-registry-integrity]
+    branches:
+      - fix/dictionary-registry-integrity
 
 permissions:
   contents: write
 
 jobs:
   patch:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
