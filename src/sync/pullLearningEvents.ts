@@ -1,5 +1,6 @@
 import { parseSemanticPayload } from '@/semantic/core'
 import { parseSemanticDiscriminationPayload } from '@/semantic/discrimination'
+import { parseSemanticProductionPayload } from '@/semantic/production'
 import type {
   ChapterCompletedPayload,
   LearningEventRecord,
@@ -211,6 +212,7 @@ function parseEventType(value: string): LearningEventType {
   if (
     value === 'semantic_recall_attempted' ||
     value === 'semantic_discrimination_attempted' ||
+    value === 'semantic_production_attempted' ||
     value === 'word_attempted' ||
     value === 'chapter_completed' ||
     value === 'question_attempted' ||
@@ -220,7 +222,7 @@ function parseEventType(value: string): LearningEventType {
 }
 
 function parseSourceVersion(value: number): LearningEventSourceVersion {
-  if (value === 1 || value === 2 || value === 3 || value === 4 || value === 5) return value
+  if (value === 1 || value === 2 || value === 3 || value === 4 || value === 5 || value === 6) return value
   throw new Error('云端包含当前版本不支持的 Wenyan 学习记录。请更新应用后再同步。')
 }
 
@@ -232,6 +234,10 @@ function parsePayload(eventType: LearningEventType, payload: unknown, sourceVers
   if (eventType === 'semantic_discrimination_attempted') {
     if (sourceVersion !== 5) throw new Error('参考释义辨认记录版本无效。')
     return parseSemanticDiscriminationPayload(payload)
+  }
+  if (eventType === 'semantic_production_attempted') {
+    if (sourceVersion !== 6) throw new Error('看义写词记录版本无效。')
+    return parseSemanticProductionPayload(payload)
   }
   if (eventType === 'word_attempted') return parseWordPayload(payload, sourceVersion)
   if (eventType === 'chapter_completed') return parseChapterPayload(payload, sourceVersion)
