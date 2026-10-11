@@ -2,14 +2,18 @@
 
 更新：2026-10-11。
 
+## 本轮现有功能检查与修复
+
+见 [完整检查记录](FUNCTIONAL_AUDIT_2026-10-11.md)。基于真实 main `7ccaa315`，修复已分批提交到 `fix/daily-learning-reliability`：更多设置弹窗消失、备份错误恢复、短尾章选择词义、词义 run 切换残留、owner 索引查询和发音参数编码。TypeScript / 应用 lint / build、13 项定向浏览器用例及智能编排确定性检查通过。分支代码不代表已部署生产；不制造用户历史、不修改生产后端。
+
 本页只记录**当前已核实的生产事实、不可破坏边界、开放中的收口工作和下一步高价值缺口**。历史阶段请看 Git history；不要把旧聊天里的 SHA、CI 或 migration 状态当作当前生产事实。
 
 ## 当前生产基线
 
 - 仓库：`qbjsdsb/wenyan-English`
-- 当前生产 `main`：`cf5b5613d07fdac6beee446130a790dce4d8c6c3`（PR #74，Cloud Plan / Learning Preferences captured-owner closure）。
-- main CI run `38101964360`：**success**；lint、TypeScript、Smart Session / Semantic / Coaching / OAuth deterministic checks、MCP packaging、Chromium 浏览器流程、production Pages build 与 Pages recovery checks 全部通过。
-- GitHub Pages run `38101964361`：**success**，部署源码同为 `cf5b5613…`。
+- 本轮检查时生产 `main`：`7ccaa3154cad286812ca7913e0223e1d7fb1af06`（已包含 #77 registry 和后续语义干扰项改进）。
+- 检查 GitHub 当前 main CI：**success**。这是基线 CI，不能代替本轮修复分支的 CI。
+- GitHub Pages run `38137164625`：**success**，部署源码为 `7ccaa315…`。
 - Supabase：`cmjhxvpkdeheujuteqoi`。
 - 生产 Edge Function：`wenyan-english-mcp` **v15 ACTIVE**；#63–#74 当前工作均未修改 MCP/Edge tool contract。
 - MCP server contract：0.8.x；Coaching Context：`coaching-context-v1.5`。
@@ -134,7 +138,7 @@ Cloud Plan run 捕获 owner / planRevision / taskFingerprint；chapter fingerpri
 
 ## 当前开放的收口工作
 
-### PR #77：Dictionary registry integrity（最终收口）
+### PR #77：Dictionary registry integrity（已合并）
 
 #73 的临时 self-patching CI 方案已废弃；#77 从当前生产 `main` 重新建立，只保留最终产品代码与回归保护。
 
@@ -143,7 +147,7 @@ Cloud Plan run 捕获 owner / planRevision / taskFingerprint；chapter fingerpri
 - `idDictionaryMap` 改为 null-prototype registry，并在未来出现重复 ID 时 fail fast，不再静默覆盖；
 - focused Playwright 覆盖 duplicate ID、Level 2/3 identity、Oxford 唯一性和 prototype-chain alias；
 - PR #77 head `b706ae7…` 的完整 CI run `38125761066`：**success**；
-- 当前仅剩 STATUS handoff review finding；修正文档后请求最终 review，再合并并关闭旧 #73。
+- 已进入 main `6fc0d534`；不再列为开放修复。本轮未检查旧 #73 的关闭状态。
 
 ### Remote Control captured-owner closure（进行中）
 
@@ -181,11 +185,11 @@ Remote Control 单独从最新生产 `main` 重建收口分支 `fix/control-runt
 
 ## 下一阶段高价值缺口
 
-1. 完成 #77 最终 review → merge → main / Pages 复验，并关闭旧 #73；
+1. 收口本轮 `fix/daily-learning-reliability` 功能修复，按仓库发布约定决定合并；
 2. 完成 Remote Control captured-owner closure：CI / security review → production 000028 → fail-closed verification → merge，并关闭旧 #76；
-3. 修复 Reading 实验在 passage id / version SPA 切换时的草稿、计时和答案状态重置；
-4. 现有训练可用率：选择词义扩展到**同词书、真实版本化释义**的有界 distractor pool，不让 AI 编造假释义；
-5. Reading 实验：passage id / version 在 SPA 切换时重置对应草稿、计时和答案状态；
+3. 修复 Reading 实验草稿切换：已有 PR #79，检查时最新 CI 浏览器步骤失败，需先定位；
+4. 同词书有界 distractor pool 已在本轮分支实现并验证尾章，仅待分支收口；
+5. 设置及备份恢复已在本轮分支通过浏览器往返验证，避免重复开发；
 6. owner-bound review origin 规则抽成统一 helper，避免 manual / smart / correction 在不同文件继续漂移；
 7. 长期性能：Analysis / ErrorBook 安全利用 owner-aware index；legacy 去重需要跨 owner companion facts，不能为了快重新制造跨账号泄漏；
 8. 真实用户 semantic recall / objective discrimination → sync → MCP v1.5 回流验收；禁止制造 synthetic personal history；

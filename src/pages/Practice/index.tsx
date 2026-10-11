@@ -5,7 +5,7 @@ import { CHAPTER_LENGTH } from '@/constants'
 import { useLearningOwner } from '@/hooks/useLearningOwner'
 import { learningEventsForOwnerByTypes } from '@/learning/eventQueries'
 import { buildSemanticDiscriminationQuestions } from '@/semantic/discrimination'
-import { createManualSemanticRun, preparePracticeItems, selectPracticeWords, semanticRunPath } from '@/semantic/practice'
+import { createManualSemanticRun, preparePracticeItems, preparePracticeReferences, selectPracticeWords, semanticRunPath } from '@/semantic/practice'
 import type { PracticeMode, PracticePool } from '@/semantic/practice'
 import type { SemanticItem } from '@/semantic/core'
 import { currentChapterAtom, currentDictInfoAtom, reviewModeInfoAtom } from '@/store'
@@ -73,8 +73,7 @@ export default function PracticePage() {
       try {
         const items = await preparePracticeItems(selection.candidates, dict.id, limit, pool === 'uncertain' ? selection : undefined)
         const chapterWords = words.slice(chapter * CHAPTER_LENGTH, (chapter + 1) * CHAPTER_LENGTH)
-        const extra = mode === 'discrimination' ? await preparePracticeItems(chapterWords, dict.id, CHAPTER_LENGTH) : []
-        const references = Array.from(new Map([...items, ...extra].map((item) => [item.contentId, item])).values())
+        const references = mode === 'discrimination' ? await preparePracticeReferences(items, words, dict.id, chapter) : items
         const selectedWords = selection.candidates.filter((word) => items.some((item) => item.word === word.name))
         const count = mode === 'discrimination' ? buildSemanticDiscriminationQuestions(references, limit, items.map((item) => item.contentId)).length
           : mode === 'spelling' && pool === 'chapter' ? chapterWords.length : selectedWords.length
@@ -138,7 +137,7 @@ export default function PracticePage() {
       : prepared?.count
         ? `本段 ${prepared.count} 个${mode === 'discrimination' ? '可选择的词' : '词'}${mode === 'spelling' && pool === 'chapter' ? ' · 继续章节原有进度' : ' · 较久没练的优先'}`
         : pool === 'chapter' && mode === 'discrimination'
-          ? '当前章节没有足够的不同释义组成题目，试试词义回想。'
+          ? '这本词书的候选范围内没有足够的不同释义组成题目，试试词义回想。'
           : '这一组暂时没有可练的词。没有记录不代表不会，先选当前章节即可。'
 
   useEffect(() => {

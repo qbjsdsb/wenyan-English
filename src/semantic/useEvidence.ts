@@ -3,7 +3,7 @@ import { buildSemanticEvidence } from './core'
 import type { SemanticPayload } from './core'
 import { buildSemanticDiscriminationEvidence } from './discrimination'
 import type { SemanticDiscriminationPayload } from './discrimination'
-import { db } from '@/utils/db'
+import { learningEventsForOwnerBetween, learningEventsForOwnerByTypes } from '@/learning/eventQueries'
 import { useLiveQuery } from 'dexie-react-hooks'
 
 export function useSemanticEvidence(blockId?: string) {
@@ -12,8 +12,8 @@ export function useSemanticEvidence(blockId?: string) {
     try {
       const now = Date.now()
       const events = (await (blockId
-        ? db.learningEvents.where('eventType').anyOf('semantic_recall_attempted', 'semantic_discrimination_attempted')
-        : db.learningEvents.where('occurredAt').aboveOrEqual(now - 14 * 86400000)).toArray())
+        ? learningEventsForOwnerByTypes(owner, ['semantic_recall_attempted', 'semantic_discrimination_attempted'])
+        : learningEventsForOwnerBetween(owner, now - 14 * 86400000, now)))
         .filter((event) => event.ownerUserId === owner && (!blockId || (event.payload as { blockId?: string } | null)?.blockId === blockId))
       const recall = buildSemanticEvidence(events.filter((event) => event.eventType === 'semantic_recall_attempted')
         .map((event) => ({ ...event, payload: event.payload as SemanticPayload })), now, blockId ? 0 : undefined)

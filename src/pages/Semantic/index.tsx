@@ -1,3 +1,4 @@
+import { useRunVisitGuard, useRunVisitKey } from '@/semantic/useRunVisit'
 import { practiceReturnPath } from '@/semantic/practiceChoices'
 import { useSemanticEvidence } from '@/semantic/useEvidence'
 import type { SemanticRun } from '@/semantic/run'
@@ -11,6 +12,12 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 /** The answer is absent from the DOM until reveal. No grading API or AI dependency. */
 export default function SemanticPage() {
   const { runId = '' } = useParams()
+  const visitKey = useRunVisitKey(runId)
+  return <SemanticRecallRun key={visitKey} runId={runId} />
+}
+
+function SemanticRecallRun({ runId }: { runId: string }) {
+  const active = useRunVisitGuard()
   const navigate = useNavigate()
   const evidence = useSemanticEvidence(runId)
   const [run, setRun] = useState<SemanticRun>()
@@ -25,20 +32,15 @@ export default function SemanticPage() {
   const restore = useCallback(async () => {
     try {
       const current = await loadSemanticRun(runId)
+      if (!active.current) return
       if (current.mode === 'discrimination') throw new Error('请从参考释义辨认页面继续这一段。')
       setRun(current)
       setResumedAfterReveal(current.revealedIndex === current.index)
       setStopped(current.hardStopAt !== undefined && Date.now() >= current.hardStopAt)
       setError('')
-    } catch (cause) { setError(cause instanceof Error ? cause.message : '无法读取这段学习。') }
-  }, [runId])
-  useEffect(() => {
-    void restore()
-    const changed = () => { setRun(undefined); setSaved(false); void restore() }
-    window.addEventListener('wenyan-learning-owner-changed', changed)
-    window.addEventListener('storage', changed)
-    return () => { window.removeEventListener('wenyan-learning-owner-changed', changed); window.removeEventListener('storage', changed) }
-  }, [restore])
+    } catch (cause) { if (active.current) setError(cause instanceof Error ? cause.message : '无法读取这段学习。') }
+  }, [active, runId])
+  useEffect(() => { void restore() }, [restore])
   useEffect(() => { focus.current?.focus() }, [run?.index, run?.revealedIndex])
   useEffect(() => {
     if (run?.hardStopAt === undefined) return
@@ -47,43 +49,50 @@ export default function SemanticPage() {
   }, [run?.hardStopAt])
 
   const reveal = useCallback(async () => {
-    if (!run || lock.current || stopped || run.revealedIndex === run.index) return
+    if (!active.current || !run || lock.current || stopped || run.revealedIndex === run.index) return
     lock.current = true
     setBusy(true)
     setError('')
-    try { setRun(await revealSemanticItem(run.id, run.index)); setResumedAfterReveal(false) }
+    try {
+      const next = await revealSemanticItem(run.id, run.index)
+      if (!active.current) return
+      setRun(next)
+      setResumedAfterReveal(false)
+    }
     catch (cause) { setError(cause instanceof Error ? cause.message : '未能保存揭示状态，请重试。') }
     finally { lock.current = false; setBusy(false) }
-  }, [run, stopped])
+  }, [active, run, stopped])
 
   const rate = useCallback(async (rating: RecallRating) => {
-    if (!run || lock.current || run.revealedIndex !== run.index) return
+    if (!active.current || !run || lock.current || run.revealedIndex !== run.index) return
     lock.current = true
     setBusy(true)
     setError('')
     try {
       const next = await saveSemanticRating(run.id, run.index, rating, resumedAfterReveal)
+      if (!active.current) return
       setRun(next)
       setResumedAfterReveal(false)
       setSaved(true)
     } catch (cause) { setError(cause instanceof Error ? cause.message : '这次自评尚未保存，请重试。') }
     finally { lock.current = false; setBusy(false) }
-  }, [run, resumedAfterReveal])
+  }, [active, run, resumedAfterReveal])
 
   const startObjectiveCheck = useCallback(async () => {
-    if (!run || lock.current) return
+    if (!active.current || !run || lock.current) return
     lock.current = true
     setBusy(true)
     setError('')
     try {
       const check = await createSemanticDiscriminationRunFromRecall(run.id)
+      if (!active.current) return
       navigate(`/semantic-check/${encodeURIComponent(check.id)}`)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '暂时无法开始参考释义辨认。')
       lock.current = false
       setBusy(false)
     }
-  }, [navigate, run])
+  }, [active, navigate, run])
 
   const revealed = run?.revealedIndex === run?.index && Boolean(run)
   const returnPath = run?.origin === 'manual' ? practiceReturnPath(run.mode === 'discrimination' ? 'discrimination' : 'recall', run.practiceChoices) : '/today'
@@ -135,7 +144,7 @@ export default function SemanticPage() {
                 <button disabled={busy} className="wenyan-button-primary mt-4" onClick={() => void startObjectiveCheck()}>{busy ? '正在准备…' : '开始辨认'}</button>
               </div>
             )}
-            <button className={`${canObjectiveCheck ? 'wenyan-button-secondary' : 'wenyan-button-primary'} mt-5`} disabled={busy} onClick={async () => { setBusy(true); try { await endSemanticRun(run.id); navigate(returnPath) } catch { setError('暂时无法结束这一段，请重试。'); setBusy(false) } }}>{returnLabel}</button>
+            <button className={`${canObjectiveCheck ? 'wenyan-button-secondary' : 'wenyan-button-primary'} mt-5`} disabled={busy} onClick={async () => { setBusy(true); try { await endSemanticRun(run.id); if (active.current) navigate(returnPath) } catch { setError('暂时无法结束这一段，请重试。'); setBusy(false) } }}>{returnLabel}</button>
           </section>
         ) : run && item && (
           <section className="wenyan-focus-surface mt-8 p-6 sm:p-10">

@@ -308,3 +308,59 @@ test('manual spelling restores authoritative cursor before mounting input', asyn
   await page.waitForFunction(() => Boolean((window as unknown as { __cursorProof: unknown }).__cursorProof))
   expect(await page.evaluate(() => (window as unknown as { __cursorProof: unknown }).__cursorProof)).toEqual({index:1,facts:3})
 })
+
+test('a short final chapter borrows wordbook references without expanding its target words', async ({ page }) => {
+  await page.unroute('**/dicts/CET4_T.json')
+  const words = Array.from({ length: 21 }, (_, i) => ({ name: `word${i}`, trans: [`参考释义${i}`], usphone: '', ukphone: '' }))
+  await page.route('**/dicts/CET4_T.json', (route) => route.fulfill({ json: words }))
+  await page.addInitScript(() => localStorage.setItem('currentChapter', JSON.stringify(1)))
+  await page.goto('/practice?mode=discrimination&pool=chapter&limit=6')
+  await expect(page.getByText('本段 1 个可选择的词 · 较久没练的优先')).toBeVisible()
+  await page.getByRole('button', { name: '开始选择词义' }).click()
+  await expect(page.getByRole('heading', { name: 'word20', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^[1-4] 参考释义/ })).toHaveCount(4)
+  await page.getByRole('button', { name: /^[1-4] 参考释义20$/ }).click()
+  await expect(page.getByText('选择正确', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: /查看本段结果/ }).click()
+  await expect(page.getByText('已保存 1 次选择。', { exact: false })).toBeVisible()
+})
+
+for (const mode of ['recall', 'discrimination'] as const) {
+  test(`${mode} SPA run switch clears the previous answer and an unavailable route clears the old run`, async ({ page }) => {
+    await page.goto('/today')
+    await page.addScriptTag({ type: 'module', content: `
+      import { db } from '/src/utils/db/index.ts'
+      import { semanticItem } from '/src/semantic/provider.ts'
+      import { buildSemanticDiscriminationQuestions } from '/src/semantic/discrimination.ts'
+      for (const id of ['first', 'second']) {
+        const items = await Promise.all(['alpha', 'beta', 'gamma', 'delta'].map((word, i) =>
+          semanticItem('cet4', { name: id + word, trans: [id + '释义' + i] })))
+        await db.semanticRuns.add({ id: 'visit-' + id, mode: '${mode}', origin: 'manual', sessionId: 'visit-' + id,
+          dictionaryId: 'cet4', startedAt: Date.now(), items, index: 0,
+          discriminationQuestions: '${mode}' === 'discrimination' ? buildSemanticDiscriminationQuestions(items) : undefined })
+      }
+      window.__visitsSeeded = true
+    ` })
+    await page.waitForFunction(() => (window as any).__visitsSeeded)
+    const prefix = mode === 'recall' ? '/semantic/' : '/semantic-check/'
+    await page.goto(prefix + 'visit-first')
+    await expect(page.getByRole('heading', { name: 'firstalpha' })).toBeVisible()
+    if (mode === 'recall') await page.getByRole('button', { name: /查看释义/ }).click()
+    else await page.getByRole('button', { name: /^[1-4] first释义0$/ }).click()
+    await expect(page.getByText('first释义0', { exact: true })).toBeVisible()
+    await page.evaluate((path) => {
+      history.pushState({}, '', path)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }, prefix + 'visit-second')
+    await expect(page.getByRole('heading', { name: 'secondalpha' })).toBeVisible()
+    await expect(page.getByText('first释义0', { exact: true })).toHaveCount(0)
+    if (mode === 'recall') await expect(page.getByRole('button', { name: /查看释义/ })).toBeVisible()
+    else await expect(page.getByText('选择正确', { exact: true })).toHaveCount(0)
+    await page.evaluate((path) => {
+      history.pushState({}, '', path)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }, prefix + 'missing-run')
+    await expect(page.getByRole('alert')).toContainText('不可用')
+    await expect(page.getByRole('heading', { name: 'secondalpha' })).toHaveCount(0)
+  })
+}
