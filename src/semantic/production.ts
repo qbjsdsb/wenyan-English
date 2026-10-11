@@ -30,6 +30,10 @@ function normalizeMeaning(value: string) {
   return value.normalize('NFKC').trim().toLocaleLowerCase().replace(/\s+/g, ' ')
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 /** Stable visible-reference signature; order and duplicate meaning lines do not create false uniqueness. */
 export function semanticMeaningSignature(meanings: readonly string[]) {
   return Array.from(new Set(meanings.map(normalizeMeaning).filter(Boolean))).sort().join('\u241f')
@@ -39,16 +43,27 @@ export function normalizeProductionHeadword(value: string) {
   return value.normalize('NFKC').trim().toLocaleLowerCase().replace(/\s+/g, ' ')
 }
 
+/** The visible dictionary cue must not literally contain the exact English headword before submission. */
+export function semanticCueLeaksHeadword(word: string, meanings: readonly string[]) {
+  const target = normalizeProductionHeadword(word)
+  if (!target) return true
+  const escaped = target.split(' ').map(escapeRegExp).join('\\s+')
+  const pattern = new RegExp(`(^|[^a-z0-9])${escaped}($|[^a-z0-9])`, 'i')
+  return meanings.some((meaning) => pattern.test(meaning.normalize('NFKC')))
+}
+
 /**
  * Objective headword production is only offered when this exact visible meaning set identifies one
- * normalized headword in the current dictionary. This does not claim that synonyms with different
- * dictionary entries would be invalid translations; the task is explicitly reference-headword recall.
+ * normalized headword in the current dictionary and the cue does not directly reveal that headword.
+ * This does not claim that synonyms with different dictionary entries would be invalid translations;
+ * the task is explicitly reference-headword recall.
  */
 export function filterUnambiguousProductionWords(candidates: readonly Word[], dictionaryWords: readonly Word[]) {
   const signatureHeadwords = new Map<string, Set<string>>()
   for (const word of dictionaryWords) {
     if (typeof word.name !== 'string' || !word.name.trim() || !Array.isArray(word.trans)) continue
-    const signature = semanticMeaningSignature(word.trans.filter((value): value is string => typeof value === 'string'))
+    const meanings = word.trans.filter((value): value is string => typeof value === 'string')
+    const signature = semanticMeaningSignature(meanings)
     const headword = normalizeProductionHeadword(word.name)
     if (!signature || !headword) continue
     const set = signatureHeadwords.get(signature) ?? new Set<string>()
@@ -58,10 +73,17 @@ export function filterUnambiguousProductionWords(candidates: readonly Word[], di
 
   return candidates.filter((word) => {
     if (typeof word.name !== 'string' || !Array.isArray(word.trans)) return false
-    const signature = semanticMeaningSignature(word.trans.filter((value): value is string => typeof value === 'string'))
+    const meanings = word.trans.filter((value): value is string => typeof value === 'string')
+    const signature = semanticMeaningSignature(meanings)
     const expected = normalizeProductionHeadword(word.name)
     const headwords = signatureHeadwords.get(signature)
-    return Boolean(signature && expected && headwords?.size === 1 && headwords.has(expected))
+    return Boolean(
+      signature &&
+        expected &&
+        headwords?.size === 1 &&
+        headwords.has(expected) &&
+        !semanticCueLeaksHeadword(word.name, meanings),
+    )
   })
 }
 
@@ -143,7 +165,11 @@ export function parseSemanticProductionPayload(value: unknown): SemanticProducti
 }
 
 /** Exact reference-headword production from a versioned meaning cue; not general translation or mastery. */
-export function buildSemanticProductionEvidence(facts: readonly SemanticProductionFact[], now: number, windowMs = 14 * 86_400_000) {
+export function buildSemanticProductionEvidence(
+  facts: readonly SemanticProductionFact[],
+  now: number,
+  windowStart = now - 14 * 86_400_000,
+) {
   const unique = new Map<string, SemanticProductionFact>()
   let excluded = 0
   for (const fact of facts) {
@@ -160,7 +186,7 @@ export function buildSemanticProductionEvidence(facts: readonly SemanticProducti
   }
 
   const recent = Array.from(unique.values())
-    .filter((fact) => fact.occurredAt >= now - windowMs)
+    .filter((fact) => fact.occurredAt >= windowStart)
     .sort((a, b) => b.occurredAt - a.occurredAt || a.id.localeCompare(b.id))
   const latest = new Map<string, SemanticProductionFact>()
   for (const fact of recent) {
@@ -171,7 +197,7 @@ export function buildSemanticProductionEvidence(facts: readonly SemanticProducti
 
   return {
     algorithmVersion: 'semantic-production-evidence-v1',
-    window: { from: now - windowMs, through: now },
+    window: { from: windowStart, through: now },
     measurement: 'reference_headword_production',
     attempts: recent.length,
     correct,

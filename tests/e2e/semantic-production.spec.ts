@@ -5,11 +5,12 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/dicts/CET4_T.json', (route) => route.fulfill({ json: [
     { name: 'alpha', trans: ['阿尔法，开端'], usphone: '', ukphone: '' },
     { name: 'beta', trans: ['贝塔，第二'], usphone: '', ukphone: '' },
+    { name: 'bridle', trans: ['restrain with a bridle'], usphone: '', ukphone: '' },
   ] }))
   await page.addInitScript(() => { localStorage.setItem('currentDict', JSON.stringify('cet4')) })
 })
 
-test('meaning-to-headword production hides answers, commits v6 facts, and resumes at the saved cursor', async ({ page }) => {
+test('meaning-to-headword production hides answers, excludes leaked cues, commits v6 facts, and resumes at the saved cursor', async ({ page }) => {
   await page.goto('/practice?mode=production&limit=6')
   await expect(page.getByRole('heading', { name: '专项训练' })).toBeVisible()
   await expect(page.getByText('看义写词', { exact: true })).toBeVisible()
@@ -47,12 +48,13 @@ test('meaning-to-headword production hides answers, commits v6 facts, and resume
   await page.waitForFunction(() => Boolean((window as unknown as { __productionProof?: unknown }).__productionProof))
   const proof = await page.evaluate(() => (window as unknown as { __productionProof: {
     facts: { sourceVersion: number; payload: { isCorrect: boolean; measurement: string } }[]
-    run: { index: number; completedAt?: number }
+    run: { index: number; completedAt?: number; items: { word: string }[] }
   } }).__productionProof)
   expect(proof.facts).toHaveLength(2)
   expect(proof.facts.map((fact) => fact.sourceVersion)).toEqual([6, 6])
   expect(proof.facts.map((fact) => fact.payload.isCorrect)).toEqual([true, false])
   expect(proof.facts.every((fact) => fact.payload.measurement === 'reference_headword_production')).toBe(true)
+  expect(proof.run.items.map((item) => item.word)).toEqual(['alpha', 'beta'])
   expect(proof.run.index).toBe(2)
   expect(proof.run.completedAt).toBeTruthy()
 })
