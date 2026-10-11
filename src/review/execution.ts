@@ -1,5 +1,3 @@
-import type { Word } from '@/typings'
-import { ReviewRecord } from '@/utils/db/record'
 import type { IReviewRecord, ReviewRecordOrigin } from '@/utils/db/record'
 
 export const OWNER_BOUND_REVIEW_ORIGINS = ['manual', 'smart', 'correction'] as const satisfies readonly ReviewRecordOrigin[]
@@ -32,19 +30,6 @@ export function isOwnerBoundReviewRecord(record: IReviewRecord | undefined): rec
 
 export function isOwnerBoundReviewForOwner(record: IReviewRecord | undefined, ownerUserId: string | undefined) {
   return Boolean(ownerUserId && isOwnerBoundReviewRecord(record) && record.ownerUserId === ownerUserId)
-}
-
-export function createOwnerBoundReviewRecord(
-  dict: string,
-  words: Word[],
-  origin: ReviewRecordOrigin,
-  ownerUserId: string | undefined,
-) {
-  if (!ownerUserId) throw new Error('owner_bound_review_requires_owner')
-  const record = new ReviewRecord(dict, words)
-  record.origin = origin
-  record.ownerUserId = ownerUserId
-  return record as ReviewRecord & OwnerBoundReviewRecord
 }
 
 export function ownerBoundReviewReturnPath(origin: ReviewRecordOrigin) {
