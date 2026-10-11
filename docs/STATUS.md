@@ -1,28 +1,39 @@
 # 当前状态 / 续接入口
 
-更新：2026-10-11。
+更新：2026-10-11（#82 合并、主干 CI 与生产 Pages 验收完成）。
 
-> 本页只记录已经核实的生产事实、当前收口证据、不可破坏边界和下一步高价值工作。新会话接手时仍必须重新读取远端 `main`、开放 PR、最新 CI / Pages 与 Supabase migration；不要把聊天里的旧 SHA 当作实时状态。
+> 本页只记录已经核实的生产事实、不可破坏边界和下一步高价值工作。新会话接手时仍必须重新读取远端 `main`、开放 PR、最新 CI / Pages 与 Supabase migration；不要把旧聊天里的 SHA 当作实时状态。
 
 ## 当前生产基线
 
 - 仓库：`qbjsdsb/wenyan-English`。
-- 本轮收口开始时生产 `main`：`0fd3445758b6a22d7e382aa64e2a6aa4b4c8478a`，已包含 #81 的设置、备份恢复、短尾章词义训练、SPA 词义状态隔离、词义查询与发音参数修复。
-- #81 对应 GitHub Pages run `38145507765`：**success**，部署源码为 `0fd3445758…`。
+- 本轮正式功能发布 merge SHA：`69dc02a35900450c5951c30323f97beb657ff227`，PR #82 已 squash merge 到 `main`。
+- 合并后 `main` 完整 CI run `38148496381`：**success**。
+- 合并后 GitHub Pages run `38148496373`：**success**；build 与 deploy 均成功，部署源码为 `69dc02a359…`。
+- #81 的设置、备份恢复、短尾章词义训练、SPA 词义状态隔离、词义查询与发音参数修复已经在 #82 之前进入主干并保持不变。
 - Supabase 项目：`cmjhxvpkdeheujuteqoi`。
 - 生产 Edge Function：`wenyan-english-mcp` v15 ACTIVE；本轮 Remote Control / Reading 收口没有修改 MCP tool contract。
 - MCP server contract：0.8.x；Coaching Context：`coaching-context-v1.5`。
+- 被 #82 取代的旧 PR #76、#78、#79 已全部关闭，避免后续误合旧实现。
+- 当前没有已知发布阻塞。
 
-## 2026-10-11 收口候选：#82
+## 2026-10-11 收口：已完成
 
-PR #82：`fix: close control runtime and reading route state`。
+PR #82：`fix: close control runtime and reading route state` 已正式进入生产主干。
 
-- 分支：`fix/control-runtime-closure-v2`；当前已验证 head：`481c03cead6216f20104b3cf4ee1b0b90d60d92c`。
-- 完整 CI run `38147814512`：**success**。
-- CI 已通过：lint、TypeScript、Smart Session、Execution Availability、Semantic guardrails、AI Coaching、Coach Decision、Cloud coaching adapter、OAuth capability、build、完整 browser flows、production Pages artifact build、Pages vocabulary / failure recovery。
-- control runtime Playwright 回归已纳入主 CI。
-- Reading route-state 回归已纳入主 CI；测试真实覆盖提交期间快速 `owner A → B → A` 时，旧提交不能覆盖新访问状态或误删 replacement draft。
-- 首轮 Reading 回归失败被定位为测试拦截方式耦合 Dexie 内部 Table 实例，而不是产品提交逻辑失败；最终改为在同一个 `db.transaction` 边界暂停提交，不再依赖 Dexie 内部表实例，最终完整 CI 通过。
+完整验证已经通过：
+
+- lint、TypeScript；
+- Smart Session / Execution Availability；
+- Semantic guardrails；
+- AI Coaching / Coach Decision / Cloud coaching adapter；
+- OAuth capability；
+- build；
+- 完整 browser flows；
+- production Pages artifact build；
+- Pages vocabulary / failure recovery。
+
+control runtime 与 Reading route-state 的 focused Playwright 回归均已纳入主 CI。Reading 回归真实覆盖提交期间快速 `owner A → B → A` 时，旧提交不能覆盖新访问状态或误删 replacement draft。
 
 ### Remote Control captured-owner closure
 
@@ -36,7 +47,7 @@ PR #82：`fix: close control runtime and reading route state`。
 
 ### 生产 migration 000028：已部署并验收
 
-`supabase/migrations/20261011_000028_control_runtime_owner_binding.sql` **已经应用到生产**；不要重复 rollout。
+`supabase/migrations/20261011_000028_control_runtime_owner_binding.sql` 已应用到生产，且 migration 源文件已经随 #82 进入 `main`；**不要重复 rollout**。
 
 生产使用回滚式验证覆盖六个场景，全部 PASS：
 
@@ -47,7 +58,7 @@ PR #82：`fix: close control runtime and reading route state`。
 5. 过期 executing command 的有效状态保持 terminal / expired 一致；
 6. 已过期 command 不能再被 finish 成成功。
 
-migration 前后重新检查 Supabase security advisor，没有新增 finding。项目早期已有的 private-table policy、旧 `SECURITY DEFINER`、leaked-password protection 与 unused-index 提示仍是独立遗留问题；本轮不为了“清零告警”盲改旧基础设施。
+migration 前后重新检查 Supabase security advisor，没有新增 finding。项目早期已有的 private-table policy、旧 `SECURITY DEFINER`、leaked-password protection 与 unused-index 提示仍是独立遗留问题；本轮没有为了“清零告警”盲改旧基础设施。
 
 ### Reading 实验 route-state 收口
 
@@ -57,6 +68,8 @@ Reading 仍是 **阅读实验**，不是已经完成的主学习闭环。本轮�
 - route / passage / owner generation 改变后，旧 in-flight submission 不能把新页面误切成“已完成”。
 - 快速 `A → B → A` 回访时，旧提交不能误删 A 的新 draft，也不能覆盖用户刚恢复的答案。
 - Reading 仍不计入“正式主阶段已完成”；后续主闭环需单独设计题源、证据、复习与计划执行。
+
+首轮 Reading CI 失败已经定位为测试注入方式耦合 Dexie 内部 Table 实例，而不是产品提交逻辑失败；最终测试改为在同一个 `db.transaction` 边界暂停提交，不依赖 Dexie 内部表实例，随后 PR CI 与合并后 main CI 均完整通过。
 
 ## 已上线的核心能力
 
@@ -108,19 +121,7 @@ Reading 仍是 **阅读实验**，不是已经完成的主学习闭环。本轮�
 - 不增加万能 `run_sql / execute_js / control_wenyan` 一类工具。
 - 不伪造个人学习历史、完成记录、掌握率、联网状态或验证结果。
 
-## 本次 STATUS 写入时仍需完成的发布动作
-
-代码和生产数据库已经验证，剩余发布动作只有：
-
-1. 合并 #82 到最新 `main`；
-2. 验证 merge 后 `main` CI 与 `Deploy Wenyan Pages` 均成功；
-3. 确认 migration 000028 文件已经随代码进入 `main`，与已部署生产保持一致；
-4. 关闭被 #82 取代的旧 #76、#78、#79；
-5. 完成以上动作后再次更新本页为最终生产状态。
-
-当前没有已知硬阻塞。
-
-## 收口完成后的下一阶段高价值工作
+## 下一阶段高价值工作
 
 1. 把 owner-bound review origin / routing 规则抽成统一 helper，避免 manual / smart / correction 在不同文件继续漂移。
 2. Analysis / ErrorBook 在保持跨账号隔离的前提下，更安全地利用 owner-aware index；legacy 去重不能为了性能重新制造跨账号泄漏。
