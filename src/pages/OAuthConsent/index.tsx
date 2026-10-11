@@ -122,9 +122,8 @@ export default function OAuthConsentPage() {
 
         <section className="wenyan-auth-card p-6 sm:p-8">
           {loading ? (
-            <div className="flex min-h-[180px] flex-col items-center justify-center gap-4">
+            <div className="flex min-h-[180px] items-center justify-center">
               <LoadingUI label="正在确认授权请求" />
-              <p className="wenyan-muted text-xs">正在确认授权请求</p>
             </div>
           ) : !authorizationId ? (
             <div className="space-y-3">
