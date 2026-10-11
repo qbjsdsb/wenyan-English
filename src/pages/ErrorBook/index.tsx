@@ -123,17 +123,9 @@ export function ErrorBook() {
           )}
         </div>
 
-        <p className="wenyan-muted mb-3 max-w-3xl text-xs leading-6">
-          这里按当前账号可见的真实拼写事实整理，并保留升级前无法归属账号的旧版本机历史：只有最近一次仍有拼写错误的词会留下；之后拼对会自动离开。历史学习事实不会被“删除”。
-        </p>
-        {legacyCount > 0 && (
-          <p className="wenyan-muted mb-5 max-w-3xl text-[11px] leading-5">
-            当前还显示 {legacyCount} 条去重后的旧版本机拼写记录。它们只用于保留历史，不会被重新写成或上传为学习事实；“近期错词”练习只使用最近 14 天、当前可用词书里的新版事实。
-          </p>
-        )}
-        {legacyCount === 0 && (
-          <p className="wenyan-muted mb-5 max-w-3xl text-[11px] leading-5">
-            跨词书有错词时，右上角练习会锁定一本仍可用的词书，并只练最近 14 天仍未纠正的错词。
+        {!loading && !loadError && groupedRecords.length > 0 && (
+          <p className="wenyan-muted mb-5 max-w-3xl text-xs leading-5">
+            最近一次拼对后会自动移出。{legacyCount > 0 ? `另含 ${legacyCount} 条旧版本机记录。` : ''}
           </p>
         )}
 
@@ -144,7 +136,7 @@ export function ErrorBook() {
         ) : loadError ? (
           <section className="wenyan-surface p-7" role="alert"><p>暂时无法读取当前账号的拼写记录。</p><button className="wenyan-button-secondary mt-4" onClick={() => setRetry((value) => value + 1)}>重新读取</button></section>
         ) : groupedRecords.length === 0 ? (
-          <EmptyState title="目前没有待处理错词" description="最近一次已经拼对的词会自动离开这里；没有记录也不会被当成已经掌握。" />
+          <EmptyState title="目前没有待处理错词" description="最近一次拼对的词会自动移出这里。" />
         ) : (
           <div className="overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]">
             <div className="wenyan-muted grid grid-cols-[1.2fr_3fr_110px_150px] items-center gap-4 border-b border-[var(--wenyan-line-soft)] px-4 py-3 text-[10px]">

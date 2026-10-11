@@ -33,7 +33,7 @@ const Analysis = () => {
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-14 pt-9">
         <div className="mb-7">
           <h1 className="wenyan-page-title">记录</h1>
-          <p className="wenyan-muted mt-2 text-sm">拼写与词义，各自留下真实记录</p>
+          <p className="wenyan-muted mt-2 text-sm">拼写与词义练习记录</p>
         </div>
 
         <VocabularyEvidence />
@@ -42,13 +42,10 @@ const Analysis = () => {
           <section className="wenyan-surface p-7" role="alert"><p>暂时无法读取当前账号的学习记录。</p><button className="wenyan-button-secondary mt-4" onClick={retry}>重新读取</button></section>
         ) : isEmpty === undefined ? (
           <section className="wenyan-surface flex min-h-[260px] items-center justify-center">
-            <div className="flex flex-col items-center gap-3">
-              <LoadingUI label="正在整理学习记录" />
-              <p className="wenyan-muted text-[11px]">正在整理学习记录</p>
-            </div>
+            <LoadingUI label="正在整理学习记录" />
           </section>
         ) : isEmpty ? (
-          <EmptyState title="暂无拼写数据" description="从今天的一小段开始。当前账号的真实拼写事实会逐渐出现在这里。" />
+          <EmptyState title="暂无拼写数据" description="从今天的一小段开始，记录会慢慢积累。" />
         ) : (
           <>
             <section className="wenyan-report-summary mb-8 rounded-[var(--wenyan-radius-lg)] border border-[var(--wenyan-line-soft)] px-6 py-5">
@@ -58,7 +55,7 @@ const Analysis = () => {
                   <h2 className="mt-1 text-[16px] font-semibold tracking-[-0.02em] text-[var(--wenyan-ink)]">拼写节奏</h2>
                 </div>
                 <p className="wenyan-muted text-xs">
-                  {legacyAttempts > 0 ? `当前账号事实 · 含 ${legacyAttempts} 条旧版本机记录` : '当前账号 · immutable learning facts'}
+                  {legacyAttempts > 0 ? `含 ${legacyAttempts} 条旧版本机记录` : '当前账号'}
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-6">
@@ -75,13 +72,8 @@ const Analysis = () => {
               </div>
             </section>
 
-            {legacyAttempts > 0 && (
-              <p className="wenyan-muted mb-4 max-w-3xl text-[11px] leading-5">
-                旧版本机记录只用于保留升级前已经存在的可见历史；能与新版学习事实配对的记录会自动去重，不会被重新写成或上传为学习事实。
-              </p>
-            )}
             <p className="wenyan-muted mb-5 max-w-3xl text-[11px] leading-5">
-              “输入节奏”只按正确按键之间的活跃间隔计算，不包含看词、回忆、首次反应和暂停时间，因此不代表记忆速度。
+              输入节奏只统计连续正确按键的活跃间隔，不代表回忆速度。
             </p>
             <div className="border-t border-[var(--wenyan-line-soft)]">
               <section className="wenyan-report-section border-b border-[var(--wenyan-line-soft)] py-8" style={{ '--wenyan-delay': '30ms' } as CSSProperties}><HeatmapCharts title="过去一年拼写词次" data={attemptRecord} /></section>
