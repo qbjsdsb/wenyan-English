@@ -2,205 +2,138 @@
 
 更新：2026-10-11。
 
-## 本轮现有功能检查与修复
-
-见 [完整检查记录](FUNCTIONAL_AUDIT_2026-10-11.md)。基于真实 main `7ccaa315`，修复已分批提交到 `fix/daily-learning-reliability`：更多设置弹窗消失、备份错误恢复、短尾章选择词义、词义 run 切换残留、owner 索引查询和发音参数编码。TypeScript / 应用 lint / build、13 项定向浏览器用例及智能编排确定性检查通过。分支代码不代表已部署生产；不制造用户历史、不修改生产后端。
-
-本页只记录**当前已核实的生产事实、不可破坏边界、开放中的收口工作和下一步高价值缺口**。历史阶段请看 Git history；不要把旧聊天里的 SHA、CI 或 migration 状态当作当前生产事实。
+> 本页只记录已经核实的生产事实、当前收口证据、不可破坏边界和下一步高价值工作。新会话接手时仍必须重新读取远端 `main`、开放 PR、最新 CI / Pages 与 Supabase migration；不要把聊天里的旧 SHA 当作实时状态。
 
 ## 当前生产基线
 
-- 仓库：`qbjsdsb/wenyan-English`
-- 本轮检查时生产 `main`：`7ccaa3154cad286812ca7913e0223e1d7fb1af06`（已包含 #77 registry 和后续语义干扰项改进）。
-- 检查 GitHub 当前 main CI：**success**。这是基线 CI，不能代替本轮修复分支的 CI。
-- GitHub Pages run `38137164625`：**success**，部署源码为 `7ccaa315…`。
-- Supabase：`cmjhxvpkdeheujuteqoi`。
-- 生产 Edge Function：`wenyan-english-mcp` **v15 ACTIVE**；#63–#74 当前工作均未修改 MCP/Edge tool contract。
+- 仓库：`qbjsdsb/wenyan-English`。
+- 本轮收口开始时生产 `main`：`0fd3445758b6a22d7e382aa64e2a6aa4b4c8478a`，已包含 #81 的设置、备份恢复、短尾章词义训练、SPA 词义状态隔离、词义查询与发音参数修复。
+- #81 对应 GitHub Pages run `38145507765`：**success**，部署源码为 `0fd3445758…`。
+- Supabase 项目：`cmjhxvpkdeheujuteqoi`。
+- 生产 Edge Function：`wenyan-english-mcp` v15 ACTIVE；本轮 Remote Control / Reading 收口没有修改 MCP tool contract。
 - MCP server contract：0.8.x；Coaching Context：`coaching-context-v1.5`。
 
-## Existing Experience Closure 已进入主干
+## 2026-10-11 收口候选：#82
 
-- #63：Smart spelling owner-bound cursor / stable order / fail-closed；ErrorBook、Analysis、词库进度重新对齐 immutable facts 与 legacy compatibility。
-- #64：Vite build fallback、Docker/Yarn 可复现构建、Wenyan backup 命名。
-- #65：Dexie v9 owner-aware Learning Event 索引；Today / Practice / Smart Session 高频读取按 owner 收敛。
-- #66：正常章节统一使用唯一词书内容源，删除 CET4 第一章硬编码双真相。
-- #67：只有真实存在 executor 的学习阶段可确认；Reading / Exam 保持 roadmap，不假装上线。
-- #68：Smart Session 样式不再依赖中文 aria 文案。
-- #69：Realtime presence 首次连接发布最新设备状态，不发布订阅开始时的旧闭包状态。
-- #70：Today 专项快捷入口显式携带并展示上次词池/数量；Today 当日事实使用 owner + time 索引；Reading 入口明确标为“阅读实验”。
-- #71：Workspace State v1；显式保存 / 恢复当前词书、章节和专项偏好，账号切换 / stale read / ambiguous save / 本机部分写失败均 fail closed。
-- #72：Learning Event browser upload / pull 在数据库 RPC 边界绑定 captured owner；启动 auth 初始化有 generation guard；in-flight sync 按 owner 隔离。
-- #74：Cloud Plan browser cache 与 Learning Preferences read / confirm 在 RPC 边界绑定 captured owner；偏好确认同时绑定已加载 snapshot owner；generic MCP/OAuth RPC 保持不变；已合并到生产 main。
+PR #82：`fix: close control runtime and reading route state`。
 
-## Workspace State v1：已上线
+- 分支：`fix/control-runtime-closure-v2`；当前已验证 head：`481c03cead6216f20104b3cf4ee1b0b90d60d92c`。
+- 完整 CI run `38147814512`：**success**。
+- CI 已通过：lint、TypeScript、Smart Session、Execution Availability、Semantic guardrails、AI Coaching、Coach Decision、Cloud coaching adapter、OAuth capability、build、完整 browser flows、production Pages artifact build、Pages vocabulary / failure recovery。
+- control runtime Playwright 回归已纳入主 CI。
+- Reading route-state 回归已纳入主 CI；测试真实覆盖提交期间快速 `owner A → B → A` 时，旧提交不能覆盖新访问状态或误删 replacement draft。
+- 首轮 Reading 回归失败被定位为测试拦截方式耦合 Dexie 内部 Table 实例，而不是产品提交逻辑失败；最终改为在同一个 `db.transaction` 边界暂停提交，不再依赖 Dexie 内部表实例，最终完整 CI 通过。
 
-Workspace State 只承担跨设备工作区连续性，不是 Learning Fact，也不属于长期 Learning Preference。
+### Remote Control captured-owner closure
 
-- migration `workspace_state_v1` 已应用，生产 version `20261010185505`；
-- 每个用户最多一条 `wenyan_workspace_state`；仅保存 `dictId / chapterIndex / practiceMode / practicePool / practiceLimit`；
-- Sync 页提供明确的 **“保存本机位置” / “恢复云端位置”**；v1 不做自动 last-write-wins；
-- browser-native session 通过 `p_expected_user_id = auth.uid()` 绑定 owner；OAuth client 不允许写 workspace；
-- restore 前验证词书 / 章节 / 专项偏好；本机部分持久化失败会回滚；
-- mounted `SyncPage` 浏览器回归覆盖账号切换、TOKEN_REFRESHED、旧读取晚到、保存结果不确定后重读以及本机回滚；
-- 上线验收时 workspace 表为 0 行，没有测试数据污染生产；相关 RLS / RPC 未被 Supabase advisor 报新增问题。
+已经实现并验证：
 
-## Learning Facts owner binding：已上线
+- device ID 按 `localStorage → sessionStorage → document memory` 降级；localStorage 被阻止时，同一 tab reload 仍保持稳定 identity。
+- auth 初始化复用 generation gate，晚到的 `getSession()` 不能覆盖更新后的 auth callback。
+- heartbeat / pending / claim / finish 使用 owner-bound browser RPC，并携带 captured owner。
+- command 在 claim 返回后以及 `start_task` 异步边界后重新检查 owner + generation；账号切换时 fail closed，不允许账号 A 的 command 修改账号 B 的页面状态。
+- generic command-bus / MCP-OAuth RPC 保持不变，没有为浏览器便利破坏通用 contract。
 
-目的：浏览器可能先捕获账号 A，再在 RPC 真正执行前切到账号 B；Learning Facts 是历史真相，不能只靠响应后的 UI 检查防串号。
+### 生产 migration 000028：已部署并验收
 
-### 生产实现
+`supabase/migrations/20261011_000028_control_runtime_owner_binding.sql` **已经应用到生产**；不要重复 rollout。
 
-- web upload：`ingest_learning_events_for_owner(p_expected_user_id, p_events)`；
-- web pull：`pull_learning_events_for_owner(p_expected_user_id, ...)`；
-- 两个 wrapper 均为 `SECURITY INVOKER`，要求 `p_expected_user_id = auth.uid()` 且只允许 direct Wenyan browser session；
-- 原 generic Learning Event RPC 保留，避免破坏 MCP / OAuth read contract；
-- sync batch 先解析同一个稳定 session/user snapshot；session 与 `getUser()` 不一致时 fail closed；
-- in-flight upload / data sync 按 owner 分桶；账号切换不共享全局 Promise；
-- owner mismatch 不把原账号的 immutable local facts 标成网络失败，也不增加 retry backoff；事实保持 pending，等待原 owner 下次重试；
-- 初始 `getSession()` 通过 auth generation gate 防止晚到结果覆盖新的本机 owner marker。
+生产使用回滚式验证覆盖六个场景，全部 PASS：
 
-### 生产 rollout 与验收
+1. matching owner 可以正常 claim / execute；
+2. command 属于 A、当前账号切到 B 时拒绝；
+3. OAuth-shaped client 不能调用 browser-only owner-bound control RPC；
+4. 慢执行中的 command 不会被错误重新排队；
+5. 过期 executing command 的有效状态保持 terminal / expired 一致；
+6. 已过期 command 不能再被 finish 成成功。
 
-- migration `learning_sync_owner_binding` 已应用，生产 version `20261011000645`；
-- PR #72 最终 head `17ac6a78…` 的完整 CI `38097612376`：**success**；最终 Codex review：**no major issues**；
-- 合并后 main `c4235a66…` 的 CI `38098193313`：**success**；Pages `38098193330`：**success**；
-- 两个新函数均为 `SECURITY INVOKER`，authenticated execute=true，anon/public=false；
-- `supabase/verification/learning_sync_owner_binding.sql` 与生产回滚验收共验证六项，全部 PASS：
-  1. direct session + matching owner：允许 owner-bound ingest；
-  2. ingest owner A + expected B：`learning_owner_changed`；
-  3. pull owner A + expected B：`learning_owner_changed`；
-  4. OAuth-shaped token 调 ingest wrapper：`direct_wenyan_session_required`；
-  5. OAuth-shaped token 调 pull wrapper：`direct_wenyan_session_required`；
-  6. 旧 generic `pull_learning_events` 在 OAuth-shaped claims 下仍可调用；
-- Supabase security / performance advisor 对 000026 没有新增 finding。
+migration 前后重新检查 Supabase security advisor，没有新增 finding。项目早期已有的 private-table policy、旧 `SECURITY DEFINER`、leaked-password protection 与 unused-index 提示仍是独立遗留问题；本轮不为了“清零告警”盲改旧基础设施。
 
-现有 advisor 仍提示项目早期 private 表无 policy、三个旧 `SECURITY DEFINER` RPC 可由 authenticated 执行、leaked-password protection 未开启以及若干 unused index；这些不是 #72 引入，后续单独审计，不能为了“清警告”盲删旧索引或改旧基础设施。
+### Reading 实验 route-state 收口
 
-## 当前真实学习能力
+Reading 仍是 **阅读实验**，不是已经完成的主学习闭环。本轮只修复已有实验的真实性与账号隔离：
 
-### 词汇执行
+- runner 捕获 owner；完成记录写回 captured owner，账号切换不会把旧 attempt 归给新账号。
+- route / passage / owner generation 改变后，旧 in-flight submission 不能把新页面误切成“已完成”。
+- 快速 `A → B → A` 回访时，旧提交不能误删 A 的新 draft，也不能覆盖用户刚恢复的答案。
+- Reading 仍不计入“正式主阶段已完成”；后续主闭环需单独设计题源、证据、复习与计划执行。
 
-- 正常章节拼写；
-- owner-bound Smart / manual / correction spelling，顺序冻结、cursor 权威、刷新可恢复；
-- 专项：拼写 / 词义回想 / 选择词义；
-- 词池：当前章节 / 已练过 / 拼写错词 / 词义模糊；
-- 未完成专项 run 可恢复；Today 快捷入口明确显示并携带当前专项范围。
+## 已上线的核心能力
 
-### 学习证据
+### Vocabulary / Practice
 
-- `word_attempted`：真实拼写事实；零错误不等于语义掌握；
-- `semantic_recall_attempted` sourceVersion 4：英文 → 词义主动回想，自评仅是独立 evidence；
-- `semantic_discrimination_attempted` sourceVersion 5：真实版本化词书释义的客观辨认；正确不等于 free recall / contextual comprehension / mastery。
+- 正常章节拼写；owner-bound Smart / manual / correction spelling；顺序冻结、cursor 权威、刷新恢复。
+- 专项训练：拼写、英文 → 中文词义主动回想、选择词义。
+- 词池：当前章节、已练过、拼写错词、词义模糊；未完成专项 run 可恢复。
+- Today 快捷入口显式携带并显示专项范围；词义训练短尾章不会因为固定数量假设而无题可做。
+- 词书 registry 已完成稳定 ID / duplicate fail-fast 收口；正常章节只有一个权威内容源。
 
-Coaching Context v1.5 必须继续把 spelling / recall self-report / objective discrimination 分开，不合成没有证据的“总掌握率”。
+### Learning Facts / Evidence
+
+- Learning Events local-first；只有明确 owner 的事实进入对应账号上传队列。
+- `word_attempted` 只代表拼写事实；零错误不等于语义掌握。
+- `semantic_recall_attempted` 与 `semantic_discrimination_attempted` 是独立证据；objective discrimination 不等于 free recall / contextual comprehension / mastery。
+- Coaching Context v1.5 必须继续分开 spelling、recall self-report、objective discrimination，不能制造一个没有证据支持的“总掌握率”。
+- browser upload / pull 已在数据库 RPC 边界绑定 captured owner；in-flight sync 按 owner 隔离。
 
 ### Smart Session / AI Coach
 
-- Smart Session：`elastic-v2`；
-- Learning Intent precedence：`session > day > ongoing > local defaults`；
-- 当前稳定编排 review / correction / weak / new / semantic recall，并遵守 cooldown、budget、hard stop、new-word ceiling 与真实 executor availability；
-- objective discrimination 主要仍是 direct practice / follow-up，不假装已经是独立 planner purpose。
+- Smart Session：`elastic-v2`。
+- Learning Intent precedence：`session > day > ongoing > local defaults`。
+- 当前稳定编排 review / correction / weak / new / semantic recall，并遵守 cooldown、budget、hard stop、new-word ceiling 与真实 executor availability。
+- AI 只负责未来策略判断；deterministic planner / executor 负责可执行约束和真实完成判定。
 
-### Cloud Plan
+### Cloud Plan / Workspace State
 
-当前真实可执行 task kind **只有 `chapter`**。
+- Cloud Plan 当前真实可执行 task kind **只有 `chapter`**；Plan completion 只能由 matching immutable learning fact 推导。
+- Workspace State v1 已上线，仅承担跨设备的非证据工作区连续性；不是 Learning Fact。
+- Sync 页支持明确“保存本机位置 / 恢复云端位置”；browser-native RPC 在数据库边界绑定 owner。
 
-Cloud Plan run 捕获 owner / planRevision / taskFingerprint；chapter fingerprint 为 `chapter:<dictId>:<chapterIndex>`。标题、理由、预计时长、截止日期变化不作废同一真实章节目标；目标章节变化则旧 run 不能误完成新 task。Plan completion 只能由 matching immutable learning fact 推导。
-
-## 架构边界
+## 不可破坏边界
 
 主闭环：
 
 `真实学习行为 → Immutable Learning Facts → Derived Evidence / Coaching Context → ChatGPT 判断 → bounded Learning Intent → deterministic Smart Session → 本地执行 → 新事实回流`
 
-职责保持分开：
+必须继续保持：
 
-- **Learning Fact**：真实历史，只能由实际学习执行追加产生；
-- **Evidence / Coaching Context**：从 facts 可重算的证据；
-- **Learning Intent**：未来一段学习的策略约束；
-- **Smart Session**：根据最新事实与 Intent 即时计算下一小段；
-- **Cloud Plan**：少量明确、持久、可追踪的 explicit commitment；
-- **Command**：页面/动作控制；command completed != learning completed；
-- **Workspace State**：非证据的设备连续性状态；workspace restored != learning happened。
+- Historical learning truth immutable。
+- Only the user confirms long-term strategic stage changes。
+- AI controls future intent, never past truth。
+- No evidence != mastery；Spelling != semantic mastery。
+- Objective discrimination != free recall / contextual comprehension / mastery。
+- Command completion != learning completion。
+- Workspace State != Learning Fact。
+- Wenyan works without AI；网络失败时尽量仍可本地学习。
+- 不增加万能 `run_sql / execute_js / control_wenyan` 一类工具。
+- 不伪造个人学习历史、完成记录、掌握率、联网状态或验证结果。
 
-> **AI controls future intent, never past truth.**
+## 本次 STATUS 写入时仍需完成的发布动作
 
-## 同步 / 本机边界
+代码和生产数据库已经验证，剩余发布动作只有：
 
-- Learning Events local-first；只有明确 owner 的事实进入对应账号上传队列；云端 pull 可恢复缺失事实；
-- 未归属旧本机事实需要显式认领；
-- ErrorBook / Analysis / 已练章节从当前账号可见事实重新派生；
-- Dexie v9 已有 owner-aware Learning Event 索引；
-- 普通章节和 owner-bound review 都有明确恢复边界；保存失败不会静默推进；
-- 词书有校验后的 last-known-good CacheStorage fallback；不是完整 PWA；
-- 本地备份先 staging validate 再覆盖真实 DB；
-- Workspace State 与 Learning Event browser sync 都已在数据库 RPC 边界绑定 captured owner。
+1. 合并 #82 到最新 `main`；
+2. 验证 merge 后 `main` CI 与 `Deploy Wenyan Pages` 均成功；
+3. 确认 migration 000028 文件已经随代码进入 `main`，与已部署生产保持一致；
+4. 关闭被 #82 取代的旧 #76、#78、#79；
+5. 完成以上动作后再次更新本页为最终生产状态。
 
-## 当前开放的收口工作
+当前没有已知硬阻塞。
 
-### PR #77：Dictionary registry integrity（已合并）
+## 收口完成后的下一阶段高价值工作
 
-#73 的临时 self-patching CI 方案已废弃；#77 从当前生产 `main` 重新建立，只保留最终产品代码与回归保护。
-
-- `/dicts/frequently_used_word02.json` 使用独立稳定 ID `frequently_used_words02`；level 3 保持 `frequently_used_words03`；
-- 删除重复的“中国考试 / 其他” `Oxford5000` 注册项，保留同一真实来源的 canonical “国际考试 / 牛津版”条目；
-- `idDictionaryMap` 改为 null-prototype registry，并在未来出现重复 ID 时 fail fast，不再静默覆盖；
-- focused Playwright 覆盖 duplicate ID、Level 2/3 identity、Oxford 唯一性和 prototype-chain alias；
-- PR #77 head `b706ae7…` 的完整 CI run `38125761066`：**success**；
-- 已进入 main `6fc0d534`；不再列为开放修复。本轮未检查旧 #73 的关闭状态。
-
-### Remote Control captured-owner closure（进行中）
-
-Remote Control 单独从最新生产 `main` 重建收口分支 `fix/control-runtime-closure`，不再叠加旧 #76 分支。
-
-- device ID：`localStorage → sessionStorage → document memory` 降级；localStorage 被阻止时，同一 tab reload 仍保持稳定 ID；
-- auth 初始化复用 generation gate，晚到的 `getSession()` 不能覆盖更新的 auth callback；
-- heartbeat / pending / claim / finish 使用 owner-bound browser RPC，并携带 captured owner；
-- command 在 claim 返回后以及 `start_task` 的异步边界后重新检查 owner + generation；账号切换时 fail closed，不允许 A 的 command 修改 B 的页面状态；
-- migration `20261011_000028_control_runtime_owner_binding.sql` **尚未应用生产**；generic command-bus / MCP-OAuth RPC 保持不变；
-- 下一步：在 #77 合并后把 control regression 接入最新 CI，完成 Codex/security review → 000028 生产验证/rollout → main / Pages 复验，再关闭旧 #76。
-
-## 产品真实性
-
-- Vocabulary 是当前正式主阶段；
-- Reading 主闭环尚未完成，只保留 **阅读实验**；
-- Exam Practice 尚未开放；
-- 设置页可以展示未来路线，但不会允许把不存在的 executor 当作已上线能力；
-- 文学专业课继续冻结，当前只把英语现有体验做深做稳。
-
-## 不可破坏原则
-
-- Historical learning truth immutable；
-- Only the user confirms long-term strategic stage changes；
-- ChatGPT reasons; deterministic code guards；
-- No evidence != mastery；
-- Spelling != semantic mastery；
-- Objective discrimination != free recall / contextual comprehension / mastery；
-- Command completion != learning completion；
-- Workspace State != Learning Fact；
-- Wenyan works without AI；
-- Wenyan should continue without cloud whenever possible；
-- 不增加万能 `run_sql / execute_js / control_wenyan` 一类工具；
-- 不再无休止叠加 CSS polish。
-
-## 下一阶段高价值缺口
-
-1. 收口本轮 `fix/daily-learning-reliability` 功能修复，按仓库发布约定决定合并；
-2. 完成 Remote Control captured-owner closure：CI / security review → production 000028 → fail-closed verification → merge，并关闭旧 #76；
-3. 修复 Reading 实验草稿切换：已有 PR #79，检查时最新 CI 浏览器步骤失败，需先定位；
-4. 同词书有界 distractor pool 已在本轮分支实现并验证尾章，仅待分支收口；
-5. 设置及备份恢复已在本轮分支通过浏览器往返验证，避免重复开发；
-6. owner-bound review origin 规则抽成统一 helper，避免 manual / smart / correction 在不同文件继续漂移；
-7. 长期性能：Analysis / ErrorBook 安全利用 owner-aware index；legacy 去重需要跨 owner companion facts，不能为了快重新制造跨账号泄漏；
-8. 真实用户 semantic recall / objective discrimination → sync → MCP v1.5 回流验收；禁止制造 synthetic personal history；
-9. 自然出现新的 chapter Cloud Plan 时，再做一次真实 owner / revision / fingerprint → 真练习 → sync → completion smoke；
-10. 更高质量语义测量（contextual meaning、熟词僻义、collocation / phrase、Chinese→English production）和 Reading 主闭环继续后置，直到现有词汇系统收口完成。
+1. 把 owner-bound review origin / routing 规则抽成统一 helper，避免 manual / smart / correction 在不同文件继续漂移。
+2. Analysis / ErrorBook 在保持跨账号隔离的前提下，更安全地利用 owner-aware index；legacy 去重不能为了性能重新制造跨账号泄漏。
+3. 用真实用户自然产生的 semantic recall / objective discrimination 完成 `local → sync → MCP v1.5 → coaching` 纵向验收；禁止 synthetic personal history。
+4. 自然出现新的 chapter Cloud Plan 时，再做一次真实 owner / revision / fingerprint → 真练习 → sync → completion smoke。
+5. 更高质量语义测量（contextual meaning、熟词僻义、collocation / phrase、Chinese→English production）与 Reading 主闭环继续作为后续产品阶段，不与本轮基础稳定性收口混做。
+6. 文学专业课继续冻结；当前先把英语体验做深、做稳、做成适合长期日用的桌面学习工具。
 
 ## 续接顺序
 
 新会话 / Work / Astra 接手时：
 
-1. 重新读取远端 `main`、开放 PR、最新 CI / Pages、Supabase migrations 与 Edge Function 版本；
+1. 先读取远端 `main`、开放 PR、最新 CI / Pages、Supabase migrations 与 Edge Function 版本；
 2. 阅读本页、`ARCHITECTURE.md`、`DATA_MODEL.md`、`MCP_TOOLS.md`、`CLOUD_PLAN_V2.md`、`OBJECTIVE_SEMANTIC_EVIDENCE_V1.md`；
 3. 不重新设计已经稳定的 Typing / Dexie / OAuth / MCP / Smart Session；
 4. 日常编排沿 `Learning Intent → Smart Session` 演进；Cloud Plan 只承载 explicit commitment；
