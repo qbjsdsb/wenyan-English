@@ -467,17 +467,6 @@ const chinaExam: DictionaryResource[] = [
     languageCategory: 'en',
   },
   {
-    id: 'Oxford5000',
-    name: '牛津5000词',
-    description: '牛津5000词',
-    category: '中国考试',
-    tags: ['其他'],
-    url: '/dicts/Oxford5000.json',
-    length: 5836,
-    language: 'en',
-    languageCategory: 'en',
-  },
-  {
     id: 'Merriam_Webster_sVocabularyBuilder',
     name: '韦氏词根词典',
     description: '韦氏词根词典',
@@ -546,7 +535,7 @@ const chinaExam: DictionaryResource[] = [
   },
 
   {
-    id: 'frequently_used_words03',
+    id: 'frequently_used_words02',
     name: '超频单词level 2',
     description: '超频单词level 2',
     category: '中国考试',
@@ -4197,4 +4186,13 @@ export const dictionaries: Dictionary[] = dictionaryResources.map((resource) => 
 /**
  * An object-map from dictionary IDs to dictionary themselves.
  */
-export const idDictionaryMap: Record<string, Dictionary> = Object.fromEntries(dictionaries.map((dict) => [dict.id, dict]))
+export const idDictionaryMap: Record<string, Dictionary> = dictionaries.reduce<Record<string, Dictionary>>(
+  (registry, dict) => {
+    if (Object.prototype.hasOwnProperty.call(registry, dict.id)) {
+      throw new Error(`duplicate_dictionary_id:${dict.id}`)
+    }
+    registry[dict.id] = dict
+    return registry
+  },
+  Object.create(null) as Record<string, Dictionary>
+)
