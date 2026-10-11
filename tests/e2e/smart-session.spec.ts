@@ -183,7 +183,7 @@ test('active Learning Intent is merged by scope and safely shapes the next block
   const dock = page.getByRole('region', { name: '智能学习' })
   await expect(dock).toHaveAttribute('data-intent-source', 'cloud')
   await expect(dock.getByText('继续推进 1 个新词', { exact: true })).toBeVisible()
-  await expect(dock.getByText(/已按你最近的学习安排自动调整/)).toBeVisible()
+  await expect(dock.getByText('已按最近的学习安排调整。', { exact: true })).toBeVisible()
 })
 
 test('semantic Learning Intent reaches the semantic executor instead of being overwritten to vocabulary', async ({ page }) => {
@@ -248,9 +248,9 @@ test('review-only intent has an actionable empty state instead of a dead disable
 
   const dock = page.getByRole('region', { name: '智能学习' })
   await expect(dock).toHaveAttribute('data-intent-source', 'cloud')
-  await expect(dock.getByText('当前没有到期复习内容。', { exact: true })).toBeVisible()
-  await expect(dock.getByText(/今天的新词上限是 0/)).toBeVisible()
-  await expect(dock.getByText('今日新词上限 0', { exact: true })).toBeVisible()
+  await expect(dock.getByText('现在没有到期内容。', { exact: true })).toBeVisible()
+  await expect(dock.getByText('今天不再加新词，当前也没有到期复习。', { exact: true })).toBeVisible()
+  await expect(dock.getByText('今日不加新词', { exact: true })).toBeVisible()
   await expect(dock.getByRole('button', { name: '重新检查', exact: true })).toBeEnabled()
   const manual = dock.getByRole('link', { name: '手动继续当前章节（不按这条智能安排）', exact: true })
   await expect(manual).toBeVisible()
