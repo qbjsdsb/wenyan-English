@@ -1,0 +1,27 @@
+name: Reading status patch once
+
+on:
+  push:
+    branches: [fix/reading-route-state]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/reading-route-state
+      - name: Patch reading status
+        run: python scripts/patch-status-reading-once.py
+      - name: Commit reading status
+        run: |
+          git diff --check
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/STATUS.md
+          git commit -m 'docs: record reading route-state closure'
+          git push origin HEAD:fix/reading-route-state
