@@ -37,6 +37,23 @@ assert.equal(questions[0].options.length, 4)
 assert.equal(new Set(questions[0].options.map((option) => option.contentId)).size, 4)
 assert.equal(buildSemanticDiscriminationQuestions(semanticItems.slice(0, 3)).length, 0)
 assert.deepEqual(buildSemanticDiscriminationQuestions(semanticItems, 4), questions)
+
+const shapeVersion = (digit) => `sha256:${digit.repeat(64)}`
+const shapeItems = [
+  { contentId: 'shape:cue', key: 'shape:cue', contentVersion: shapeVersion('a'), word: 'abandon', meanings: ['放弃', '抛弃'] },
+  { contentId: 'shape:near-1', key: 'shape:near-1', contentVersion: shapeVersion('b'), word: 'obtain', meanings: ['得到', '获得'] },
+  { contentId: 'shape:near-2', key: 'shape:near-2', contentVersion: shapeVersion('c'), word: 'permit', meanings: ['允许', '准许'] },
+  { contentId: 'shape:near-3', key: 'shape:near-3', contentVersion: shapeVersion('d'), word: 'retain', meanings: ['保存', '保留'] },
+  { contentId: 'shape:far-1', key: 'shape:far-1', contentVersion: shapeVersion('e'), word: 'verbose', meanings: ['一种非常漫长并且从答案外观就很容易排除的解释'] },
+  { contentId: 'shape:far-2', key: 'shape:far-2', contentVersion: shapeVersion('f'), word: 'catalogue', meanings: ['第一种很长的解释', '第二种同样很长的解释', '第三种解释'] },
+]
+const shapeQuestion = buildSemanticDiscriminationQuestions(shapeItems, 1, ['shape:cue'])[0]
+assert.deepEqual(
+  new Set(shapeQuestion.options.map((option) => option.contentId)),
+  new Set(['shape:cue', 'shape:near-1', 'shape:near-2', 'shape:near-3']),
+)
+assert.deepEqual(buildSemanticDiscriminationQuestions(shapeItems, 1, ['shape:cue']), [shapeQuestion])
+
 const objectivePayload = parseSemanticDiscriminationPayload({
   domain: 'english', activity: 'semantic_discrimination', measurement: 'reference_meaning_discrimination', direction: 'en_to_meaning',
   contentId: questions[0].contentId, contentVersion: questions[0].contentVersion, dictionaryId: 'fixture', word: questions[0].word,
