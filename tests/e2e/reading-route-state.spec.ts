@@ -13,13 +13,16 @@ test('stale reading submission persists for captured owner without overwriting a
       import Dexie from 'dexie'
       import { db } from '/src/utils/db/index.ts'
       import { setLocalLearningOwnerId } from '/src/sync/localLearningOwner.ts'
-      const originalBulkAdd = db.learningEvents.bulkAdd.bind(db.learningEvents)
+      const tablePrototype = Object.getPrototypeOf(db.learningEvents)
+      const originalBulkAdd = tablePrototype.bulkAdd
       let release
       const gate = new Promise((resolve) => { release = resolve })
-      db.learningEvents.bulkAdd = async (...args) => {
-        window.__readingSubmitStarted = true
-        await Dexie.waitFor(gate)
-        return originalBulkAdd(...args)
+      tablePrototype.bulkAdd = async function (...args) {
+        if (this.name === 'learningEvents') {
+          window.__readingSubmitStarted = true
+          await Dexie.waitFor(gate)
+        }
+        return originalBulkAdd.apply(this, args)
       }
       window.__releaseReadingSubmit = release
       window.__switchReadingOwner = (owner) => setLocalLearningOwnerId(owner)
