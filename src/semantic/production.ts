@@ -87,6 +87,7 @@ export function createSemanticProductionPayload(
     sessionId,
     blockId,
     cue: 'dictionary_meanings',
+    responseMode: 'typed_headword',
     response,
     normalizedResponse,
     correctHeadword,
@@ -142,7 +143,11 @@ export function parseSemanticProductionPayload(value: unknown): SemanticProducti
 }
 
 /** Exact reference-headword production from a versioned meaning cue; not general translation or mastery. */
-export function buildSemanticProductionEvidence(facts: readonly SemanticProductionFact[], now: number, windowMs = 14 * 86_400_000) {
+export function buildSemanticProductionEvidence(
+  facts: readonly SemanticProductionFact[],
+  now: number,
+  windowStart = now - 14 * 86_400_000,
+) {
   const unique = new Map<string, SemanticProductionFact>()
   let excluded = 0
   for (const fact of facts) {
@@ -159,7 +164,7 @@ export function buildSemanticProductionEvidence(facts: readonly SemanticProducti
   }
 
   const recent = Array.from(unique.values())
-    .filter((fact) => fact.occurredAt >= now - windowMs)
+    .filter((fact) => fact.occurredAt >= windowStart)
     .sort((a, b) => b.occurredAt - a.occurredAt || a.id.localeCompare(b.id))
   const latest = new Map<string, SemanticProductionFact>()
   for (const fact of recent) {
@@ -170,7 +175,7 @@ export function buildSemanticProductionEvidence(facts: readonly SemanticProducti
 
   return {
     algorithmVersion: 'semantic-production-evidence-v1',
-    window: { from: now - windowMs, through: now },
+    window: { from: windowStart, through: now },
     measurement: 'reference_headword_production',
     attempts: recent.length,
     correct,
