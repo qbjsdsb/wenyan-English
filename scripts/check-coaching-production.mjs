@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
-import { buildCloudCoachingContext } from '../supabase/functions/wenyan-english-mcp/coachingV16.ts'
 
 const originalFetch = globalThis.fetch
+const originalDeno = globalThis.Deno
+globalThis.Deno = {}
+const { buildCloudCoachingContext } = await import('../supabase/functions/wenyan-english-mcp/coaching.ts?edge-production-regression')
+
 const fixedNow = Date.parse('2026-10-12T03:00:00+08:00')
 const occurredAt = new Date(fixedNow - 60_000).toISOString()
 const contentVersion = `sha256:${'a'.repeat(64)}`
@@ -91,7 +94,9 @@ try {
   assert.equal(changed.derived.semanticProductionEvidence.summary.incorrect, 1)
   assert.notEqual(changed.snapshot.id, result.snapshot.id)
 
-  console.log('Coaching Context v1.6 production evidence remains separate, bounded and fingerprinted')
+  console.log('Coaching Context v1.6 Edge dispatcher is bounded, separate and fingerprinted')
 } finally {
   globalThis.fetch = originalFetch
+  if (originalDeno === undefined) delete globalThis.Deno
+  else globalThis.Deno = originalDeno
 }
