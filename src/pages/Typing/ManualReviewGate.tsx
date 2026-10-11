@@ -1,5 +1,6 @@
 import Header from '@/components/Header'
 import { useLearningOwner } from '@/hooks/useLearningOwner'
+import { isOwnerBoundReviewForOwner, isOwnerBoundReviewOrigin, ownerBoundReviewReturnPath } from '@/review/execution'
 import { reviewModeInfoAtom } from '@/store'
 import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
 import { db } from '@/utils/db'
@@ -12,7 +13,8 @@ import { Link } from 'react-router-dom'
 export default function ManualReviewGate({ children }: PropsWithChildren) {
   const [review, setReview] = useAtom(reviewModeInfoAtom)
   const owner = useLearningOwner()
-  const origin = review.isReviewMode ? review.reviewRecord?.origin : undefined
+  const candidateOrigin = review.isReviewMode ? review.reviewRecord?.origin : undefined
+  const origin = isOwnerBoundReviewOrigin(candidateOrigin) ? candidateOrigin : undefined
   const id = origin ? review.reviewRecord?.id : undefined
   const key = id === undefined ? '' : JSON.stringify([owner ?? null, origin, id])
   const [ready, setReady] = useState('')
@@ -27,7 +29,8 @@ export default function ManualReviewGate({ children }: PropsWithChildren) {
       try {
         const record = await db.reviewRecords.get(id)
         if (!active || owner !== getLocalLearningOwnerId()) return
-        if (!record || record.origin !== origin || record.ownerUserId !== owner) throw new Error('这段练习不属于当前账号，或已经不可用。')
+        if (!isOwnerBoundReviewForOwner(record, owner) || record.origin !== origin)
+          throw new Error('这段练习不属于当前账号，或已经不可用。')
         if (record.isFinished || record.endedAt !== undefined)
           throw new Error('这一段已经结束。已保存的练习记录仍然保留。')
         setReview({ isReviewMode: true, reviewRecord: record })
@@ -41,7 +44,7 @@ export default function ManualReviewGate({ children }: PropsWithChildren) {
     }
   }, [id, key, origin, owner, retry, setReview])
   if (!key || ready === key) return <>{children}</>
-  const returnPath = origin === 'smart' ? '/today' : origin === 'correction' ? '/error-book' : '/practice'
+  const returnPath = ownerBoundReviewReturnPath(origin)
   const returnLabel = origin === 'smart' ? '回到今天' : origin === 'correction' ? '回到错词' : '回到专项训练'
   return (
     <div className="wenyan-studio-shell min-h-screen text-[var(--wenyan-ink)]">
