@@ -44,6 +44,8 @@ export default function ReadingPage() {
   const [error, setError] = useState('')
   const passageIdentity = passage ? `${passage.id}:${passage.version}` : ''
   const passageIdentityRef = useRef(passageIdentity)
+  const latestPassageIdentityRef = useRef(passageIdentity)
+  latestPassageIdentityRef.current = passageIdentity
 
   useEffect(() => {
     if (passageIdentityRef.current === passageIdentity) return
@@ -126,16 +128,28 @@ export default function ReadingPage() {
       setError('账号已经切换。这次阅读不会提交到新的账号；请重新打开当前阅读。')
       return
     }
+    const submittedPassageIdentity = passageIdentity
+    const submittedOwnerUserId = ownerUserId
+    const submissionStillCurrent = () => (
+      latestPassageIdentityRef.current === submittedPassageIdentity
+      && getLocalLearningOwnerId() === submittedOwnerUserId
+    )
     setBusy(true)
     setError('')
     try {
-      const saved = await saveReadingAttempt(passage, answers, Math.max(0, Date.now() - startedAt), ownerUserId)
+      const saved = await saveReadingAttempt(passage, answers, Math.max(0, Date.now() - startedAt), submittedOwnerUserId)
+      try {
+        window.localStorage.removeItem(draftKey(passage.id, passage.version, submittedOwnerUserId))
+      } catch {
+        // A stale or blocked draft store must not overwrite the current passage UI.
+      }
+      if (!submissionStillCurrent()) return
       setSummary(saved)
-      window.localStorage.removeItem(draftKey(passage.id, passage.version, ownerUserId))
     } catch (cause) {
+      if (!submissionStillCurrent()) return
       setError(cause instanceof Error ? cause.message : '暂时无法保存这次阅读。')
     } finally {
-      setBusy(false)
+      if (submissionStillCurrent()) setBusy(false)
     }
   }
 
