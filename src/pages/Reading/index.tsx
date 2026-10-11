@@ -2,7 +2,7 @@ import { getReadingPassage } from '@/reading/content'
 import { saveReadingAttempt } from '@/reading/events'
 import type { ReadingAnswerDraft, ReadingAttemptSummary } from '@/reading/types'
 import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 interface StoredReadingDraft {
@@ -42,6 +42,21 @@ export default function ReadingPage() {
   const [summary, setSummary] = useState<ReadingAttemptSummary>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const passageIdentity = passage ? `${passage.id}:${passage.version}` : ''
+  const passageIdentityRef = useRef(passageIdentity)
+
+  useEffect(() => {
+    if (passageIdentityRef.current === passageIdentity) return
+    passageIdentityRef.current = passageIdentity
+    const nextOwner = getLocalLearningOwnerId()
+    const nextDraft = passage ? readDraft(passage.id, passage.version, nextOwner) : undefined
+    setOwnerUserId(nextOwner)
+    setStartedAt(nextDraft?.startedAt ?? Date.now())
+    setAnswers(nextDraft?.answers ?? [])
+    setSummary(undefined)
+    setBusy(false)
+    setError('')
+  }, [passage, passageIdentity])
 
   useEffect(() => {
     const ownerChanged = () => {
