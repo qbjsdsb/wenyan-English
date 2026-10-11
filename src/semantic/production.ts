@@ -87,6 +87,7 @@ export function createSemanticProductionPayload(
     sessionId,
     blockId,
     cue: 'dictionary_meanings',
+    responseMode: 'typed_headword',
     response,
     normalizedResponse,
     correctHeadword,
