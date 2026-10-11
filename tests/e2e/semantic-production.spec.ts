@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
 test('meaning-to-headword production hides answers, excludes leaked cues, commits v6 facts, and resumes at the saved cursor', async ({ page }) => {
   await page.goto('/practice?mode=production&limit=6')
   await expect(page.getByRole('heading', { name: '专项训练' })).toBeVisible()
-  await expect(page.getByText('看义写词', { exact: true })).toBeVisible()
+  await expect(page.getByRole('radio', { name: /看义写词/ })).toBeChecked()
   await expect(page.getByText('alpha', { exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: '开始看义写词', exact: true }).click()
   await expect(page).toHaveURL(/\/semantic-production\//)
