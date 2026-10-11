@@ -1,3 +1,4 @@
+import { getWenyanDeviceId } from './deviceId'
 import { syncCloudPlanToLocal } from '@/plans/cloud'
 import { startStudyTask } from '@/plans/repository'
 import { idDictionaryMap } from '@/resources/dictionary'
@@ -7,13 +8,13 @@ import {
   reviewModeInfoAtom,
   wordDictationConfigAtom,
 } from '@/store'
+import { createAuthInitializationGate } from '@/sync/authOwner'
 import { supabase } from '@/supabase/client'
 import { db } from '@/utils/db'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-const DEVICE_ID_KEY = 'wenyanDeviceId'
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 type JsonObject = Record<string, unknown>
@@ -44,14 +45,6 @@ function parseCommand(value: unknown): Command | undefined {
   if (!id || !UUID_PATTERN.test(id)) return undefined
   if (type !== 'open_today' && type !== 'open_dictionary' && type !== 'open_chapter' && type !== 'start_task') return undefined
   return { id, type, args }
-}
-
-function getDeviceId() {
-  const existing = window.localStorage.getItem(DEVICE_ID_KEY)
-  if (existing && UUID_PATTERN.test(existing)) return existing
-  const created = crypto.randomUUID()
-  window.localStorage.setItem(DEVICE_ID_KEY, created)
-  return created
 }
 
 function getDeviceName() {
@@ -96,14 +89,16 @@ export default function WenyanControlRuntime() {
   const [reviewInfo, setReviewInfo] = useAtom(reviewModeInfoAtom)
   const dictation = useAtomValue(wordDictationConfigAtom)
   const [userId, setUserId] = useState<string | null>(null)
-  const deviceId = useMemo(getDeviceId, [])
+  const ownerRef = useRef<string | null>(null)
+  const ownerGenerationRef = useRef(0)
+  const deviceId = useMemo(() => getWenyanDeviceId() ?? '', [])
   const deviceName = useMemo(getDeviceName, [])
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const subscribedRef = useRef(false)
   const inFlightRef = useRef(new Set<string>())
   const executeRef = useRef<(commandId: string) => Promise<void>>(async () => undefined)
 
-  const enabled = location.pathname !== '/oauth/consent' && location.pathname !== '/mobile'
+  const enabled = Boolean(deviceId) && location.pathname !== '/oauth/consent' && location.pathname !== '/mobile'
   const activeTaskRunId = useMemo(() => new URLSearchParams(location.search).get('taskRun'), [location.search])
   const practiceMode = reviewInfo.isReviewMode ? 'review' : dictation.isOpen ? 'dictation' : 'learn'
 
@@ -125,9 +120,16 @@ export default function WenyanControlRuntime() {
   const deviceStateRef = useRef(deviceState)
   deviceStateRef.current = deviceState
 
+  const ownerStillCurrent = useCallback((expectedOwner: string, expectedGeneration: number) => (
+    ownerRef.current === expectedOwner && ownerGenerationRef.current === expectedGeneration
+  ), [])
+
   const heartbeat = useCallback(async () => {
-    if (!userId || !enabled) return false
-    const { error } = await supabase.rpc('upsert_wenyan_device', {
+    if (!userId || !enabled || ownerRef.current !== userId) return false
+    const capturedOwner = userId
+    const capturedGeneration = ownerGenerationRef.current
+    const { error } = await supabase.rpc('upsert_wenyan_device_for_owner', {
+      p_expected_user_id: capturedOwner,
       p_device_id: deviceState.deviceId,
       p_device_name: deviceState.deviceName,
       p_platform: deviceState.platform,
@@ -137,43 +139,51 @@ export default function WenyanControlRuntime() {
       p_practice_mode: deviceState.practiceMode,
       p_active_task_run_id: deviceState.activeTaskRunId,
     })
-    return !error
-  }, [deviceState, enabled, userId])
+    return !error && ownerStillCurrent(capturedOwner, capturedGeneration)
+  }, [deviceState, enabled, ownerStillCurrent, userId])
 
   const finishCommand = useCallback(
-    async (commandId: string, success: boolean, result: JsonObject, failureCode?: string) => {
-      await supabase.rpc('finish_website_command', {
+    async (ownerUserId: string, ownerGeneration: number, commandId: string, success: boolean, result: JsonObject, failureCode?: string) => {
+      if (!enabled || !ownerStillCurrent(ownerUserId, ownerGeneration)) return false
+      const { error } = await supabase.rpc('finish_website_command_for_owner', {
+        p_expected_user_id: ownerUserId,
         p_command_id: commandId,
         p_device_id: deviceId,
         p_success: success,
         p_result: result,
         p_error_code: failureCode ?? null,
       })
+      return !error && ownerStillCurrent(ownerUserId, ownerGeneration)
     },
-    [deviceId]
+    [deviceId, enabled, ownerStillCurrent]
   )
 
   const executeCommand = useCallback(
     async (commandId: string) => {
-      if (!enabled || !userId || inFlightRef.current.has(commandId)) return
+      if (!enabled || !userId || ownerRef.current !== userId || inFlightRef.current.has(commandId)) return
+      const capturedOwner = userId
+      const capturedGeneration = ownerGenerationRef.current
       inFlightRef.current.add(commandId)
 
       try {
-        const { data, error } = await supabase.rpc('claim_website_command', {
+        const { data, error } = await supabase.rpc('claim_website_command_for_owner', {
+          p_expected_user_id: capturedOwner,
           p_command_id: commandId,
           p_device_id: deviceId,
         })
-        if (error) return
+        if (error || !ownerStillCurrent(capturedOwner, capturedGeneration)) return
         const command = parseCommand(data)
         if (!command) {
-          await finishCommand(commandId, false, {}, 'invalid_command_payload')
+          await finishCommand(capturedOwner, capturedGeneration, commandId, false, {}, 'invalid_command_payload')
           return
         }
 
         try {
+          if (!ownerStillCurrent(capturedOwner, capturedGeneration)) return
+
           if (command.type === 'open_today') {
             navigate('/today')
-            await finishCommand(command.id, true, { path: '/today' })
+            await finishCommand(capturedOwner, capturedGeneration, command.id, true, { path: '/today' })
             return
           }
 
@@ -181,11 +191,12 @@ export default function WenyanControlRuntime() {
             const requestedDictId = asText(command.args.dictId)
             if (!requestedDictId) throw new Error('invalid_command_args')
             getEnglishDictionary(requestedDictId)
+            if (!ownerStillCurrent(capturedOwner, capturedGeneration)) return
             setReviewInfo({ isReviewMode: false, reviewRecord: undefined })
             setDictId(requestedDictId)
             setChapter(0)
             navigate('/today')
-            await finishCommand(command.id, true, { path: '/today', dictId: requestedDictId, chapterIndex: 0 })
+            await finishCommand(capturedOwner, capturedGeneration, command.id, true, { path: '/today', dictId: requestedDictId, chapterIndex: 0 })
             return
           }
 
@@ -195,11 +206,12 @@ export default function WenyanControlRuntime() {
             if (!requestedDictId || requestedChapter == null) throw new Error('invalid_command_args')
             const dict = getEnglishDictionary(requestedDictId)
             if (requestedChapter < 0 || requestedChapter >= dict.chapterCount) throw new Error('invalid_chapter')
+            if (!ownerStillCurrent(capturedOwner, capturedGeneration)) return
             setReviewInfo({ isReviewMode: false, reviewRecord: undefined })
             setDictId(requestedDictId)
             setChapter(requestedChapter)
             navigate('/')
-            await finishCommand(command.id, true, { path: '/', dictId: requestedDictId, chapterIndex: requestedChapter })
+            await finishCommand(capturedOwner, capturedGeneration, command.id, true, { path: '/', dictId: requestedDictId, chapterIndex: requestedChapter })
             return
           }
 
@@ -207,18 +219,22 @@ export default function WenyanControlRuntime() {
           const taskId = asText(command.args.taskId)
           if (!planId || !taskId || !UUID_PATTERN.test(planId) || !UUID_PATTERN.test(taskId)) throw new Error('invalid_command_args')
           const sync = await syncCloudPlanToLocal(planId)
+          if (!ownerStillCurrent(capturedOwner, capturedGeneration)) return
           if (sync.status !== 'synced' || sync.planId !== planId) throw new Error('plan_sync_failed')
           const plan = await db.studyPlans.get(planId)
-          if (!plan || plan.cloudStatus !== 'active') throw new Error('plan_not_available')
+          if (!ownerStillCurrent(capturedOwner, capturedGeneration)) return
+          if (!plan || plan.ownerUserId !== capturedOwner || plan.cloudStatus !== 'active') throw new Error('plan_not_available')
           const task = plan.tasks.find((candidate) => candidate.id === taskId)
           if (!task) throw new Error('task_not_found')
+          if (!ownerStillCurrent(capturedOwner, capturedGeneration)) return
           const run = await startStudyTask(planId, taskId)
+          if (!ownerStillCurrent(capturedOwner, capturedGeneration)) return
           setReviewInfo({ isReviewMode: false, reviewRecord: undefined })
           setDictId(task.dictId)
           setChapter(task.chapterIndex)
           const path = `/?taskRun=${encodeURIComponent(run.id)}`
           navigate(path)
-          await finishCommand(command.id, true, {
+          await finishCommand(capturedOwner, capturedGeneration, command.id, true, {
             path,
             planId,
             taskId,
@@ -227,38 +243,55 @@ export default function WenyanControlRuntime() {
             chapterIndex: task.chapterIndex,
           })
         } catch (actionError) {
+          if (!ownerStillCurrent(capturedOwner, capturedGeneration)) return
           const code = errorCode(actionError)
-          await finishCommand(command.id, false, {}, code)
+          await finishCommand(capturedOwner, capturedGeneration, command.id, false, {}, code)
         }
       } finally {
         inFlightRef.current.delete(commandId)
       }
     },
-    [deviceId, enabled, finishCommand, navigate, setChapter, setDictId, setReviewInfo, userId]
+    [deviceId, enabled, finishCommand, navigate, ownerStillCurrent, setChapter, setDictId, setReviewInfo, userId]
   )
 
   executeRef.current = executeCommand
 
   const fetchPending = useCallback(async () => {
-    if (!userId || !enabled) return
-    const { data, error } = await supabase.rpc('get_pending_website_commands', { p_device_id: deviceId })
-    if (error || !Array.isArray(data)) return
+    if (!userId || !enabled || ownerRef.current !== userId) return
+    const capturedOwner = userId
+    const capturedGeneration = ownerGenerationRef.current
+    const { data, error } = await supabase.rpc('get_pending_website_commands_for_owner', {
+      p_expected_user_id: capturedOwner,
+      p_device_id: deviceId,
+    })
+    if (error || !Array.isArray(data) || !ownerStillCurrent(capturedOwner, capturedGeneration)) return
     for (const value of data) {
+      if (!ownerStillCurrent(capturedOwner, capturedGeneration)) return
       const command = parseCommand(value)
       if (command) void executeRef.current(command.id)
     }
-  }, [deviceId, enabled, userId])
+  }, [deviceId, enabled, ownerStillCurrent, userId])
 
   useEffect(() => {
     let alive = true
+    const gate = createAuthInitializationGate()
+    const initialTicket = gate.ticket()
+
+    const applyOwner = (nextOwner: string | null) => {
+      if (ownerRef.current !== nextOwner) ownerGenerationRef.current += 1
+      ownerRef.current = nextOwner
+      setUserId(nextOwner)
+    }
+
     void supabase.auth.getSession().then(({ data }) => {
-      if (!alive) return
-      setUserId(data.session?.user.id ?? null)
+      if (!alive || !gate.accepts(initialTicket)) return
+      applyOwner(data.session?.user.id ?? null)
       if (data.session) void supabase.realtime.setAuth(data.session.access_token)
     })
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user.id ?? null)
+      gate.authChanged()
+      applyOwner(session?.user.id ?? null)
       if (session) void supabase.realtime.setAuth(session.access_token)
     })
 
@@ -269,7 +302,7 @@ export default function WenyanControlRuntime() {
   }, [])
 
   useEffect(() => {
-    if (!userId || !enabled) return
+    if (!userId || !enabled || ownerRef.current !== userId) return
     void heartbeat().then((registered) => {
       if (registered) void fetchPending()
     })
@@ -282,13 +315,14 @@ export default function WenyanControlRuntime() {
   }, [enabled, fetchPending, heartbeat, userId])
 
   useEffect(() => {
-    if (!userId || !enabled) return
+    if (!userId || !enabled || ownerRef.current !== userId) return
     let disposed = false
     void supabase.realtime.setAuth()
     const topic = `wenyan:user:${userId}:control`
     const channel = supabase
       .channel(topic, { config: { private: true, presence: { key: deviceId } } })
       .on('broadcast', { event: 'command_created' }, (message) => {
+        if (ownerRef.current !== userId) return
         const root = asObject(message)
         const payload = asObject(root?.payload)
         const commandId = asText(payload?.commandId)
@@ -297,7 +331,7 @@ export default function WenyanControlRuntime() {
       })
       .subscribe((status) => {
         subscribedRef.current = status === 'SUBSCRIBED'
-        if (status === 'SUBSCRIBED' && !disposed) {
+        if (status === 'SUBSCRIBED' && !disposed && ownerRef.current === userId) {
           const latest = deviceStateRef.current
           void channel.track({
             deviceId,
@@ -323,7 +357,7 @@ export default function WenyanControlRuntime() {
 
   useEffect(() => {
     const channel = channelRef.current
-    if (!channel || !subscribedRef.current || !enabled) return
+    if (!channel || !subscribedRef.current || !enabled || ownerRef.current !== userId) return
     void channel.track({
       deviceId,
       deviceName,
@@ -333,7 +367,7 @@ export default function WenyanControlRuntime() {
       practiceMode: deviceState.practiceMode,
       activeTaskRunId: deviceState.activeTaskRunId,
     })
-  }, [deviceId, deviceName, deviceState, enabled])
+  }, [deviceId, deviceName, deviceState, enabled, userId])
 
   return null
 }
