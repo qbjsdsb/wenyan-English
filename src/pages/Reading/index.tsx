@@ -44,12 +44,12 @@ export default function ReadingPage() {
   const [error, setError] = useState('')
   const passageIdentity = passage ? `${passage.id}:${passage.version}` : ''
   const passageIdentityRef = useRef(passageIdentity)
-  const latestPassageIdentityRef = useRef(passageIdentity)
-  latestPassageIdentityRef.current = passageIdentity
+  const attemptGenerationRef = useRef(0)
 
   useEffect(() => {
     if (passageIdentityRef.current === passageIdentity) return
     passageIdentityRef.current = passageIdentity
+    attemptGenerationRef.current += 1
     const nextOwner = getLocalLearningOwnerId()
     const nextDraft = passage ? readDraft(passage.id, passage.version, nextOwner) : undefined
     setOwnerUserId(nextOwner)
@@ -64,6 +64,7 @@ export default function ReadingPage() {
     const ownerChanged = () => {
       const nextOwner = getLocalLearningOwnerId()
       if (nextOwner === ownerUserId) return
+      attemptGenerationRef.current += 1
       const nextDraft = passage ? readDraft(passage.id, passage.version, nextOwner) : undefined
       setOwnerUserId(nextOwner)
       setStartedAt(nextDraft?.startedAt ?? Date.now())
@@ -128,22 +129,23 @@ export default function ReadingPage() {
       setError('账号已经切换。这次阅读不会提交到新的账号；请重新打开当前阅读。')
       return
     }
-    const submittedPassageIdentity = passageIdentity
+    const submittedGeneration = attemptGenerationRef.current
     const submittedOwnerUserId = ownerUserId
     const submissionStillCurrent = () => (
-      latestPassageIdentityRef.current === submittedPassageIdentity
+      attemptGenerationRef.current === submittedGeneration
+      && passageIdentityRef.current === passageIdentity
       && getLocalLearningOwnerId() === submittedOwnerUserId
     )
     setBusy(true)
     setError('')
     try {
       const saved = await saveReadingAttempt(passage, answers, Math.max(0, Date.now() - startedAt), submittedOwnerUserId)
+      if (!submissionStillCurrent()) return
       try {
         window.localStorage.removeItem(draftKey(passage.id, passage.version, submittedOwnerUserId))
       } catch {
-        // A stale or blocked draft store must not overwrite the current passage UI.
+        // Draft cleanup is best-effort and only runs for the still-current attempt.
       }
-      if (!submissionStillCurrent()) return
       setSummary(saved)
     } catch (cause) {
       if (!submissionStillCurrent()) return
