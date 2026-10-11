@@ -31,7 +31,10 @@ export function isOwnerBoundReviewRecord(record: IReviewRecord | undefined): rec
 }
 
 /** Exact owner equality is required. undefined === undefined is the valid anonymous/local owner. */
-export function isOwnerBoundReviewForOwner(record: IReviewRecord | undefined, ownerUserId: string | undefined) {
+export function isOwnerBoundReviewForOwner(
+  record: IReviewRecord | undefined,
+  ownerUserId: string | undefined,
+): record is OwnerBoundReviewRecord {
   return Boolean(isOwnerBoundReviewRecord(record) && record.ownerUserId === ownerUserId)
 }
 
