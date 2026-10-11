@@ -272,6 +272,7 @@ export default function PracticePage() {
                     <button
                       className="wenyan-button-primary inline-flex items-center gap-2"
                       aria-keyshortcuts="Enter"
+                      aria-label={mode === 'spelling' && pool !== 'chapter' ? '开始拼写训练' : undefined}
                       disabled={loading || busy || !prepared?.count || Boolean(contentError)}
                       onClick={() => void start()}
                     >
