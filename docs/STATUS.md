@@ -12,7 +12,7 @@
 - #83 合并后 GitHub Pages run `38150728500`：**success**；build 与 deploy 均成功，部署源码为 `cff7732d…`。
 - #83 合并前最终候选 CI run `38150383732`：**success**；lint、TypeScript、Review execution contract、Smart Session、semantic/AI/OAuth guardrails、build、完整 browser flows、production Pages artifact 与 Pages recovery 全部通过。
 - Supabase 项目：`cmjhxvpkdeheujuteqoi`。
-- 生产 Edge Function：`wenyan-english-mcp` v15 ACTIVE；#83 未修改 Supabase / MCP / Edge contract。
+- 生产 Edge Function：`wenyan-english-mcp` **v15 ACTIVE**，生产入口固定加载 GitHub commit `3b20da322d8d18c64b371b7f228ce380b4eadc3f`，不是随 `main` 漂移。
 - MCP server contract：0.8.x；Coaching Context：`coaching-context-v1.5`。
 - 当前没有已知发布阻塞。
 
@@ -38,6 +38,38 @@ Review / 验证中曾发现两个真实问题并已修复：
 2. owner helper 最初只返回 boolean，TypeScript 无法对 DB record 做静态窄化；已改为 type predicate，最终 TypeScript 与完整浏览器链通过。
 
 #83 不迁移、不重写历史 ReviewRecord，不修改 Learning Fact schema，也没有制造任何用户学习历史。
+
+## 真实 semantic evidence → cloud → production MCP：后端纵向验收已完成
+
+2026-10-11 使用**只读** Supabase 查询与生产 v15 pin commit 复核完成。没有插入、修改或伪造任何学习历史，也没有读取/记录具体单词内容。
+
+### 生产数据事实
+
+当前生产 `public.learning_events` 的 14 天窗口内存在：
+
+- `semantic_recall_attempted` sourceVersion 4：**24 条**；
+- `semantic_discrimination_attempted` sourceVersion 5：**10 条**；
+- 两类事实均来自 `source = wenyan-english`，聚合结果涉及 **1 个账号**；
+- recall 24/24 条满足生产 `parseSemanticPayload()` 的结构约束，schema-invalid = 0；
+- discrimination 10/10 条满足生产 `parseSemanticDiscriminationPayload()` 的结构、四选项唯一性、selection/correct reference 与 `isCorrect` 一致性约束，schema-invalid = 0；
+- 这些事实不是本轮为了验收制造的测试记录，而是验收开始前已经存在于生产库中的 Wenyan 学习事件。
+
+### 生产 MCP 消费链
+
+生产 `wenyan-english-mcp` v15 固定加载 GitHub commit `3b20da322d…`。该 pin commit 中：
+
+- `readSemanticFacts()` 读取 14 天内 `semantic_recall_attempted`，只接受 sourceVersion 4，通过 `buildSemanticEvidence()` 生成独立 self-report recall evidence；
+- `readObjectiveSemanticFacts()` 读取 14 天内 `semantic_discrimination_attempted`，只接受 sourceVersion 5，通过 `buildSemanticDiscriminationEvidence()` 生成独立 objective reference-choice evidence；
+- `buildCloudCoachingContext()` 并行读取 spelling / recall / discrimination，并分别写入 `derived.semanticEvidence` 与 `derived.semanticDiscriminationEvidence`；
+- fingerprint 同时包含 semantic recall 与 objective discrimination rows，语义事实变化会改变 Coaching Context snapshot identity；
+- `agent.epistemicLevels` 和 `semanticAction` 明确约束：self-report 不是 objective correctness；objective discrimination 也不是 free recall、contextual comprehension、production ability 或 semantic mastery；
+- 最终 tool version 仍为 `coaching-context-v1.5`。
+
+因此现在可以确认：
+
+> **Wenyan 已经有真实生产 semantic facts，并且这些 facts 满足生产 parser、处在生产 MCP v15 的读取窗口和派生路径中。浏览器学习 → cloud learning_events → MCP Coaching Context 派生层这一段纵向链路已经有真实生产证据支撑。**
+
+当前**不能**把最后一跳写成已验收：本会话没有暴露自定义 Wenyan ChatGPT 插件工具，因此尚未从 ChatGPT 侧实际调用一次 `get_coaching_context` 并观察返回的 v1.5 semantic evidence。下一次在可调用 `$wenyan` 的会话中只需做这个 live OAuth/MCP smoke；不要重复制造 semantic 学习记录，也不要重复检查数据库是否有 v4/v5 facts。
 
 ## #82 Control runtime / Reading route-state：已上线
 
@@ -119,8 +151,8 @@ Reading 仍是 **实验阶段**。现有修复只保证 route / passage / owner 
 
 ## 下一阶段高价值工作
 
-1. 继续检查 `Typing/index.tsx`、ResultScreen 与 DB save layer 剩余的 review-origin 重复判断；只在确实属于执行安全规则时复用 #83 helper，不机械统一纯展示逻辑。
-2. 用真实用户自然产生的 semantic recall / objective discrimination 完成 `local → sync → MCP v1.5 → coaching` 纵向验收；禁止 synthetic personal history。
+1. 在能调用自定义 `$wenyan` 插件的 ChatGPT 会话里做一次真实 `get_coaching_context` live smoke，确认 v1.5 返回中的 `semanticEvidence` / `semanticDiscriminationEvidence`；这是 semantic 纵向链路唯一尚未完成的最后一跳。
+2. `Typing/index.tsx`、ResultScreen 与 DB save layer 仍有少量 modern-origin 分类重复；只在属于执行安全语义时复用 #83 helper。DB save layer 应复用 `isOwnerBoundReviewOrigin()`，不能机械换成要求完整 persisted id 的 `isOwnerBoundReviewRecord()`，否则极端半残 modern review 可能被错误降级为 legacy 保存路径。
 3. 自然出现新的 chapter Cloud Plan 时，再做一次真实 owner / revision / fingerprint → 真练习 → sync → completion smoke。
 4. 继续打磨更高质量语义测量：contextual meaning、熟词僻义、collocation / phrase、Chinese → English production；先研究证据语义与练习价值，再决定 UI。
 5. Reading 正式主闭环与真实考研题库继续作为下一产品阶段；不要把实验入口包装成已完成能力。
