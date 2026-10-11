@@ -5,7 +5,7 @@ import type { SemanticItem } from './core'
 export interface SemanticRun {
   id: string
   /** Existing rows omit mode and are recall runs. */
-  mode?: 'recall' | 'discrimination'
+  mode?: 'recall' | 'discrimination' | 'production'
   /** Legacy rows remain Smart-compatible. Manual work never acquires Smart constraints. */
   origin?: 'manual'
   practiceChoices?: { pool: 'chapter' | 'learned' | 'errors' | 'uncertain'; limit: 6 | 12 }
