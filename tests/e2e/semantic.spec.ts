@@ -26,9 +26,9 @@ test('Today selects semantic recall, preserves reveal on reload, and writes only
   await expect(page.getByText('阿尔法，开端')).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('semantic-reveal.png') })
   await page.reload()
-  await expect(page.getByText(/恢复时释义已揭示/)).toBeVisible()
+  await expect(page.getByText(/恢复时释义已经打开/)).toBeVisible()
   await page.getByRole('button', { name: '2 想起部分' }).click()
-  await expect(page.getByRole('heading', { name: '这一段，已经留下记录。' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '这一段完成了。' })).toBeVisible()
   await page.addScriptTag({ type: 'module', content: `
     import { db } from '/src/utils/db/index.ts'
     const events = await db.learningEvents.toArray()
@@ -80,12 +80,12 @@ test('completed recall can create an objectively scored reference-discrimination
     await page.getByRole('button', { name: /查看释义/ }).click()
     await page.getByRole('button', { name: '3 想起了' }).click()
   }
-  await expect(page.getByRole('button', { name: '开始辨认' })).toBeVisible()
-  await page.getByRole('button', { name: '开始辨认' }).click()
+  await expect(page.getByRole('button', { name: '开始', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '开始', exact: true }).click()
   await expect(page).toHaveURL(/\/semantic-check\//)
   await expect(page.getByRole('heading', { name: 'alpha' })).toBeVisible()
   await page.getByRole('button', { name: /阿尔法，开端/ }).click()
-  await expect(page.getByText('选择正确')).toBeVisible()
+  await expect(page.getByText('选对了')).toBeVisible()
   await page.addScriptTag({ type: 'module', content: `
     import { db } from '/src/utils/db/index.ts'
     const facts = await db.learningEvents.where('eventType').equals('semantic_discrimination_attempted').toArray()
@@ -138,7 +138,7 @@ test('manual vocabulary desk launches recall directly and is not captured by Sma
   await expect(page).toHaveURL(/\/semantic\//)
   await page.getByRole('button', { name: /查看释义/ }).click()
   await page.keyboard.press('2') // reveal click must release focus to enable numeric rating
-  await expect(page.getByRole('heading', { name: '这一段，已经留下记录。' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '这一段完成了。' })).toBeVisible()
   await expect(page.getByText('想起 0 · 部分 1 · 没想起 0')).toBeVisible()
   await page.getByRole('button', { name: '回到专项训练', exact: true }).click()
   await page.getByText('词义模糊', { exact: true }).click()
@@ -159,7 +159,7 @@ test('direct objective selection retains atomic facts and owner-safe resume', as
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^(alpha|beta|gamma|delta|epsilon)$/)
   const word = await page.getByRole('heading', { level: 1 }).textContent()
   await page.getByRole('button', { name: new RegExp(`meaning-${word}$`) }).click()
-  await expect(page.getByText('选择正确', { exact: true })).toBeVisible()
+  await expect(page.getByText('选对了', { exact: true })).toBeVisible()
   await page.reload()
   await expect(page.getByText('2 / 5', { exact: true })).toBeVisible()
   await page.addScriptTag({ type: 'module', content: `
@@ -315,13 +315,13 @@ test('a short final chapter borrows wordbook references without expanding its ta
   await page.route('**/dicts/CET4_T.json', (route) => route.fulfill({ json: words }))
   await page.addInitScript(() => localStorage.setItem('currentChapter', JSON.stringify(1)))
   await page.goto('/practice?mode=discrimination&pool=chapter&limit=6')
-  await expect(page.getByText('本段 1 个可选择的词 · 较久没练的优先')).toBeVisible()
+  await expect(page.getByText('本段 1 个词 · 较久没练的优先')).toBeVisible()
   await page.getByRole('button', { name: '开始选择词义' }).click()
   await expect(page.getByRole('heading', { name: 'word20', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: /^[1-4] 参考释义/ })).toHaveCount(4)
   await page.getByRole('button', { name: /^[1-4] 参考释义20$/ }).click()
-  await expect(page.getByText('选择正确', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: /查看本段结果/ }).click()
+  await expect(page.getByText('选对了', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: /查看结果/ }).click()
   await expect(page.getByText('已保存 1 次选择。', { exact: false })).toBeVisible()
 })
 
@@ -355,7 +355,7 @@ for (const mode of ['recall', 'discrimination'] as const) {
     await expect(page.getByRole('heading', { name: 'secondalpha' })).toBeVisible()
     await expect(page.getByText('first释义0', { exact: true })).toHaveCount(0)
     if (mode === 'recall') await expect(page.getByRole('button', { name: /查看释义/ })).toBeVisible()
-    else await expect(page.getByText('选择正确', { exact: true })).toHaveCount(0)
+    else await expect(page.getByText('选对了', { exact: true })).toHaveCount(0)
     await page.evaluate((path) => {
       history.pushState({}, '', path)
       window.dispatchEvent(new PopStateEvent('popstate'))

@@ -64,12 +64,12 @@ export default function TodayPage() {
       if (result.status === 'signed-out') {
         setCloudMessage(announce ? '尚未登录云同步' : '')
       } else if (result.status === 'none') {
-        setCloudMessage(announce ? '云端没有待完成的明确任务' : '')
+        setCloudMessage(announce ? '云端没有待完成任务' : '')
       } else if (result.status === 'failed') {
         setCloudMessage(`云端任务暂时无法更新：${result.message}`)
       } else {
         const deferred = result.deferredTasks ? `，${result.deferredTasks} 项暂不可执行` : ''
-        setCloudMessage(announce ? `已同步 ${result.executableTasks} 项明确任务${deferred}` : '')
+        setCloudMessage(announce ? `已同步 ${result.executableTasks} 项任务${deferred}` : '')
       }
     } catch (error) {
       setCloudMessage(`云端任务暂时无法更新：${error instanceof Error ? error.message : String(error)}`)
@@ -119,7 +119,7 @@ export default function TodayPage() {
       await importStudyPlan(json)
       setJson('')
       setShowImport(false)
-      setMessage('任务已保存到本机，可以开始学习了。')
+      setMessage('任务已保存，可以开始了。')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '保存失败，请检查浏览器存储空间。')
     } finally {
@@ -151,7 +151,7 @@ export default function TodayPage() {
         ],
       }
       await importStudyPlan(JSON.stringify(plan), 'local')
-      setMessage('明确任务已保存。')
+      setMessage('任务已保存。')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '保存失败，请重试。')
     } finally {
@@ -201,7 +201,7 @@ export default function TodayPage() {
         <div className="mb-7 flex items-end justify-between gap-6">
           <div>
             <h1 className="wenyan-page-title">今天</h1>
-            <p className="wenyan-muted mt-2 text-sm">从眼前这一小段开始。</p>
+            <p className="wenyan-muted mt-2 text-sm">先做眼前这一小段。</p>
           </div>
           <div className="wenyan-mono flex items-center gap-2 text-[10px] text-[var(--wenyan-ink-muted)]">
             <span>{today}</span>
@@ -234,7 +234,7 @@ export default function TodayPage() {
               <div className="wenyan-muted text-[11px]">第 {chapter + 1} 章</div>
             </div>
             <div className="mt-2.5 flex items-center gap-4">
-              <Link to="/" className={quietLink}>打开</Link>
+              <Link to="/" className={quietLink}>继续背词</Link>
               <Link to="/gallery" className={quietLink}>切换词书</Link>
             </div>
           </div>
@@ -251,8 +251,8 @@ export default function TodayPage() {
         <section aria-label="学习计划" className="mb-10">
           <div className="mb-4 flex items-end justify-between gap-6">
             <div>
-              <h2 className="wenyan-section-title">明确任务</h2>
-              <p className="wenyan-muted mt-1 text-[11px]">只放需要明确完成的安排；上方智能学习会按当前策略实时生成下一段。</p>
+              <h2 className="wenyan-section-title">任务</h2>
+              <p className="wenyan-muted mt-1 text-[11px]">需要按计划完成的安排。</p>
             </div>
             <div className="flex items-center gap-4">
               <button disabled={cloudBusy} onClick={() => void refreshCloudPlan(true)} className="wenyan-link inline-flex items-center gap-1.5 text-[13px] disabled:opacity-50">
@@ -290,10 +290,7 @@ export default function TodayPage() {
             <p className="wenyan-muted py-5 text-sm">正在读取任务…</p>
           ) : data.plans.length === 0 ? (
             <div className="wenyan-overview-surface flex flex-wrap items-center justify-between gap-4 px-5 py-4">
-              <div>
-                <p className="text-sm text-[var(--wenyan-ink-secondary)]">现在没有必须完成的明确任务。</p>
-                <p className="wenyan-muted mt-1 text-xs">直接使用上方智能学习即可；需要时也可以给今天留下一章。</p>
-              </div>
+              <p className="text-sm text-[var(--wenyan-ink-secondary)]">没有必须完成的任务。上方智能学习可以直接开始。</p>
               <button disabled={busy} onClick={createToday} className={secondary}>安排一章</button>
             </div>
           ) : (
@@ -352,11 +349,9 @@ export default function TodayPage() {
           )}
         </section>
 
-        <nav aria-label="学习入口" className="flex flex-wrap items-center gap-5 pt-1 text-[13px]">
+        <nav aria-label="更多学习入口" className="flex flex-wrap items-center gap-5 pt-1 text-[13px]">
           <Link to="/error-book" className={quietLink}>错词</Link>
-          <Link to="/reading/wenyan-demo-reading-01" className={quietLink} title="实验入口：阅读主学习闭环尚未开放">阅读实验</Link>
-          <Link to="/gallery" className={quietLink}>词库</Link>
-          <Link to="/analysis" className={quietLink}>记录</Link>
+          <Link to="/reading/wenyan-demo-reading-01" className={quietLink} title="阅读功能仍在实验阶段">阅读实验</Link>
         </nav>
       </main>
     </div>

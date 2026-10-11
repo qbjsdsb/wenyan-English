@@ -33,7 +33,7 @@ function SemanticRecallRun({ runId }: { runId: string }) {
     try {
       const current = await loadSemanticRun(runId)
       if (!active.current) return
-      if (current.mode === 'discrimination') throw new Error('请从参考释义辨认页面继续这一段。')
+      if (current.mode === 'discrimination') throw new Error('请从选择词义页面继续这一段。')
       setRun(current)
       setResumedAfterReveal(current.revealedIndex === current.index)
       setStopped(current.hardStopAt !== undefined && Date.now() >= current.hardStopAt)
@@ -88,7 +88,7 @@ function SemanticRecallRun({ runId }: { runId: string }) {
       if (!active.current) return
       navigate(`/semantic-check/${encodeURIComponent(check.id)}`)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '暂时无法开始参考释义辨认。')
+      setError(cause instanceof Error ? cause.message : '暂时无法开始选择词义。')
       lock.current = false
       setBusy(false)
     }
@@ -128,20 +128,20 @@ function SemanticRecallRun({ runId }: { runId: string }) {
       </header>
       <main className="mx-auto max-w-3xl px-5 py-6 sm:px-8 sm:py-10">
         <p className="wenyan-kicker">词义回想</p>
-        <p className="wenyan-muted mt-3 text-sm" role="status">{saved ? '自评已保存在本机，联网后可同步。' : '先回想，再查看释义。随时可以暂停。'}</p>
+        <p className="wenyan-muted mt-3 text-sm" role="status">{saved ? '已保存。' : '先回想，再看释义。'}</p>
         {error && <div role="alert" className="mt-6"><p>{error}</p><button className="wenyan-button-secondary mt-3" onClick={() => void restore()}>重新读取进度</button></div>}
         {!run && !error && <p role="status" className="wenyan-muted mt-12">正在找回刚才的位置…</p>}
         {run && (completed || (stopped && !revealed)) ? (
           <section className="wenyan-focus-surface mt-8 p-6 sm:p-10">
-            <h1 ref={focus} tabIndex={-1} className="text-3xl outline-none">{completed ? '这一段，已经留下记录。' : '到时间了，今天先到这里。'}</h1>
-            <p className="wenyan-muted mt-5">已保存 {run.index} 个词的自评。它们会帮助下一次安排，不代表已经完全掌握。</p>
+            <h1 ref={focus} tabIndex={-1} className="text-3xl outline-none">{completed ? '这一段完成了。' : '到时间了，今天先到这里。'}</h1>
+            <p className="wenyan-muted mt-5">已保存 {run.index} 个词的自评。</p>
             {evidence?.recall && <p className="mt-4 text-sm">想起 {evidence.recall.selfReported.recalled} · 部分 {evidence.recall.selfReported.partial} · 没想起 {evidence.recall.selfReported.notRecalled}</p>}
             {run.origin === 'manual' && Boolean(evidence?.recall?.revisit.length) && <Link className="wenyan-link mt-4 inline-block text-sm" to="/practice?pool=uncertain&mode=recall">下次优先练模糊词 →</Link>}
             {completed && canObjectiveCheck && (
               <div className="mt-7 rounded-[var(--wenyan-radius-sm)] border border-[var(--wenyan-line-soft)] p-4">
-                <p className="text-sm font-medium">再做一小段参考释义辨认</p>
-                <p className="wenyan-muted mt-2 text-xs leading-5">从刚才这些真实词书参考里做 4 选 1。系统能客观记录是否选中当前词条的参考释义，但不会把它叫作“掌握”。</p>
-                <button disabled={busy} className="wenyan-button-primary mt-4" onClick={() => void startObjectiveCheck()}>{busy ? '正在准备…' : '开始辨认'}</button>
+                <p className="text-sm font-medium">再做一小段选择词义</p>
+                <p className="wenyan-muted mt-2 text-xs leading-5">从刚才的词里做 4 选 1，看看能否认出词书释义。</p>
+                <button disabled={busy} className="wenyan-button-primary mt-4" onClick={() => void startObjectiveCheck()}>{busy ? '正在准备…' : '开始'}</button>
               </div>
             )}
             <button className={`${canObjectiveCheck ? 'wenyan-button-secondary' : 'wenyan-button-primary'} mt-5`} disabled={busy} onClick={async () => { setBusy(true); try { await endSemanticRun(run.id); if (active.current) navigate(returnPath) } catch { setError('暂时无法结束这一段，请重试。'); setBusy(false) } }}>{returnLabel}</button>
@@ -155,21 +155,20 @@ function SemanticRecallRun({ runId }: { runId: string }) {
             <progress className="wenyan-recall-progress mt-4" value={run.index} max={run.items.length} aria-label="本段已保存的自评" />
             <h1 ref={focus} tabIndex={-1} className="mt-10 break-words text-4xl font-medium tracking-tight sm:text-5xl outline-none">{item.word}</h1>
             {!revealed ? <>
-              <p className="wenyan-muted mb-10 mt-6">这个词是什么意思？先在心里说出，再核对。</p>
+              <p className="wenyan-muted mb-10 mt-6">这个词是什么意思？先想一下，再核对。</p>
               <button disabled={busy || stopped} className="wenyan-button-primary" onClick={() => void reveal()}>查看释义 <kbd aria-hidden="true" className="wenyan-key ml-3">Space</kbd></button>
             </> : <>
               <div className="my-8 space-y-3 border-l-2 border-[var(--wenyan-line)] pl-5 text-lg leading-relaxed sm:text-xl">{item.meanings.map((meaning, i) => <p key={i}>{meaning}</p>)}</div>
-              <p className="wenyan-muted mb-5 text-sm">{resumedAfterReveal ? '恢复时释义已揭示；请按刚才的真实回想情况自评。' : '对照释义，你刚才回想到了多少？这是自评，不是系统判分。'}</p>
+              <p className="wenyan-muted mb-5 text-sm">{resumedAfterReveal ? '恢复时释义已经打开；按刚才的真实情况选择。' : '刚才想起了多少？'}</p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <button className="wenyan-recall-choice" aria-label="1 没想起" aria-keyshortcuts="1" disabled={busy} onClick={() => void rate('not_recalled')}><kbd aria-hidden="true" className="wenyan-key">1</kbd><span>没想起</span></button>
                 <button className="wenyan-recall-choice" aria-label="2 想起部分" aria-keyshortcuts="2" disabled={busy} onClick={() => void rate('partial')}><kbd aria-hidden="true" className="wenyan-key">2</kbd><span>想起部分</span></button>
                 <button className="wenyan-recall-choice" aria-label="3 想起了" aria-keyshortcuts="3" disabled={busy} onClick={() => void rate('recalled')}><kbd aria-hidden="true" className="wenyan-key">3</kbd><span>想起了</span></button>
               </div>
-              <p className="wenyan-muted mt-4 text-xs">{busy ? '正在保存这次自评…' : '选择后保存并继续。不确定时，如实选择即可。'}</p>
+              <p className="wenyan-muted mt-4 text-xs">{busy ? '正在保存…' : '选择后自动保存并继续。'}</p>
             </>}
           </section>
         )}
-        <p className="wenyan-muted mt-6 text-xs">释义来自当前词书，仅作核对。此处不测熟词僻义、阅读理解或主动运用。</p>
       </main>
     </div>
   )

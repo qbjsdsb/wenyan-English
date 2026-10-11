@@ -51,9 +51,8 @@ export default function Switcher() {
           >
             {/* Keep portal dialogs alive when moving focus closes the surrounding popover. */}
             <Popover.Panel unmount={false} data-study-controls className="wenyan-surface absolute right-0 z-40 mt-2 w-[360px] p-4">
-              <div className="mb-3 flex items-baseline justify-between">
+              <div className="mb-3">
                 <span className="text-sm font-semibold text-[var(--wenyan-ink)]">学习设置</span>
-                <span className="wenyan-muted text-[10px]">低频选项集中在这里</span>
               </div>
 
               <div className="mb-3 flex items-center justify-between border-b border-[var(--wenyan-line-soft)] pb-3">

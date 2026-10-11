@@ -19,7 +19,7 @@ function retryLabel(retryAt: number | undefined) {
   if (retryAt === undefined) return ''
   const minutes = Math.ceil((retryAt - Date.now()) / 60_000)
   if (minutes <= 0) return '现在可以重新检查'
-  return `约 ${minutes} 分钟后可再检查`
+  return `约 ${minutes} 分钟后再看`
 }
 
 function purposeLabel(prepared: PreparedSmartSession | undefined) {
@@ -30,13 +30,13 @@ function purposeLabel(prepared: PreparedSmartSession | undefined) {
   const block = prepared.draft.blocks[0]
   if (!block) {
     if (prepared.draft.reason === 'review_only_waiting_for_correction_cooldown' || prepared.draft.reason === 'waiting_for_correction_cooldown') {
-      return '刚练过的错词正在冷却。'
+      return '刚练过的错词先放一会儿。'
     }
     if (prepared.draft.reason === 'new_word_ceiling_no_review' || prepared.draft.reason === 'nothing_due_yet') {
-      return '当前没有到期复习内容。'
+      return '现在没有到期内容。'
     }
-    if (prepared.draft.reason === 'budget_reached') return '这次学习已经到达计划时长。'
-    return '当前没有需要自动安排的内容。'
+    if (prepared.draft.reason === 'budget_reached') return '这次学习已经到计划时长。'
+    return '现在没有需要自动安排的内容。'
   }
   const count = block.activity.items.length
   if (block.purpose === 'semantic_recall') return `回想 ${count} 个熟悉单词的词义`
@@ -52,25 +52,21 @@ function intentNote(intent: ResolvedSmartSessionIntent | undefined, prepared: Pr
     const { reason, retryAt } = prepared.draft
     if (reason === 'review_only_waiting_for_correction_cooldown' || reason === 'waiting_for_correction_cooldown') {
       const retry = retryLabel(retryAt)
-      return `今天仍按复习优先。刚练过的错词先留一点间隔${retry ? `，${retry}` : '，稍后再检查'}；到点后页面会自动重新计算。`
+      return retry ? `刚练过的错词先留一点间隔，${retry}。` : '刚练过的错词先留一点间隔，稍后再看。'
     }
     if (reason === 'new_word_ceiling_no_review') {
-      if (intent?.constraints.newWordCeiling === 0) {
-        return '今天的新词上限是 0，当前也没有到期复习。这不是故障；可以稍后回来，也可以明确选择手动继续当前章节。'
-      }
-      return '今天的新词额度已经用完，当前也没有到期复习。稍后再检查即可。'
+      if (intent?.constraints.newWordCeiling === 0) return '今天不再加新词，当前也没有到期复习。'
+      return '今天的新词额度已经用完，稍后再看即可。'
     }
-    if (reason === 'nothing_due_yet') return '当前没有到期复习内容；系统不会为了凑时长强行重复刚学过的词。'
-    if (reason === 'budget_reached') return '已经达到这次学习的计划时长，系统不会再自动开启新的学习段。'
+    if (reason === 'nothing_due_yet') return '当前没有到期复习，稍后再来即可。'
+    if (reason === 'budget_reached') return '这次学习已经到计划时长。'
   }
-  if (intent?.warnings.includes('unbound_cached_session_intent_ignored')) return '云端暂时不可用；未绑定的本次学习安排不会离线抢占别的设备。'
-  if (intent?.source === 'cached-cloud') return '云端暂时不可用，已沿用这个账号最近一次仍有效的学习安排。'
-  if (intent?.warnings.includes('cloud_intent_unavailable')) return '云端安排暂时不可用，已按本机记录继续。'
-  if (prepared?.kind === 'draft' && prepared.draft.blocks[0]?.activity.kind === 'semantic_recall') return '先在心里回想，再查看释义并如实自评。只练有过学习记录的词，不增加新词，也不把自评当作已经掌握。'
-  if (intent?.source === 'cloud') return '已按你最近的学习安排自动调整，开始后会保留这段学习的进度。'
-  if (prepared?.kind === 'draft' && prepared.draft.warnings.length > 0) {
-    return '只依据当前可见学习记录安排；缺失记录不会被当成不会。'
-  }
+  if (intent?.warnings.includes('unbound_cached_session_intent_ignored')) return '暂时离线，本次安排需要联网后再确认。'
+  if (intent?.source === 'cached-cloud') return '云端安排暂时无法更新，沿用最近一次有效安排。'
+  if (intent?.warnings.includes('cloud_intent_unavailable')) return '云端安排暂时不可用，先按本机记录继续。'
+  if (prepared?.kind === 'draft' && prepared.draft.blocks[0]?.activity.kind === 'semantic_recall') return '先回想，再看释义并自评。'
+  if (intent?.source === 'cloud') return '已按最近的学习安排调整。'
+  if (prepared?.kind === 'draft' && prepared.draft.warnings.length > 0) return '暂时只按当前可见记录安排。'
   return ''
 }
 
@@ -83,19 +79,19 @@ function blockMeta(prepared: PreparedSmartSession | undefined, intent: ResolvedS
   if (prepared?.kind === 'draft' && !block) {
     const retry = retryLabel(prepared.draft.retryAt)
     if (retry) meta.push(retry)
-    if (intent?.constraints.newWordCeiling === 0) meta.push('今日新词上限 0')
+    if (intent?.constraints.newWordCeiling === 0) meta.push('今日不加新词')
   }
   if (intent?.source === 'cloud') meta.push('最近安排已应用')
-  if (intent?.source === 'cached-cloud') meta.push('沿用最近有效安排')
+  if (intent?.source === 'cached-cloud') meta.push('沿用最近安排')
   if (prepared?.runtime.hardStopMinutes !== undefined || prepared?.runtime.hardStopAt !== undefined) meta.push('到点停止')
   return meta
 }
 
 function userFacingError(cause: unknown) {
   const message = cause instanceof Error ? cause.message : ''
-  if (message.includes('smart_session_hard_stop')) return '本次学习已经到达时间上限，不再开启新的学习段。'
-  if (message.includes('session_intent_bound_elsewhere')) return '这条“本次学习”安排已经被另一个学习会话使用，正在重新计算。'
-  if (message.includes('session_intent_binding_requires_live_cloud')) return '本次学习安排需要联网确认后才能首次启动。'
+  if (message.includes('smart_session_hard_stop')) return '本次学习已经到时间上限。'
+  if (message.includes('session_intent_bound_elsewhere')) return '这条本次安排已在另一个学习会话使用，正在重新计算。'
+  if (message.includes('session_intent_binding_requires_live_cloud')) return '这条本次安排需要联网确认后才能开始。'
   return message || '暂时无法开始这一段学习。'
 }
 
@@ -254,7 +250,7 @@ export default function SmartSessionDock() {
             </div>
           )}
 
-          {showNote && <p className="wenyan-muted mt-3 max-w-xl text-[13px] leading-[1.8]">{note}</p>}
+          {showNote && <p className="wenyan-muted mt-3 max-w-xl text-[13px] leading-[1.7]">{note}</p>}
           {error && <p role="alert" className="mt-3 text-xs leading-5 text-[var(--wenyan-danger)]">{error}</p>}
         </div>
 

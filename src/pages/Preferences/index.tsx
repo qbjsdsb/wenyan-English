@@ -13,9 +13,9 @@ type StageOption = {
 }
 
 const stages: StageOption[] = [
-  { id: 'vocabulary', title: '词汇阶段', description: '以词汇输入、复习、拼写和词义训练为主。', available: true },
-  { id: 'mixed', title: '词汇 + 阅读', description: '路线已预留；等阅读执行器完成真实内容与闭环验收后开放。', available: false },
-  { id: 'exam_practice', title: '真题阶段', description: '路线已预留；等真题内容、题型执行与证据模型完成后开放。', available: false },
+  { id: 'vocabulary', title: '词汇阶段', description: '以背词、复习、拼写和词义训练为主。', available: true },
+  { id: 'mixed', title: '词汇 + 阅读', description: '阅读训练还在完善，暂未开放。', available: false },
+  { id: 'exam_practice', title: '真题阶段', description: '真题训练还在准备，暂未开放。', available: false },
 ]
 
 function sourceLabel(snapshot: BrowserLearningPreferencesSnapshot) {
@@ -35,7 +35,7 @@ export default function PreferencesPage() {
       setMessage('')
     } catch (error) {
       setSnapshot(undefined)
-      setMessage(error instanceof Error ? error.message : '暂时无法读取学习策略。')
+      setMessage(error instanceof Error ? error.message : '暂时无法读取学习阶段。')
     } finally {
       setLoading(false)
     }
@@ -60,7 +60,7 @@ export default function PreferencesPage() {
         setMessage('设置已更新，请重新确认。')
       } else if (text.includes('learning_owner_changed')) {
         await refresh()
-        setMessage('账号已切换，已重新读取当前账号的学习阶段，请重新确认。')
+        setMessage('账号已切换，已重新读取当前设置。')
       } else {
         setMessage(text)
       }
@@ -78,17 +78,14 @@ export default function PreferencesPage() {
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 pb-16 pt-9">
         <div className="mb-7">
           <h1 className="wenyan-page-title">学习阶段</h1>
-          <p className="wenyan-muted mt-2 text-sm">只启用当前已有真实执行器和学习证据支持的阶段</p>
+          <p className="wenyan-muted mt-2 text-sm">决定接下来主要练什么。</p>
         </div>
 
         {message && <p role="status" className="wenyan-body mb-5 text-sm">{message}</p>}
 
         {loading ? (
           <section className="wenyan-surface flex min-h-[220px] items-center justify-center">
-            <div className="flex flex-col items-center gap-3">
-              <LoadingUI label="正在读取学习阶段" />
-              <p className="wenyan-muted text-[11px]">正在读取学习阶段</p>
-            </div>
+            <LoadingUI label="正在读取学习阶段" />
           </section>
         ) : !snapshot ? (
           <div className="wenyan-surface p-5">
@@ -110,7 +107,7 @@ export default function PreferencesPage() {
 
               {currentStageUnavailable && (
                 <p className="mt-4 rounded-[var(--wenyan-radius-sm)] bg-[var(--wenyan-paper-muted)] px-3 py-2 text-xs leading-5 text-[var(--wenyan-ink-muted)]">
-                  这个阶段来自之前的设置，但对应执行器尚未开放。Wenyan 不会假装已具备阅读或真题训练能力；你可以切回词汇阶段。
+                  这个阶段还没开放，当前不会把它加入学习安排。你可以切回词汇阶段。
                 </p>
               )}
 
@@ -140,7 +137,6 @@ export default function PreferencesPage() {
                       <div className="flex items-center gap-2">
                         <h2 className="text-sm font-medium text-[var(--wenyan-ink)]">{stage.title}</h2>
                         {active && <span className="text-[10px] text-[var(--wenyan-accent)]">当前</span>}
-                        {!stage.available && <span className="wenyan-muted text-[10px]">尚未开放</span>}
                       </div>
                       <p className="wenyan-muted mt-1.5 text-xs leading-5">{stage.description}</p>
                     </div>
@@ -151,7 +147,7 @@ export default function PreferencesPage() {
                       className="wenyan-button-secondary shrink-0"
                     >
                       {!stage.available
-                        ? '尚未开放'
+                        ? '未开放'
                         : saving === stage.id
                           ? '保存中…'
                           : confirmed
@@ -166,10 +162,9 @@ export default function PreferencesPage() {
             </section>
 
             <details className="wenyan-muted mt-8 text-xs">
-              <summary className="wenyan-link cursor-pointer select-none text-xs">阶段说明</summary>
+              <summary className="wenyan-link cursor-pointer select-none text-xs">为什么有些阶段不能选？</summary>
               <div className="mt-3 space-y-2 leading-6">
-                <p>阶段路径表示长期产品方向，不等于功能已经完成。只有存在真实执行器、可追溯学习事实和可用恢复路径的阶段才会开放确认。</p>
-                <p>短期学习时长、强度和复习优先级仍可根据最近学习情况自动调整。阶段变化只影响未来安排，不会改写历史学习记录。</p>
+                <p>只有当前能完整练习并保存进度的阶段才会开放。学习阶段只影响之后的安排，不会改动过去的记录。</p>
               </div>
             </details>
           </>
