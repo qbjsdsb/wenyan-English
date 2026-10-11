@@ -21,16 +21,16 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import useSWR from 'swr'
 
 const modes = [
-  { id: 'spelling', title: '拼写', hint: '练准词形', detail: '沿用熟悉的输入练习。想挑战回忆，可以在练习里开启默写。', icon: Keyboard },
-  { id: 'recall', title: '词义回想', hint: '主动想意思', detail: '先在心里说出词义，再揭示释义，如实自评。没有选项提示。', icon: MessageCircle },
-  { id: 'discrimination', title: '选择词义', hint: '辨认参考释义', detail: '从真实词书释义中选择。选对会记录为客观辨认结果，与主动回想分开。', icon: ListChecks },
+  { id: 'spelling', title: '拼写', hint: '练准词形', detail: '按熟悉的方式输入；需要时可以开启默写。', icon: Keyboard },
+  { id: 'recall', title: '词义回想', hint: '主动想意思', detail: '先想意思，再看释义并自评。', icon: MessageCircle },
+  { id: 'discrimination', title: '选择词义', hint: '辨认参考释义', detail: '从词书释义中选择，用来检查辨认。', icon: ListChecks },
 ] as const
 
 const pools = [
-  { id: 'chapter', title: '当前章节', detail: '从眼前这章挑一小段，适合刚学完后的巩固。' },
-  { id: 'learned', title: '已经练过', detail: '只用当前词书里有真实拼写记录的词。优先较久没练这一模式的词。' },
-  { id: 'errors', title: '拼写错词', detail: '最近 14 天，最近一次输入仍有错误的词。拼对后会退出这组。' },
-  { id: 'uncertain', title: '词义模糊', detail: '最近 14 天仍未想全，或最近一次选择词义选错的词。两类证据各自保留。' },
+  { id: 'chapter', title: '当前章节', detail: '从眼前这章挑一小段。' },
+  { id: 'learned', title: '已经练过', detail: '从当前词书已经练过的词里选。' },
+  { id: 'errors', title: '拼写错词', detail: '最近 14 天仍未拼对的词。' },
+  { id: 'uncertain', title: '词义模糊', detail: '最近仍想不全或选错词义的词。' },
 ] as const
 
 export default function PracticePage() {
@@ -131,14 +131,14 @@ export default function PracticePage() {
   const loading = preparing || !events || !words
   const previewWords = prepared?.items.slice(0, 8).map((item) => item.word) ?? []
   const statusText = contentError
-    ? '词书暂时加载失败。已保存的学习记录不受影响。'
+    ? '词书加载失败。'
     : loading
-      ? '正在整理这一小段…'
+      ? '正在准备…'
       : prepared?.count
-        ? `本段 ${prepared.count} 个${mode === 'discrimination' ? '可选择的词' : '词'}${mode === 'spelling' && pool === 'chapter' ? ' · 继续章节原有进度' : ' · 较久没练的优先'}`
+        ? `本段 ${prepared.count} 个词${mode === 'spelling' && pool === 'chapter' ? ' · 继续当前章节' : ' · 较久没练的优先'}`
         : pool === 'chapter' && mode === 'discrimination'
-          ? '这本词书的候选范围内没有足够的不同释义组成题目，试试词义回想。'
-          : '这一组暂时没有可练的词。没有记录不代表不会，先选当前章节即可。'
+          ? '可用释义不足，试试词义回想。'
+          : '这一组暂时没有可练内容。'
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
@@ -166,7 +166,7 @@ export default function PracticePage() {
         <div className="mb-6 flex items-end justify-between gap-6">
           <div>
             <h1 className="wenyan-page-title">专项训练</h1>
-            <p className="wenyan-muted mt-2 text-sm">想练哪一件，就从这里开始。</p>
+            <p className="wenyan-muted mt-2 text-sm">挑一种方式，练一小段。</p>
           </div>
           <Link to="/today" className="wenyan-link text-sm">按今天的安排学 <ArrowRight className="ml-1 inline" size={13} /></Link>
         </div>
@@ -278,9 +278,9 @@ export default function PracticePage() {
                       {busy
                         ? '正在准备…'
                         : mode === 'spelling' && pool === 'chapter'
-                          ? '继续拼写这一章'
+                          ? '继续这一章'
                           : mode === 'spelling'
-                            ? '开始拼写训练'
+                            ? '开始拼写'
                             : `开始${selectedMode.title}`}
                       <ArrowRight size={14} aria-hidden="true" />
                     </button>
@@ -291,17 +291,15 @@ export default function PracticePage() {
           )}
         </section>
 
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <p className="wenyan-muted">拼写、词义回想与选择词义分别留下真实记录；随时可以暂停。</p>
+        <div className="mt-5 flex justify-end text-xs">
           <Link className="wenyan-link" to="/error-book">查看拼写错词</Link>
         </div>
 
         <details className="mt-6 border-t border-[var(--wenyan-line-soft)] pt-4">
-          <summary className="wenyan-muted cursor-pointer text-xs">怎么选更合适？</summary>
+          <summary className="wenyan-muted cursor-pointer text-xs">怎么选？</summary>
           <div className="wenyan-muted mt-3 space-y-2 text-xs leading-6">
-            <p>词形不稳：练拼写。看着词却说不出意思：先回想。意思相近、容易选错：用选择词义核对。模糊词来自你真实的自评或选错记录，不会凭空生成。</p>
-            <p>中文 → 英文：可以在拼写页面开启“默写”，隐藏词形再输入；发音与提示设置会影响线索，因此只按真实拼写条件记录。它不等于无提示产出，也不替代词义回想。</p>
-            <p>选择词义使用词书里的四个参考选项，适合检查辨认；它不测语境、搭配或熟词僻义。短段重复练习也不代表长期记住了。</p>
+            <p>词形不稳练拼写；看着词却想不起意思练词义回想；容易混淆释义时练选择词义。</p>
+            <p>拼写页的“默写”会隐藏词形，适合从发音或释义线索回忆单词。</p>
           </div>
         </details>
       </main>
