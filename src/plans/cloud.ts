@@ -1,5 +1,6 @@
 import { idDictionaryMap } from '@/resources/dictionary'
 import { supabase } from '@/supabase/client'
+import { getAuthenticatedOwner } from '@/sync/authOwner'
 import { db } from '@/utils/db'
 import type { CloudTaskCompletion, StoredStudyPlan, StudyTask } from './types'
 
@@ -93,12 +94,15 @@ async function markOtherCloudPlansArchived(ownerUserId: string, activePlanId?: s
  * of truth even when a stale local cache exists.
  */
 export async function syncCloudPlanToLocal(requestedPlanId?: string): Promise<CloudPlanSyncResult> {
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
-  if (sessionError) return { status: 'failed', message: sessionError.message }
-  if (!sessionData.session) return { status: 'signed-out' }
-  const ownerUserId = sessionData.session.user.id
+  const auth = await getAuthenticatedOwner()
+  if (auth.status === 'signed-out') return { status: 'signed-out' }
+  if (auth.status === 'failed') return { status: 'failed', message: auth.message }
+  const ownerUserId = auth.userId
 
-  const { data, error } = await supabase.rpc('get_plan_status', { p_plan_id: requestedPlanId ?? null })
+  const { data, error } = await supabase.rpc('get_plan_status_for_owner', {
+    p_expected_user_id: ownerUserId,
+    p_plan_id: requestedPlanId ?? null,
+  })
   if (error) return { status: 'failed', message: error.message }
 
   if (data == null) {

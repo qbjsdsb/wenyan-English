@@ -226,3 +226,53 @@ test('auth initialization gate rejects an older session result after auth change
 
   expect(await waitForResult(page, '__authGateResult')).toEqual({ staleAccepted: false, currentAccepted: true })
 })
+
+test('cloud-plan and preference browser RPCs carry the captured owner', async ({ page }) => {
+  await page.route('**/*.supabase.co/**', (route) => route.abort())
+  await page.goto('/today')
+
+  await page.addScriptTag({
+    type: 'module',
+    content: `
+      import { supabase } from '/src/supabase/client.ts'
+      import { syncCloudPlanToLocal } from '/src/plans/cloud.ts'
+      import { getLearningPreferences, confirmLearningStage } from '/src/coaching/preferences.ts'
+
+      const calls = []
+      const originalGetSession = supabase.auth.getSession.bind(supabase.auth)
+      const originalGetUser = supabase.auth.getUser.bind(supabase.auth)
+      const originalRpc = supabase.rpc.bind(supabase)
+      const session = { user: { id: 'user-a' } }
+      supabase.auth.getSession = async () => ({ data: { session }, error: null })
+      supabase.auth.getUser = async () => ({ data: { user: session.user }, error: null })
+      supabase.rpc = async (name, args) => {
+        if (name.endsWith('_for_owner')) calls.push({ name, args })
+        if (name === 'get_plan_status_for_owner') return { data: null, error: null }
+        if (name === 'get_learning_preferences_for_owner' || name === 'confirm_learning_stage_for_owner') {
+          return { data: { schemaVersion: 1, learningStage: { current: 'vocabulary', revision: 1, provenance: { kind: 'product_default', ref: 'test', since: null } }, stageReminder: null, confirmedAt: null, updatedAt: null }, error: null }
+        }
+        return { data: null, error: null }
+      }
+
+      try {
+        await syncCloudPlanToLocal()
+        await getLearningPreferences()
+        await confirmLearningStage('vocabulary', 1)
+      } finally {
+        supabase.auth.getSession = originalGetSession
+        supabase.auth.getUser = originalGetUser
+        supabase.rpc = originalRpc
+      }
+
+      window.__browserOwnerRpcResult = calls
+    `,
+  })
+
+  const calls = await waitForResult(page, '__browserOwnerRpcResult') as Array<{ name: string; args: Record<string, unknown> }>
+  expect(calls.map((call) => call.name)).toEqual([
+    'get_plan_status_for_owner',
+    'get_learning_preferences_for_owner',
+    'confirm_learning_stage_for_owner',
+  ])
+  expect(calls.every((call) => call.args.p_expected_user_id === 'user-a')).toBe(true)
+})

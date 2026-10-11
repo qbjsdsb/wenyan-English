@@ -1,5 +1,6 @@
 import type { LearningStage, StagePreference, StageReminderPreference } from './types'
 import { supabase } from '@/supabase/client'
+import { getAuthenticatedOwner } from '@/sync/authOwner'
 
 export interface LearningPreferencesSnapshot {
   schemaVersion: 1
@@ -28,15 +29,27 @@ function isSnapshot(value: unknown): value is LearningPreferencesSnapshot {
     && stage.revision >= 0
 }
 
+async function requireBrowserOwner() {
+  const auth = await getAuthenticatedOwner()
+  if (auth.status === 'signed-out') throw new Error('authentication_required')
+  if (auth.status === 'failed') throw new Error(auth.message)
+  return auth.userId
+}
+
 export async function getLearningPreferences() {
-  const { data, error } = await supabase.rpc('get_learning_preferences')
+  const ownerUserId = await requireBrowserOwner()
+  const { data, error } = await supabase.rpc('get_learning_preferences_for_owner', {
+    p_expected_user_id: ownerUserId,
+  })
   if (error) throw new Error(error.message || 'learning_preferences_unavailable')
   if (!isSnapshot(data)) throw new Error('invalid_learning_preferences')
   return data
 }
 
 export async function confirmLearningStage(stage: LearningStage, expectedRevision: number) {
-  const { data, error } = await supabase.rpc('confirm_learning_stage', {
+  const ownerUserId = await requireBrowserOwner()
+  const { data, error } = await supabase.rpc('confirm_learning_stage_for_owner', {
+    p_expected_user_id: ownerUserId,
     p_request_id: requestId('web-stage-confirm'),
     p_stage: stage,
     p_expected_revision: expectedRevision,
