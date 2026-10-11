@@ -50,6 +50,23 @@ const moduleScript = `
   }
   const insertedV2 = await storePulledLearningEventPage('user-a', [v2])
   const restoredV2 = await db.learningEvents.get(v2.id)
+
+  const v6 = {
+    id: '66666666-6666-4666-8666-666666666666',
+    event_type: 'semantic_production_attempted',
+    occurred_at: '2026-10-07T00:00:02.000Z',
+    source: 'wenyan-english',
+    source_version: 6,
+    created_at: '2026-10-07T00:00:02.123456+00:00',
+    payload: {
+      domain: 'english', activity: 'semantic_production', measurement: 'reference_headword_production', direction: 'meaning_to_en',
+      contentId: 'cet4:alpha', contentVersion: 'sha256:' + 'a'.repeat(64), dictionaryId: 'cet4', word: 'alpha',
+      sessionId: 'production-session', blockId: 'production-block', cue: 'dictionary_meanings', responseMode: 'typed_headword',
+      response: 'alpha', normalizedResponse: 'alpha', correctHeadword: 'alpha', isCorrect: true,
+    },
+  }
+  const insertedV6 = await storePulledLearningEventPage('user-a', [v6])
+  const restoredV6 = await db.learningEvents.get(v6.id)
   const count = await db.learningEvents.count()
   const cursorBeforeConflict = await db.learningSyncCursors.get('user-a')
 
@@ -86,6 +103,7 @@ const moduleScript = `
     insertedFirst,
     insertedAgain,
     insertedV2,
+    insertedV6,
     count,
     v2SourceVersion: restoredV2?.sourceVersion,
     v2TaskRunId: restoredV2?.payload?.taskRunId,
@@ -95,6 +113,10 @@ const moduleScript = `
     v2TaskFingerprint: restoredV2?.payload?.taskFingerprint,
     v2DictationEnabled: restoredV2?.payload?.dictationEnabled,
     v2DictationType: restoredV2?.payload?.dictationType,
+    v6SourceVersion: restoredV6?.sourceVersion,
+    v6EventType: restoredV6?.eventType,
+    v6Measurement: restoredV6?.payload?.measurement,
+    v6Correct: restoredV6?.payload?.isCorrect,
     cursorEventId: cursorBeforeConflict?.eventId,
     cursorCreatedAt: cursorBeforeConflict?.createdAt,
     conflictMessage,
@@ -115,7 +137,8 @@ test('restored facts are idempotent, versioned, and cursor updates atomically', 
   expect(result.insertedFirst).toBe(2)
   expect(result.insertedAgain).toBe(0)
   expect(result.insertedV2).toBe(1)
-  expect(result.count).toBe(3)
+  expect(result.insertedV6).toBe(1)
+  expect(result.count).toBe(4)
   expect(result.v2SourceVersion).toBe(2)
   expect(result.v2TaskRunId).toBe('run-1')
   expect(result.v2PlanId).toBe('test-plan')
@@ -124,8 +147,12 @@ test('restored facts are idempotent, versioned, and cursor updates atomically', 
   expect(result.v2TaskFingerprint).toBe('chapter:cet4:0')
   expect(result.v2DictationEnabled).toBe(true)
   expect(result.v2DictationType).toBe('hideAll')
-  expect(result.cursorEventId).toBe('55555555-5555-4555-8555-555555555555')
-  expect(result.cursorCreatedAt).toBe('2026-10-07T00:00:01.123456+00:00')
+  expect(result.v6SourceVersion).toBe(6)
+  expect(result.v6EventType).toBe('semantic_production_attempted')
+  expect(result.v6Measurement).toBe('reference_headword_production')
+  expect(result.v6Correct).toBe(true)
+  expect(result.cursorEventId).toBe('66666666-6666-4666-8666-666666666666')
+  expect(result.cursorCreatedAt).toBe('2026-10-07T00:00:02.123456+00:00')
   expect(result.conflictMessage).toContain('跨账号')
   expect(result.conflictOwner).toBe('user-b')
   expect(result.cursorStableAfterConflict).toBe(true)
