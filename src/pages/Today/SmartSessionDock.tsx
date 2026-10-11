@@ -62,7 +62,7 @@ function intentNote(intent: ResolvedSmartSessionIntent | undefined, prepared: Pr
     if (reason === 'budget_reached') return '这次学习已经到计划时长。'
   }
   if (intent?.warnings.includes('unbound_cached_session_intent_ignored')) return '暂时离线，本次安排需要联网后再确认。'
-  if (intent?.source === 'cached-cloud') return '暂时离线，沿用最近一次有效安排。'
+  if (intent?.source === 'cached-cloud') return '云端安排暂时无法更新，沿用最近一次有效安排。'
   if (intent?.warnings.includes('cloud_intent_unavailable')) return '云端安排暂时不可用，先按本机记录继续。'
   if (prepared?.kind === 'draft' && prepared.draft.blocks[0]?.activity.kind === 'semantic_recall') return '先回想，再看释义并自评。'
   if (intent?.source === 'cloud') return '已按最近的学习安排调整。'
