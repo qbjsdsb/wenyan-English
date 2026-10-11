@@ -1,6 +1,6 @@
 import { LoadingUI } from '@/components/Loading'
 import Header from '@/components/Header'
-import { type LearningPreferencesSnapshot, confirmLearningStage, getLearningPreferences } from '@/coaching/preferences'
+import { type BrowserLearningPreferencesSnapshot, confirmLearningStage, getLearningPreferences } from '@/coaching/preferences'
 import type { LearningStage } from '@/coaching/types'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -18,12 +18,12 @@ const stages: StageOption[] = [
   { id: 'exam_practice', title: '真题阶段', description: '路线已预留；等真题内容、题型执行与证据模型完成后开放。', available: false },
 ]
 
-function sourceLabel(snapshot: LearningPreferencesSnapshot) {
+function sourceLabel(snapshot: BrowserLearningPreferencesSnapshot) {
   return snapshot.learningStage.provenance.kind === 'user_confirmation' ? '已确认' : '默认阶段'
 }
 
 export default function PreferencesPage() {
-  const [snapshot, setSnapshot] = useState<LearningPreferencesSnapshot>()
+  const [snapshot, setSnapshot] = useState<BrowserLearningPreferencesSnapshot>()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<LearningStage>()
   const [message, setMessage] = useState('')
@@ -34,6 +34,7 @@ export default function PreferencesPage() {
       setSnapshot(await getLearningPreferences())
       setMessage('')
     } catch (error) {
+      setSnapshot(undefined)
       setMessage(error instanceof Error ? error.message : '暂时无法读取学习策略。')
     } finally {
       setLoading(false)
@@ -49,7 +50,7 @@ export default function PreferencesPage() {
     setSaving(stage)
     setMessage('')
     try {
-      const next = await confirmLearningStage(stage, snapshot.learningStage.revision)
+      const next = await confirmLearningStage(stage, snapshot)
       setSnapshot(next)
       setMessage('学习阶段已更新。')
     } catch (error) {
@@ -57,6 +58,9 @@ export default function PreferencesPage() {
       if (text.includes('revision_conflict')) {
         await refresh()
         setMessage('设置已更新，请重新确认。')
+      } else if (text.includes('learning_owner_changed')) {
+        await refresh()
+        setMessage('账号已切换，已重新读取当前账号的学习阶段，请重新确认。')
       } else {
         setMessage(text)
       }
