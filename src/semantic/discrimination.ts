@@ -43,6 +43,7 @@ function meaningSignature(item: SemanticItem) {
   return item.meanings
     .map((value) => value.normalize('NFKC').trim().toLocaleLowerCase())
     .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b))
     .join('\u241f')
 }
 
