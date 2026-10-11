@@ -1,0 +1,27 @@
+name: Control final status patch once
+
+on:
+  push:
+    branches: [fix/control-runtime-closure]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/control-runtime-closure
+      - name: Patch final control status
+        run: python scripts/patch-status-control-final-once.py
+      - name: Commit final control status
+        run: |
+          git diff --check
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/STATUS.md
+          git commit -m 'docs: preserve explicit task restart semantics'
+          git push origin HEAD:fix/control-runtime-closure
