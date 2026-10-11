@@ -2,7 +2,7 @@ import { getReadingPassage } from '@/reading/content'
 import { saveReadingAttempt } from '@/reading/events'
 import type { ReadingAnswerDraft, ReadingAttemptSummary } from '@/reading/types'
 import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 interface StoredReadingDraft {
@@ -33,6 +33,7 @@ export default function ReadingPage() {
   const { contentId = '' } = useParams()
   const passage = getReadingPassage(contentId)
   const [ownerUserId, setOwnerUserId] = useState(() => getLocalLearningOwnerId())
+  const ownerUserIdRef = useRef(ownerUserId)
   const restored = useMemo(
     () => (passage ? readDraft(passage.id, passage.version, ownerUserId) : undefined),
     [ownerUserId, passage],
@@ -42,11 +43,34 @@ export default function ReadingPage() {
   const [summary, setSummary] = useState<ReadingAttemptSummary>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const passageIdentity = passage ? `${passage.id}:${passage.version}` : ''
+  const passageIdentityRef = useRef(passageIdentity)
+  const attemptGenerationRef = useRef(0)
+
+  useEffect(() => {
+    if (passageIdentityRef.current === passageIdentity) return
+    passageIdentityRef.current = passageIdentity
+    attemptGenerationRef.current += 1
+    const nextOwner = getLocalLearningOwnerId()
+    ownerUserIdRef.current = nextOwner
+    const nextDraft = passage ? readDraft(passage.id, passage.version, nextOwner) : undefined
+    setOwnerUserId(nextOwner)
+    setStartedAt(nextDraft?.startedAt ?? Date.now())
+    setAnswers(nextDraft?.answers ?? [])
+    setSummary(undefined)
+    setBusy(false)
+    setError('')
+  }, [passage, passageIdentity])
 
   useEffect(() => {
     const ownerChanged = () => {
       const nextOwner = getLocalLearningOwnerId()
-      if (nextOwner === ownerUserId) return
+      if (nextOwner === ownerUserIdRef.current) return
+      // Update synchronously before React commits state. Multiple auth-owner
+      // notifications can arrive in the same JS turn (A -> B -> A); comparing
+      // only against the render closure would otherwise miss the return to A.
+      ownerUserIdRef.current = nextOwner
+      attemptGenerationRef.current += 1
       const nextDraft = passage ? readDraft(passage.id, passage.version, nextOwner) : undefined
       setOwnerUserId(nextOwner)
       setStartedAt(nextDraft?.startedAt ?? Date.now())
@@ -57,7 +81,7 @@ export default function ReadingPage() {
     }
     window.addEventListener('wenyan-learning-owner-changed', ownerChanged)
     return () => window.removeEventListener('wenyan-learning-owner-changed', ownerChanged)
-  }, [ownerUserId, passage])
+  }, [passage])
 
   if (!passage) {
     return (
@@ -111,16 +135,30 @@ export default function ReadingPage() {
       setError('账号已经切换。这次阅读不会提交到新的账号；请重新打开当前阅读。')
       return
     }
+    const submittedGeneration = attemptGenerationRef.current
+    const submittedOwnerUserId = ownerUserId
+    const submissionStillCurrent = () => (
+      attemptGenerationRef.current === submittedGeneration
+      && passageIdentityRef.current === passageIdentity
+      && ownerUserIdRef.current === submittedOwnerUserId
+      && getLocalLearningOwnerId() === submittedOwnerUserId
+    )
     setBusy(true)
     setError('')
     try {
-      const saved = await saveReadingAttempt(passage, answers, Math.max(0, Date.now() - startedAt), ownerUserId)
+      const saved = await saveReadingAttempt(passage, answers, Math.max(0, Date.now() - startedAt), submittedOwnerUserId)
+      if (!submissionStillCurrent()) return
+      try {
+        window.localStorage.removeItem(draftKey(passage.id, passage.version, submittedOwnerUserId))
+      } catch {
+        // Draft cleanup is best-effort and only runs for the still-current attempt.
+      }
       setSummary(saved)
-      window.localStorage.removeItem(draftKey(passage.id, passage.version, ownerUserId))
     } catch (cause) {
+      if (!submissionStillCurrent()) return
       setError(cause instanceof Error ? cause.message : '暂时无法保存这次阅读。')
     } finally {
-      setBusy(false)
+      if (submissionStillCurrent()) setBusy(false)
     }
   }
 
