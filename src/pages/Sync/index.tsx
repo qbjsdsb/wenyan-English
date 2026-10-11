@@ -167,7 +167,7 @@ export default function SyncPage() {
       const result = await syncLearningData()
       await refreshQueue(session?.user.id)
       setMessage(describeResult(result))
-    } catch { setMessage('同步暂未完成，请稍后重试。本机已保存的记录仍然保留。') }
+    } catch { setMessage('同步暂未完成，请稍后重试。本机记录仍然保留。') }
     finally { setBusy(false) }
   }
 
@@ -187,7 +187,7 @@ export default function SyncPage() {
       workspaceRequestGate.invalidate()
       setWorkspaceLoading(false)
       setCloudWorkspace(saved)
-      setMessage('本机学习位置已保存到云端。学习事实没有被改写。')
+      setMessage('本机学习位置已保存到云端。')
     } catch {
       if (sessionUserRef.current === ownerUserId) {
         workspaceRequestGate.invalidate()
@@ -245,7 +245,7 @@ export default function SyncPage() {
           : '本机学习位置更新失败，且无法确认是否完整回滚。请刷新页面后再继续。')
       }
 
-      setMessage('云端学习位置已恢复到这台设备。历史学习事实没有变化。')
+      setMessage('已恢复云端学习位置。')
     } catch (error) {
       if (sessionUserRef.current === ownerUserId) setMessage(`恢复学习位置失败：${error instanceof Error ? error.message : String(error)}`)
     } finally {
@@ -273,15 +273,12 @@ export default function SyncPage() {
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 pb-16 pt-9">
         <div className="mb-7">
           <h1 className="wenyan-page-title">同步</h1>
-          <p className="wenyan-muted mt-2 text-sm">让真实学习事实在设备之间保持一致</p>
+          <p className="wenyan-muted mt-2 text-sm">同步学习记录和学习位置</p>
         </div>
 
         {!authReady ? (
           <section className="wenyan-surface flex min-h-[210px] items-center justify-center">
-            <div className="flex flex-col items-center gap-3">
-              <LoadingUI label="正在确认登录状态" />
-              <p className="wenyan-muted text-[11px]">正在确认登录状态</p>
-            </div>
+            <LoadingUI label="正在确认登录状态" />
           </section>
         ) : session ? (
           <section className={`wenyan-sync-surface ${busy ? 'is-busy' : ''} overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]`}>
@@ -315,8 +312,8 @@ export default function SyncPage() {
 
             <div className="relative z-[1] flex items-center justify-between gap-5 border-t border-[var(--wenyan-line-soft)] px-5 py-5">
               <div>
-                <p className="text-sm font-medium text-[var(--wenyan-ink)]">云端学习事实</p>
-                <p className="wenyan-muted mt-1 text-xs">上传本机新事实，并恢复云端缺失事实</p>
+                <p className="text-sm font-medium text-[var(--wenyan-ink)]">学习记录</p>
+                <p className="wenyan-muted mt-1 text-xs">上传本机新记录，并补回这台设备缺少的云端记录</p>
               </div>
               <button className="wenyan-button-primary" disabled={busy} onClick={syncNow}>{busy ? '同步中…' : '立即同步'}</button>
             </div>
@@ -335,29 +332,29 @@ export default function SyncPage() {
                   <button className="wenyan-button-secondary" disabled={busy || workspaceLoading || !cloudWorkspace} onClick={restoreWorkspace}>恢复云端位置</button>
                 </div>
               </div>
-              <p className="wenyan-muted mt-3 text-[11px] leading-5">位置只包含当前词书、章节和专项选择。需要你明确保存或恢复，不会自动让一台设备覆盖另一台，也不会生成学习事实。</p>
+              <p className="wenyan-muted mt-3 text-[11px] leading-5">学习位置只包含词书、章节和专项设置，需要你手动保存或恢复。</p>
             </div>
           </section>
         ) : (
           <section className="wenyan-surface p-6">
-            <h2 className="mb-2 text-lg font-medium">让学习记录随你回来</h2>
-            <p className="wenyan-muted mb-6 text-sm leading-6">登录后同步已有学习事实；暂不登录，也可以继续在本机学习。</p>
+            <h2 className="mb-2 text-lg font-medium">登录后同步学习记录</h2>
+            <p className="wenyan-muted mb-6 text-sm leading-6">不登录也可以继续在本机学习。</p>
             <form onSubmit={(event) => { event.preventDefault(); if (!busy) void sendMagicLink() }}>
-            <label className="mb-2 block text-sm font-medium" htmlFor="wenyan-sync-email">邮箱</label>
-            <div className="flex gap-3">
-              <input
-                id="wenyan-sync-email"
-                className="wenyan-input min-w-0 flex-1 px-3.5 text-sm outline-none"
-                type="email"
-                required
-                inputMode="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-              <button className="wenyan-button-primary" type="submit" disabled={busy || !email.trim()}>{busy ? '发送中…' : '发送登录链接'}</button>
-            </div>
+              <label className="mb-2 block text-sm font-medium" htmlFor="wenyan-sync-email">邮箱</label>
+              <div className="flex gap-3">
+                <input
+                  id="wenyan-sync-email"
+                  className="wenyan-input min-w-0 flex-1 px-3.5 text-sm outline-none"
+                  type="email"
+                  required
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
+                <button className="wenyan-button-primary" type="submit" disabled={busy || !email.trim()}>{busy ? '发送中…' : '发送登录链接'}</button>
+              </div>
             </form>
             <p className="wenyan-muted mt-3 text-xs">仅登录已有账号，不会自动创建新用户。</p>
           </section>
@@ -368,10 +365,9 @@ export default function SyncPage() {
         <details className="wenyan-muted mt-9 border-t border-[var(--wenyan-line-soft)] pt-4 text-xs">
           <summary className="wenyan-link cursor-pointer select-none text-xs">同步说明</summary>
           <div className="mt-3 space-y-2 leading-6">
-            <p>学习事件先保存在本机；登录后只上传明确归属于当前账号的记录。未归属记录需要你手动认领。</p>
-            <p>错词、记录页和词库已练章节都从当前账号可见的学习事实派生；同步这些事实后，相关历史可以在另一台设备重新计算。</p>
-            <p>学习位置是独立的工作区状态，只在你明确点击“保存本机位置”时更新云端，并可明确恢复到另一台设备；它不会被当成学习证据。</p>
-            <p>其它界面偏好和旧 Qwerty 本机表仍留在设备本地。</p>
+            <p>学习记录先保存在本机；登录后只同步当前账号的记录。未归属记录需要手动认领。</p>
+            <p>学习位置包含词书、章节和专项设置，只有点击保存或恢复时才会变化。</p>
+            <p>其它界面偏好仍留在这台设备。</p>
           </div>
         </details>
       </main>
