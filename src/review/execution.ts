@@ -3,6 +3,7 @@ import type { IReviewRecord, ReviewRecordOrigin } from '@/utils/db/record'
 export const OWNER_BOUND_REVIEW_ORIGINS = ['manual', 'smart', 'correction'] as const satisfies readonly ReviewRecordOrigin[]
 
 export type OwnerBoundReviewRecord = IReviewRecord & {
+  id: number
   origin: ReviewRecordOrigin
   ownerUserId: string
 }
@@ -19,9 +20,13 @@ export function isOwnerBoundReviewOrigin(origin: unknown): origin is ReviewRecor
   return typeof origin === 'string' && (OWNER_BOUND_REVIEW_ORIGINS as readonly string[]).includes(origin)
 }
 
+/** Modern review execution must refer to one persisted record owned by one account. */
 export function isOwnerBoundReviewRecord(record: IReviewRecord | undefined): record is OwnerBoundReviewRecord {
   return Boolean(
     record &&
+      typeof record.id === 'number' &&
+      Number.isInteger(record.id) &&
+      record.id > 0 &&
       isOwnerBoundReviewOrigin(record.origin) &&
       typeof record.ownerUserId === 'string' &&
       record.ownerUserId.length > 0,

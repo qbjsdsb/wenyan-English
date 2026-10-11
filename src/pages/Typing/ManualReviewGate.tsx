@@ -16,15 +16,19 @@ export default function ManualReviewGate({ children }: PropsWithChildren) {
   const candidateOrigin = review.isReviewMode ? review.reviewRecord?.origin : undefined
   const origin = isOwnerBoundReviewOrigin(candidateOrigin) ? candidateOrigin : undefined
   const id = origin ? review.reviewRecord?.id : undefined
-  const key = id === undefined ? '' : JSON.stringify([owner ?? null, origin, id])
+  const key = origin ? JSON.stringify([owner ?? null, origin, id ?? null]) : ''
   const [ready, setReady] = useState('')
   const [error, setError] = useState('')
   const [retry, setRetry] = useState(0)
   useEffect(() => {
     let active = true
-    if (id === undefined || !origin) return
-    setError('')
+    if (!origin) return
     setReady('')
+    if (id === undefined) {
+      setError('这段练习缺少已保存的进度标识，不能安全继续。已完成的学习记录不受影响。')
+      return
+    }
+    setError('')
     void (async () => {
       try {
         const record = await db.reviewRecords.get(id)
@@ -43,7 +47,7 @@ export default function ManualReviewGate({ children }: PropsWithChildren) {
       active = false
     }
   }, [id, key, origin, owner, retry, setReview])
-  if (!origin || !key || ready === key) return <>{children}</>
+  if (!origin || ready === key) return <>{children}</>
   const returnPath = ownerBoundReviewReturnPath(origin)
   const returnLabel = origin === 'smart' ? '回到今天' : origin === 'correction' ? '回到错词' : '回到专项训练'
   return (
@@ -55,9 +59,11 @@ export default function ManualReviewGate({ children }: PropsWithChildren) {
           <p className="wenyan-muted mt-3 text-sm leading-6">{error || '读取本机已保存的进度。'} </p>
           {error && (
             <div className="mt-5 flex gap-4">
-              <button className="wenyan-button-secondary" onClick={() => setRetry((value) => value + 1)}>
-                重新读取
-              </button>
+              {id !== undefined && (
+                <button className="wenyan-button-secondary" onClick={() => setRetry((value) => value + 1)}>
+                  重新读取
+                </button>
+              )}
               <Link className="wenyan-button-primary" to={returnPath}>
                 {returnLabel}
               </Link>
