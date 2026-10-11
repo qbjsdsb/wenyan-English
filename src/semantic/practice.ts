@@ -87,6 +87,21 @@ export async function preparePracticeItems(words: readonly Word[], dictionaryId:
   return items
 }
 
+/** Keep cues in the requested pool; borrow only versioned references from the same wordbook.
+ * Inspect at most 120 words, wrapping at a short final chapter; never hash a whole large dictionary.
+ */
+export async function preparePracticeReferences(items: SemanticItem[], words: readonly Word[], dictionaryId: string, chapter: number) {
+  const references = new Map(items.map((item) => [item.contentId, item]))
+  const start = chapter * CHAPTER_LENGTH
+  for (let offset = 0; offset < Math.min(words.length, 120); offset += 1) {
+    const word = words[(start + offset) % words.length]
+    if (references.has(semanticKey(dictionaryId, word.name))) continue
+    const item = await semanticItem(dictionaryId, word)
+    if (item) references.set(item.contentId, item)
+  }
+  return Array.from(references.values())
+}
+
 export async function createManualSemanticRun(dictionaryId: string, mode: 'recall' | 'discrimination', items: SemanticItem[],
   referencePool: SemanticItem[], ownerUserId: string | undefined, practiceChoices?: SemanticRun['practiceChoices']) {
   if (getLocalLearningOwnerId() !== ownerUserId) throw new Error('账号已改变，请重新准备练习。')

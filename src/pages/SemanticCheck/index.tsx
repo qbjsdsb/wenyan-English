@@ -1,3 +1,4 @@
+import { useRunVisitGuard, useRunVisitKey } from '@/semantic/useRunVisit'
 import { practiceReturnPath } from '@/semantic/practiceChoices'
 import { useSemanticEvidence } from '@/semantic/useEvidence'
 import type { SemanticDiscriminationQuestion } from '@/semantic/discrimination'
@@ -14,6 +15,12 @@ interface Feedback {
 
 export default function SemanticCheckPage() {
   const { runId = '' } = useParams()
+  const visitKey = useRunVisitKey(runId)
+  return <SemanticCheckRun key={visitKey} runId={runId} />
+}
+
+function SemanticCheckRun({ runId }: { runId: string }) {
+  const active = useRunVisitGuard()
   const navigate = useNavigate()
   const evidence = useSemanticEvidence(runId)
   const [run, setRun] = useState<SemanticRun>()
@@ -27,26 +34,17 @@ export default function SemanticCheckPage() {
   const restore = useCallback(async () => {
     try {
       const current = await loadSemanticDiscriminationRun(runId)
+      if (!active.current) return
       setRun(current)
       setFeedback(undefined)
       setStopped(current.hardStopAt !== undefined && Date.now() >= current.hardStopAt)
       setError('')
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '无法读取这段参考释义辨认。')
+      if (active.current) setError(cause instanceof Error ? cause.message : '无法读取这段参考释义辨认。')
     }
-  }, [runId])
+  }, [active, runId])
 
-  useEffect(() => {
-    void restore()
-    const changed = () => { setRun(undefined); setFeedback(undefined); void restore() }
-    window.addEventListener('wenyan-learning-owner-changed', changed)
-    window.addEventListener('storage', changed)
-    return () => {
-      window.removeEventListener('wenyan-learning-owner-changed', changed)
-      window.removeEventListener('storage', changed)
-    }
-  }, [restore])
-
+  useEffect(() => { void restore() }, [restore])
   useEffect(() => { focus.current?.focus() }, [run?.index, feedback])
   useEffect(() => {
     if (run?.hardStopAt === undefined) return
@@ -55,7 +53,7 @@ export default function SemanticCheckPage() {
   }, [run?.hardStopAt])
 
   const answer = useCallback(async (selectedContentId: string) => {
-    if (!run || feedback || lock.current || stopped) return
+    if (!active.current || !run || feedback || lock.current || stopped) return
     const question = run.discriminationQuestions?.[run.index]
     if (!question) return
     lock.current = true
@@ -63,6 +61,7 @@ export default function SemanticCheckPage() {
     setError('')
     try {
       const saved = await saveSemanticDiscriminationAnswer(run.id, run.index, selectedContentId)
+      if (!active.current) return
       setRun(saved.run)
       setFeedback({ question, selectedContentId, isCorrect: saved.payload.isCorrect })
     } catch (cause) {
@@ -71,7 +70,7 @@ export default function SemanticCheckPage() {
       lock.current = false
       setBusy(false)
     }
-  }, [feedback, run, stopped])
+  }, [active, feedback, run, stopped])
 
   const continueAfterFeedback = useCallback(() => setFeedback(undefined), [])
   const returnPath = run?.origin === 'manual' ? practiceReturnPath(run.mode === 'discrimination' ? 'discrimination' : 'recall', run.practiceChoices) : '/today'
@@ -145,7 +144,7 @@ export default function SemanticCheckPage() {
             <p className="wenyan-muted mt-5">已保存 {run.index} 次选择。正确表示选中了当前词书的参考释义，不代表自由回忆或语境理解已经掌握。</p>
             {evidence?.recognition && <p className="mt-4 text-sm">选对 {evidence.recognition.correct} · 选错 {evidence.recognition.incorrect}</p>}
             {run.origin === 'manual' && Boolean(evidence?.recognition?.incorrect) && <Link className="wenyan-link mt-4 inline-block text-sm" to="/practice?pool=uncertain&mode=recall">换成主动回想，巩固模糊词 →</Link>}
-            <button className="wenyan-button-primary mt-8" disabled={busy} onClick={async () => { setBusy(true); try { await endSemanticDiscriminationRun(run.id); navigate(returnPath) } catch { setError('暂时无法结束这一段，请重试。'); setBusy(false) } }}>{returnLabel}</button>
+            <button className="wenyan-button-primary mt-8" disabled={busy} onClick={async () => { setBusy(true); try { await endSemanticDiscriminationRun(run.id); if (active.current) navigate(returnPath) } catch { setError('暂时无法结束这一段，请重试。'); setBusy(false) } }}>{returnLabel}</button>
           </section>
         ) : run && question ? (
           <section className="wenyan-focus-surface mt-8 p-6 sm:p-10">
@@ -164,7 +163,7 @@ export default function SemanticCheckPage() {
                 </button>
               ))}
             </div>
-            <p className="wenyan-muted mt-4 text-xs">{busy ? '正在保存这次选择…' : '按 1–4 或点击选择。选项都来自这一段真实词书参考，不使用 AI 生成释义。'}</p>
+            <p className="wenyan-muted mt-4 text-xs">{busy ? '正在保存这次选择…' : '按 1–4 或点击选择。选项都来自同一词书的真实参考，不使用 AI 生成释义。'}</p>
           </section>
         ) : null}
 
