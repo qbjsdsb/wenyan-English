@@ -1,5 +1,6 @@
 import { db } from '.'
 import { ReviewRecord } from './record'
+import { isLegacyReviewRecord } from '@/review/execution'
 import type { TErrorWordData } from '@/pages/Gallery-N/hooks/useErrorWords'
 import type { Word } from '@/typings'
 import { useEffect, useState } from 'react'
@@ -23,7 +24,7 @@ async function getReviewRecords(dictID: string): Promise<ReviewRecord | undefine
   // origin-less legacy records belong there. Owner-bound manual/Smart/correction
   // runs have their own entry points and execution invariants (owner, hard-stop,
   // authoritative cursor), so letting Gallery resume them would bypass those guards.
-  const records = await db.reviewRecords.where('dict').equals(dictID).filter((record) => record.origin === undefined).toArray()
+  const records = await db.reviewRecords.where('dict').equals(dictID).filter(isLegacyReviewRecord).toArray()
 
   const latestRecord = records.sort((a, b) => a.createTime - b.createTime).pop()
 

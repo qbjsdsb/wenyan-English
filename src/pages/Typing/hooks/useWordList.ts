@@ -1,4 +1,5 @@
 import { useLearningOwner } from '@/hooks/useLearningOwner'
+import { isLegacyReviewRecord, isOwnerBoundReviewForOwner } from '@/review/execution'
 import { dictionarySource } from '@/utils/dictionaryCache'
 import { CHAPTER_LENGTH } from '@/constants'
 import { currentChapterAtom, currentDictInfoAtom, reviewModeInfoAtom } from '@/store'
@@ -24,7 +25,8 @@ export function useWordList(): UseWordListResult {
   const [currentChapter, setCurrentChapter] = useAtom(currentChapterAtom)
   const owner = useLearningOwner()
   const { isReviewMode: rawReviewMode, reviewRecord } = useAtomValue(reviewModeInfoAtom)
-  const isReviewMode = rawReviewMode && (reviewRecord?.origin !== 'manual' || reviewRecord.ownerUserId === owner)
+  const isReviewMode =
+    rawReviewMode && Boolean(reviewRecord) && (isLegacyReviewRecord(reviewRecord) || isOwnerBoundReviewForOwner(reviewRecord, owner))
 
   // Keep invalid persisted chapter state out of the render path. Updating the atom
   // in an effect avoids a render-time state write while preserving the old fallback.

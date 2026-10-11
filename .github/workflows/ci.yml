@@ -34,6 +34,8 @@ jobs:
         run: node --experimental-strip-types scripts/check-smart-session.mjs
       - name: Execution availability deterministic scenarios
         run: node --experimental-strip-types scripts/check-execution-availability.mjs
+      - name: Review execution contract scenarios
+        run: node --experimental-strip-types scripts/check-review-execution.mjs
       - name: Semantic measurement and agent guardrails
         run: node --experimental-strip-types scripts/check-semantic.mjs
       - name: AI Coaching deterministic scenarios
