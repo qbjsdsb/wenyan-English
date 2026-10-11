@@ -31,9 +31,23 @@ export async function startStudyTask(planId: string, taskId: string): Promise<St
     const runs = await db.studyPlanRuns.where('planId').equals(planId).toArray()
     if (runs.some((run) => run.taskId === taskId && run.completionEventId)) throw new Error('这个任务已经完成。可以通过词库再次练习。')
 
+    const taskFingerprint = studyTaskExecutionFingerprint(task)
+    if (plan.origin === 'cloud') {
+      const existingRun = runs.find((run) => (
+        run.taskId === taskId
+        && !run.completionEventId
+        && run.ownerUserId === ownerUserId
+        && run.planRevision === plan.cloudRevision
+        && run.taskFingerprint === taskFingerprint
+      ))
+      if (existingRun) return existingRun
+    }
+
     // A fresh run gives this launch its own identity and captures the exact
     // execution target observed at launch. Later plan edits cannot silently
-    // inherit this run's completion evidence.
+    // inherit this run's completion evidence. Cloud retries reuse the same
+    // still-active run for the same owner/revision/target, so a control retry
+    // cannot manufacture duplicate task runs after an abandoned command.
     const run: StudyPlanRun = {
       id: createLearningEvent('chapter_completed', {}).id,
       planId,
@@ -41,7 +55,7 @@ export async function startStudyTask(planId: string, taskId: string): Promise<St
       startedAt: Date.now(),
       ownerUserId: plan.origin === 'cloud' ? ownerUserId : undefined,
       planRevision: plan.origin === 'cloud' ? plan.cloudRevision : undefined,
-      taskFingerprint: studyTaskExecutionFingerprint(task),
+      taskFingerprint,
     }
     await db.studyPlanRuns.add(run)
     return run
