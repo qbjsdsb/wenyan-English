@@ -5,7 +5,6 @@ export const OWNER_BOUND_REVIEW_ORIGINS = ['manual', 'smart', 'correction'] as c
 export type OwnerBoundReviewRecord = IReviewRecord & {
   id: number
   origin: ReviewRecordOrigin
-  ownerUserId: string
 }
 
 /**
@@ -20,21 +19,20 @@ export function isOwnerBoundReviewOrigin(origin: unknown): origin is ReviewRecor
   return typeof origin === 'string' && (OWNER_BOUND_REVIEW_ORIGINS as readonly string[]).includes(origin)
 }
 
-/** Modern review execution must refer to one persisted record owned by one account. */
+/** Modern review execution must refer to one persisted record. The local anonymous owner is represented by undefined. */
 export function isOwnerBoundReviewRecord(record: IReviewRecord | undefined): record is OwnerBoundReviewRecord {
   return Boolean(
     record &&
       typeof record.id === 'number' &&
       Number.isInteger(record.id) &&
       record.id > 0 &&
-      isOwnerBoundReviewOrigin(record.origin) &&
-      typeof record.ownerUserId === 'string' &&
-      record.ownerUserId.length > 0,
+      isOwnerBoundReviewOrigin(record.origin),
   )
 }
 
+/** Exact owner equality is required. undefined === undefined is the valid anonymous/local owner. */
 export function isOwnerBoundReviewForOwner(record: IReviewRecord | undefined, ownerUserId: string | undefined) {
-  return Boolean(ownerUserId && isOwnerBoundReviewRecord(record) && record.ownerUserId === ownerUserId)
+  return Boolean(isOwnerBoundReviewRecord(record) && record.ownerUserId === ownerUserId)
 }
 
 export function ownerBoundReviewReturnPath(origin: ReviewRecordOrigin) {

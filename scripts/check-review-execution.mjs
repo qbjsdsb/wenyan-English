@@ -12,15 +12,19 @@ assert.equal(isLegacyReviewRecord(legacy), true)
 assert.equal(isOwnerBoundReviewRecord(legacy), false)
 
 for (const origin of ['manual', 'smart', 'correction']) {
-  const record = { ...legacy, id: 7, origin, ownerUserId: 'owner-a' }
+  const anonymous = { ...legacy, id: 7, origin }
   assert.equal(isOwnerBoundReviewOrigin(origin), true)
-  assert.equal(isOwnerBoundReviewRecord(record), true)
-  assert.equal(isOwnerBoundReviewForOwner(record, 'owner-a'), true)
-  assert.equal(isOwnerBoundReviewForOwner(record, 'owner-b'), false)
+  assert.equal(isOwnerBoundReviewRecord(anonymous), true)
+  assert.equal(isOwnerBoundReviewForOwner(anonymous, undefined), true)
+  assert.equal(isOwnerBoundReviewForOwner(anonymous, 'owner-a'), false)
+
+  const signedIn = { ...anonymous, ownerUserId: 'owner-a' }
+  assert.equal(isOwnerBoundReviewForOwner(signedIn, 'owner-a'), true)
+  assert.equal(isOwnerBoundReviewForOwner(signedIn, 'owner-b'), false)
+  assert.equal(isOwnerBoundReviewForOwner(signedIn, undefined), false)
 }
 
 assert.equal(isOwnerBoundReviewRecord({ ...legacy, origin: 'manual', ownerUserId: 'owner-a' }), false)
-assert.equal(isOwnerBoundReviewRecord({ ...legacy, id: 7, origin: 'manual' }), false)
 assert.equal(isOwnerBoundReviewOrigin('legacy'), false)
 assert.equal(ownerBoundReviewReturnPath('manual'), '/practice?mode=spelling')
 assert.equal(ownerBoundReviewReturnPath('smart'), '/today')
