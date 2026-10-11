@@ -108,45 +108,35 @@ export async function exportDatabase(callback: (exportProgress: ExportProgress) 
   recordDataAction({ type: 'export', size: compressedBlob.size, wordCount, chapterCount })
 }
 
-export async function importDatabase(onStart: () => void, callback: (importProgress: ImportProgress) => boolean) {
+/** Resolves only after validation and the atomic restore finish; callers own file selection and errors. */
+export async function importDatabase(file: File, callback: (importProgress: ImportProgress) => boolean) {
+  if (file.size > MAX_COMPRESSED_BACKUP_BYTES) throw new Error('备份文件过大，未修改现有数据。')
+
   const [pako] = await Promise.all([import('pako'), import('dexie-export-import')])
 
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = 'application/gzip,.gz'
-  input.addEventListener('change', async () => {
-    const file = input.files?.[0]
-    if (!file) return
-    if (file.size > MAX_COMPRESSED_BACKUP_BYTES) throw new Error('备份文件过大，未修改现有数据。')
+  const compressed = await file.arrayBuffer()
+  const json = pako.ungzip(compressed, { to: 'string' })
+  if (new TextEncoder().encode(json).byteLength > MAX_UNCOMPRESSED_BACKUP_BYTES) {
+    throw new Error('解压后的备份文件过大，未修改现有数据。')
+  }
+  const blob = new Blob([json], { type: 'application/json' })
 
-    onStart()
+  await validateBackupBlob(blob)
 
-    const compressed = await file.arrayBuffer()
-    const json = pako.ungzip(compressed, { to: 'string' })
-    if (new TextEncoder().encode(json).byteLength > MAX_UNCOMPRESSED_BACKUP_BYTES) {
-      throw new Error('解压后的备份文件过大，未修改现有数据。')
-    }
-    const blob = new Blob([json], { type: 'application/json' })
-
-    await validateBackupBlob(blob)
-
-    // dexie-export-import runs the real import atomically by default. Staging
-    // above means malformed/unsupported backups never reach this destructive step.
-    await db.import(blob, {
-      acceptVersionDiff: true,
-      acceptMissingTables: true,
-      acceptNameDiff: false,
-      acceptChangedPrimaryKey: false,
-      overwriteValues: true,
-      clearTablesBeforeImport: true,
-      progressCallback: ({ totalRows, completedRows, done }) => {
-        return callback({ totalRows, completedRows, done })
-      },
-    })
-
-    const [wordCount, chapterCount] = await Promise.all([db.wordRecords.count(), db.chapterRecords.count()])
-    recordDataAction({ type: 'import', size: file.size, wordCount, chapterCount })
+  // dexie-export-import runs the real import atomically by default. Staging
+  // above means malformed/unsupported backups never reach this destructive step.
+  await db.import(blob, {
+    acceptVersionDiff: true,
+    acceptMissingTables: true,
+    acceptNameDiff: false,
+    acceptChangedPrimaryKey: false,
+    overwriteValues: true,
+    clearTablesBeforeImport: true,
+    progressCallback: ({ totalRows, completedRows, done }) => {
+      return callback({ totalRows, completedRows, done })
+    },
   })
 
-  input.click()
+  const [wordCount, chapterCount] = await Promise.all([db.wordRecords.count(), db.chapterRecords.count()])
+  recordDataAction({ type: 'import', size: file.size, wordCount, chapterCount })
 }
