@@ -14,7 +14,7 @@ import type {
 import type { WordDictationType } from '@/typings'
 import { supabase } from '@/supabase/client'
 import { db } from '@/utils/db'
-import { setLocalLearningOwnerId } from './localLearningOwner'
+import { getAuthenticatedOwner } from './authOwner'
 
 export interface RemoteLearningEvent {
   id: string
@@ -293,20 +293,8 @@ export async function storePulledLearningEventPage(userId: string, rows: RemoteL
   })
 }
 
-export async function pullLearningEvents(pageSize = 100, maxPages = 5): Promise<LearningPullResult> {
+export async function pullLearningEventsForOwner(userId: string, pageSize = 100, maxPages = 5): Promise<LearningPullResult> {
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    if (!session) return { status: 'signed-out', received: 0, inserted: 0 }
-
-    const { data: userData, error: userError } = await supabase.auth.getUser()
-    if (userError || !userData.user) {
-      return { status: 'failed', received: 0, inserted: 0, message: userError?.message ?? '无法确认当前登录账号。' }
-    }
-
-    const userId = userData.user.id
-    setLocalLearningOwnerId(userId)
     const safePageSize = Math.min(500, Math.max(1, Math.floor(pageSize)))
     const safeMaxPages = Math.min(50, Math.max(1, Math.floor(maxPages)))
     let received = 0
@@ -314,7 +302,8 @@ export async function pullLearningEvents(pageSize = 100, maxPages = 5): Promise<
 
     for (let page = 0; page < safeMaxPages; page += 1) {
       const cursor = await db.learningSyncCursors.get(userId)
-      const { data, error } = await supabase.rpc('pull_learning_events', {
+      const { data, error } = await supabase.rpc('pull_learning_events_for_owner', {
+        p_expected_user_id: userId,
         p_after_created_at: cursor?.createdAt ?? null,
         p_after_id: cursor?.eventId ?? null,
         p_limit: safePageSize,
@@ -338,4 +327,11 @@ export async function pullLearningEvents(pageSize = 100, maxPages = 5): Promise<
       message: error instanceof Error ? error.message : String(error),
     }
   }
+}
+
+export async function pullLearningEvents(pageSize = 100, maxPages = 5): Promise<LearningPullResult> {
+  const auth = await getAuthenticatedOwner()
+  if (auth.status === 'signed-out') return { status: 'signed-out', received: 0, inserted: 0 }
+  if (auth.status === 'failed') return { status: 'failed', received: 0, inserted: 0, message: auth.message }
+  return pullLearningEventsForOwner(auth.userId, pageSize, maxPages)
 }
