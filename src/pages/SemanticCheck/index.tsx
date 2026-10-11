@@ -40,7 +40,7 @@ function SemanticCheckRun({ runId }: { runId: string }) {
       setStopped(current.hardStopAt !== undefined && Date.now() >= current.hardStopAt)
       setError('')
     } catch (cause) {
-      if (active.current) setError(cause instanceof Error ? cause.message : '无法读取这段参考释义辨认。')
+      if (active.current) setError(cause instanceof Error ? cause.message : '无法读取这段选择词义。')
     }
   }, [active, runId])
 
@@ -106,15 +106,15 @@ function SemanticCheckRun({ runId }: { runId: string }) {
         <Link className="wenyan-link text-sm" to={returnPath}>{completed ? returnLabel : `暂停，${returnLabel}`}</Link>
       </header>
       <main className="mx-auto max-w-3xl px-5 py-6 sm:px-8 sm:py-10">
-        <p className="wenyan-kicker">参考释义辨认</p>
-        <p className="wenyan-muted mt-3 text-sm">从真实词书参考中选择与当前词条绑定的释义。系统可以客观判定选择，但这不等于已经掌握词义。</p>
+        <p className="wenyan-kicker">选择词义</p>
+        <p className="wenyan-muted mt-3 text-sm">选出这个词在当前词书中的释义。</p>
 
         {error && <div role="alert" className="mt-6"><p>{error}</p><button className="wenyan-button-secondary mt-3" onClick={() => void restore()}>重新读取进度</button></div>}
         {!run && !error && <p role="status" className="wenyan-muted mt-12">正在找回刚才的位置…</p>}
 
         {run && feedback ? (
           <section className="wenyan-focus-surface mt-8 p-6 sm:p-10">
-            <p className="wenyan-kicker">{feedback.isCorrect ? '选择正确' : '这次没有选中参考释义'}</p>
+            <p className="wenyan-kicker">{feedback.isCorrect ? '选对了' : '这次选错了'}</p>
             <h1 ref={focus} tabIndex={-1} className="mt-6 break-words text-4xl font-medium tracking-tight outline-none sm:text-5xl">{feedback.question.word}</h1>
             <div className="mt-8 space-y-3">
               {feedback.question.options.map((option, index) => {
@@ -127,7 +127,7 @@ function SemanticCheckRun({ runId }: { runId: string }) {
                   }`}>
                     <div className="mb-1 flex items-center justify-between gap-3">
                       <span className="wenyan-mono wenyan-muted text-[10px]">{index + 1}</span>
-                      {correct && <span className="text-[11px] text-[var(--wenyan-success)]">当前词书参考</span>}
+                      {correct && <span className="text-[11px] text-[var(--wenyan-success)]">正确释义</span>}
                     </div>
                     {option.meanings.map((meaning, meaningIndex) => <p key={meaningIndex}>{meaning}</p>)}
                   </div>
@@ -135,13 +135,13 @@ function SemanticCheckRun({ runId }: { runId: string }) {
               })}
             </div>
             <button className="wenyan-button-primary mt-7" onClick={continueAfterFeedback}>
-              {run.completedAt !== undefined ? '查看本段结果' : '继续'} <kbd aria-hidden="true" className="wenyan-key ml-3">Enter</kbd>
+              {run.completedAt !== undefined ? '查看结果' : '继续'} <kbd aria-hidden="true" className="wenyan-key ml-3">Enter</kbd>
             </button>
           </section>
         ) : run && (completed || stopped || !question) ? (
           <section className="wenyan-focus-surface mt-8 p-6 sm:p-10">
-            <h1 ref={focus} tabIndex={-1} className="text-3xl outline-none">{completed ? '这一小段辨认，已经留下客观记录。' : '到时间了，今天先到这里。'}</h1>
-            <p className="wenyan-muted mt-5">已保存 {run.index} 次选择。正确表示选中了当前词书的参考释义，不代表自由回忆或语境理解已经掌握。</p>
+            <h1 ref={focus} tabIndex={-1} className="text-3xl outline-none">{completed ? '这一段完成了。' : '到时间了，今天先到这里。'}</h1>
+            <p className="wenyan-muted mt-5">已保存 {run.index} 次选择。</p>
             {evidence?.recognition && <p className="mt-4 text-sm">选对 {evidence.recognition.correct} · 选错 {evidence.recognition.incorrect}</p>}
             {run.origin === 'manual' && Boolean(evidence?.recognition?.incorrect) && <Link className="wenyan-link mt-4 inline-block text-sm" to="/practice?pool=uncertain&mode=recall">换成主动回想，巩固模糊词 →</Link>}
             <button className="wenyan-button-primary mt-8" disabled={busy} onClick={async () => { setBusy(true); try { await endSemanticDiscriminationRun(run.id); if (active.current) navigate(returnPath) } catch { setError('暂时无法结束这一段，请重试。'); setBusy(false) } }}>{returnLabel}</button>
@@ -152,9 +152,9 @@ function SemanticCheckRun({ runId }: { runId: string }) {
               <span className="wenyan-kicker">先判断，再核对</span>
               <span className="wenyan-mono wenyan-muted text-xs">{run.index + 1} / {run.discriminationQuestions?.length ?? 0}</span>
             </div>
-            <progress className="wenyan-recall-progress mt-4" value={run.index} max={run.discriminationQuestions?.length ?? 1} aria-label="本段已保存的客观辨认" />
+            <progress className="wenyan-recall-progress mt-4" value={run.index} max={run.discriminationQuestions?.length ?? 1} aria-label="本段已保存的选择" />
             <h1 ref={focus} tabIndex={-1} className="mt-10 break-words text-4xl font-medium tracking-tight outline-none sm:text-5xl">{question.word}</h1>
-            <p className="wenyan-muted mb-6 mt-5 text-sm">当前词书里，哪一组参考释义与这个词绑定？</p>
+            <p className="wenyan-muted mb-6 mt-5 text-sm">哪组释义属于这个词？</p>
             <div className="grid grid-cols-1 gap-3">
               {question.options.map((option, index) => (
                 <button key={option.contentId} disabled={busy || stopped} className="wenyan-recall-choice items-start text-left" aria-label={`${index + 1} ${option.meanings.join('；')}`} aria-keyshortcuts={String(index + 1)} onClick={() => void answer(option.contentId)}>
@@ -163,11 +163,9 @@ function SemanticCheckRun({ runId }: { runId: string }) {
                 </button>
               ))}
             </div>
-            <p className="wenyan-muted mt-4 text-xs">{busy ? '正在保存这次选择…' : '按 1–4 或点击选择。选项都来自同一词书的真实参考，不使用 AI 生成释义。'}</p>
+            <p className="wenyan-muted mt-4 text-xs">{busy ? '正在保存…' : '按 1–4 或点击选择。'}</p>
           </section>
         ) : null}
-
-        <p className="wenyan-muted mt-6 text-xs">这项测量只记录“参考释义辨认”。它不会替代词义自由回想、语境理解、搭配或主动运用证据。</p>
       </main>
     </div>
   )
