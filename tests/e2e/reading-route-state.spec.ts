@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('stale reading submission cannot overwrite a new owner visit or delete its replacement draft', async ({ page }) => {
+test('stale reading submission persists for captured owner without overwriting a rapid A→B→A visit', async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('wenyanLearningOwnerId', 'owner-a')
   })
@@ -10,6 +10,7 @@ test('stale reading submission cannot overwrite a new owner visit or delete its 
   await page.addScriptTag({
     type: 'module',
     content: `
+      import Dexie from 'dexie'
       import { db } from '/src/utils/db/index.ts'
       import { setLocalLearningOwnerId } from '/src/sync/localLearningOwner.ts'
       const originalBulkAdd = db.learningEvents.bulkAdd.bind(db.learningEvents)
@@ -17,11 +18,15 @@ test('stale reading submission cannot overwrite a new owner visit or delete its 
       const gate = new Promise((resolve) => { release = resolve })
       db.learningEvents.bulkAdd = async (...args) => {
         window.__readingSubmitStarted = true
-        await gate
+        await Dexie.waitFor(gate)
         return originalBulkAdd(...args)
       }
       window.__releaseReadingSubmit = release
       window.__switchReadingOwner = (owner) => setLocalLearningOwnerId(owner)
+      window.__countReadingCompletionsForA = async () => {
+        const rows = await db.learningEvents.toArray()
+        return rows.filter((row) => row.eventType === 'reading_completed' && row.ownerUserId === 'owner-a').length
+      }
     `,
   })
 
@@ -31,18 +36,23 @@ test('stale reading submission cannot overwrite a new owner visit or delete its 
   await page.evaluate(() => {
     const controls = window as unknown as { __switchReadingOwner: (owner: string) => void }
     controls.__switchReadingOwner('owner-b')
-    controls.__switchReadingOwner('owner-a')
     window.localStorage.setItem(
       'wenyanReadingDraft:owner-a:wenyan-demo-reading-01:1',
       JSON.stringify({ ownerUserId: 'owner-a', startedAt: 123456, answers: [{ questionId: 'q1', selectedOptionId: 'B', answerChangeCount: 0 }] }),
     )
+    controls.__switchReadingOwner('owner-a')
   })
 
+  await expect(page.locator('input[name="q1"][value="B"]')).toBeChecked()
   await page.evaluate(() => (window as unknown as { __releaseReadingSubmit: () => void }).__releaseReadingSubmit())
-  await page.waitForTimeout(100)
+  await page.waitForFunction(async () => {
+    const count = await (window as unknown as { __countReadingCompletionsForA: () => Promise<number> }).__countReadingCompletionsForA()
+    return count === 1
+  })
 
   await expect(page.getByText('本次结果')).toHaveCount(0)
   await expect(page.getByRole('button', { name: '提交' })).toBeEnabled()
+  await expect(page.locator('input[name="q1"][value="B"]')).toBeChecked()
   const replacementDraft = await page.evaluate(() => window.localStorage.getItem('wenyanReadingDraft:owner-a:wenyan-demo-reading-01:1'))
   expect(replacementDraft).toContain('123456')
   expect(replacementDraft).toContain('"selectedOptionId":"B"')
