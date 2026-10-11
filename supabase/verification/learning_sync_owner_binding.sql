@@ -1,6 +1,6 @@
 -- Manual production verification for 20261011_000026_learning_sync_owner_binding.sql.
 -- Run after the migration is applied. The transaction leaves no rows or claims behind.
--- Expected result: all four rows have passed = true.
+-- Expected result: all six rows have passed = true.
 
 begin;
 
@@ -38,17 +38,34 @@ begin
   begin
     perform public.ingest_learning_events_for_owner(owner_b, '[]'::jsonb);
     insert into owner_binding_results values (
-      'owner_mismatch_rejected', false, 'unexpected success'
+      'ingest_owner_mismatch_rejected', false, 'unexpected success'
     );
   exception when sqlstate '42501' then
     insert into owner_binding_results values (
-      'owner_mismatch_rejected',
+      'ingest_owner_mismatch_rejected',
       sqlerrm = 'learning_owner_changed',
       sqlerrm
     );
   when others then
     insert into owner_binding_results values (
-      'owner_mismatch_rejected', false, sqlstate || ':' || sqlerrm
+      'ingest_owner_mismatch_rejected', false, sqlstate || ':' || sqlerrm
+    );
+  end;
+
+  begin
+    perform * from public.pull_learning_events_for_owner(owner_b, null, null, 1);
+    insert into owner_binding_results values (
+      'pull_owner_mismatch_rejected', false, 'unexpected success'
+    );
+  exception when sqlstate '42501' then
+    insert into owner_binding_results values (
+      'pull_owner_mismatch_rejected',
+      sqlerrm = 'learning_owner_changed',
+      sqlerrm
+    );
+  when others then
+    insert into owner_binding_results values (
+      'pull_owner_mismatch_rejected', false, sqlstate || ':' || sqlerrm
     );
   end;
 
@@ -65,17 +82,34 @@ begin
   begin
     perform public.ingest_learning_events_for_owner(owner_a, '[]'::jsonb);
     insert into owner_binding_results values (
-      'oauth_wrapper_rejected', false, 'unexpected success'
+      'ingest_oauth_rejected', false, 'unexpected success'
     );
   exception when sqlstate '42501' then
     insert into owner_binding_results values (
-      'oauth_wrapper_rejected',
+      'ingest_oauth_rejected',
       sqlerrm = 'direct_wenyan_session_required',
       sqlerrm
     );
   when others then
     insert into owner_binding_results values (
-      'oauth_wrapper_rejected', false, sqlstate || ':' || sqlerrm
+      'ingest_oauth_rejected', false, sqlstate || ':' || sqlerrm
+    );
+  end;
+
+  begin
+    perform * from public.pull_learning_events_for_owner(owner_a, null, null, 1);
+    insert into owner_binding_results values (
+      'pull_oauth_rejected', false, 'unexpected success'
+    );
+  exception when sqlstate '42501' then
+    insert into owner_binding_results values (
+      'pull_oauth_rejected',
+      sqlerrm = 'direct_wenyan_session_required',
+      sqlerrm
+    );
+  when others then
+    insert into owner_binding_results values (
+      'pull_oauth_rejected', false, sqlstate || ':' || sqlerrm
     );
   end;
 
