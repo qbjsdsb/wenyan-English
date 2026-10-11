@@ -1,0 +1,27 @@
+name: Reading generation patch once
+
+on:
+  push:
+    branches: [fix/reading-route-state]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/reading-route-state
+      - name: Patch reading attempt generation
+        run: python scripts/patch-reading-generation-once.py
+      - name: Commit reading generation guard
+        run: |
+          git diff --check
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/pages/Reading/index.tsx
+          git commit -m 'fix: fence stale reading submissions by generation'
+          git push origin HEAD:fix/reading-route-state
