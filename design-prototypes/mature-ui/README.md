@@ -1,27 +1,39 @@
-# Wenyan Mature UI Prototypes
+# Wenyan Design Architecture v1 prototypes
 
-This folder is an isolated visual experiment. It does not alter production pages.
+This folder is an isolated visual experiment. It does not alter production pages or learning behavior.
 
-## Purpose
+The purpose is to validate the design architecture in real HTML/CSS instead of image-generation mockups.
 
-Test a more mature direction for Wenyan using real HTML/CSS instead of image-generation mockups.
+## Four rooms
 
-Principles:
-- real interface first, visual theme second
-- continuous paper surface instead of card walls
-- restrained typography and uneven editorial composition
-- micro-light only appears during interaction
-- paper texture stays below the threshold of obvious decoration
-- learning, reading, and indexing may use different spatial compositions while sharing the same material and interaction physics
+- `today.html` — **Desk**: the daily return point. It answers “what should I do next?” without becoming a dashboard card wall.
+- `focus.html` — **Focus**: the learning surface. It minimizes chrome and tests Attention → Cognition → Settlement feedback with weight/contrast rather than decorative glow.
+- `reading.html` — **Folio**: long-form reading with a manuscript grid and contextual margin instead of a permanent sidebar panel.
+- `index.html` — **Index**: dense, rational, searchable accumulated knowledge. More lines, less motion, tabular data.
 
-## Pages
+`vocab.html` is kept only as a redirect to `focus.html` for the previous prototype path.
 
-- `today.html`: calm daily starting point, no dashboard hero card
-- `vocab.html`: asymmetric recall workspace with a direct writing baseline and interactive Lumen feedback
-- `reading.html`: long-form Folio with a quiet contextual margin and transient concept-link feedback
+## Shared contract
 
-## Interaction notes
+The four pages intentionally have different information density. They share:
 
-`vocab.html` uses focus and submit states to trigger a very short optical-edge response on the answer baseline and progress point. `reading.html` reveals a contextual concept margin when the inline annotation is activated.
+- one continuous matte Paper plane
+- the same Ink hierarchy
+- 4px micro / 8px macro spacing rhythm
+- the same leadspace relationship
+- restrained sans UI, serif only for genuine reading copy
+- 83 / 167 / 250ms motion physics
+- low-radius controls and zero-elevation content
+- Light as relative contrast, variable weight and settlement
 
-This branch is intentionally separate from production code so the visual language can be judged before migration.
+## Explicitly rejected
+
+- card walls
+- decorative gradients
+- stardust / stars / aurora
+- button shine sweeps
+- permanent glow
+- giant landing-page typography inside the app
+- making all work modes use the same template
+
+The governing document is `docs/DESIGN_CONSTITUTION_V1.md`.
