@@ -3,6 +3,32 @@
  * Prefer stable tone and edge changes over shimmer, glow and floating depth.
  */
 
+/* Dark paper is separated mostly by tone and fine edges, not deep floating shadows. */
+html.dark {
+  --wenyan-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 6px 18px rgba(0, 0, 0, 0.08);
+  --wenyan-shadow-focus: 0 1px 2px rgba(0, 0, 0, 0.14), 0 10px 26px rgba(0, 0, 0, 0.1);
+}
+
+/* Wenyan is now a reading and knowledge tool as well as a typing tool. */
+body {
+  user-select: text;
+}
+button,
+a,
+label,
+summary,
+kbd {
+  user-select: none;
+}
+input,
+textarea,
+[contenteditable='true'] {
+  user-select: text;
+}
+.wenyan-focus-shell {
+  user-select: none;
+}
+
 .wenyan-inline-loader > span {
   opacity: 0.38;
   animation: wenyan-loading-dot 980ms ease-in-out infinite;
@@ -31,7 +57,7 @@
     0 0 0 1px color-mix(in srgb, var(--wenyan-line) 58%, transparent);
 }
 html.dark .wenyan-settings-dialog {
-  box-shadow: 0 14px 42px rgba(0, 0, 0, 0.18), 0 0 0 1px var(--wenyan-line-soft);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16), 0 0 0 1px var(--wenyan-line-soft);
 }
 
 .wenyan-settings-tabs button {
@@ -48,6 +74,12 @@ html.dark .wenyan-settings-dialog {
   border-radius: 999px;
   background: color-mix(in srgb, var(--wenyan-accent) 72%, var(--wenyan-ink));
   transform: translateY(-50%);
+}
+
+/* The secondary tab label is metadata, but it should still be comfortably readable. */
+.wenyan-settings-tabs button > span > span:last-child {
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .wenyan-setting-section {
