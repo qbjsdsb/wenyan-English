@@ -31,11 +31,10 @@ const Loading: React.FC = () => {
     <div className="wenyan-page-loading text-[var(--wenyan-ink)]" aria-busy="true">
       {!standalone && <Header />}
       <main className="wenyan-page-loading-content">
-        <div aria-hidden="true" className="wenyan-subtle-skeleton h-7 w-28" />
-        <p>
-          <LoadingUI size="sm" label="正在打开页面" /> <span className="ml-2">正在准备内容…</span>
+        <p className="flex items-center gap-2">
+          <LoadingUI size="sm" label="正在打开页面" />
+          <span>正在准备页面</span>
         </p>
-        <div aria-hidden="true" className="wenyan-subtle-skeleton h-40 w-full" />
       </main>
     </div>
   )

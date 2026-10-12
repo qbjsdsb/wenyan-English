@@ -6,7 +6,6 @@ import Pagination, { ITEM_PER_PAGE } from './Pagination'
 import RowDetail from './RowDetail'
 import { currentRowDetailAtom } from './store'
 import type { groupedWordRecords } from './type'
-import EmptyState from '@/components/EmptyState'
 import Header from '@/components/Header'
 import { LoadingUI } from '@/components/Loading'
 import PageHeading from '@/components/PageHeading'
@@ -107,12 +106,12 @@ export function ErrorBook() {
 
   return (
     <div className="wenyan-studio-shell flex min-h-screen flex-col text-[var(--wenyan-ink)]">
-      <div className={`transition-[filter] duration-150 ${currentRowDetail ? 'blur-[1px]' : ''}`}>
+      <div className={`transition-opacity duration-150 ${currentRowDetail ? 'opacity-55' : ''}`}>
         <Header />
       </div>
       <main
-        className={`mx-auto w-full max-w-5xl flex-1 px-6 pb-14 pt-9 transition-[filter] duration-150 ${
-          currentRowDetail ? 'blur-[1px]' : ''
+        className={`mx-auto w-full max-w-5xl flex-1 px-6 pb-14 pt-9 transition-opacity duration-150 ${
+          currentRowDetail ? 'opacity-55' : ''
         }`}
       >
         <PageHeading title="错词" description={loading ? '正在整理…' : `${groupedRecords.length} 个最近一次仍拼错的词`}>
@@ -136,9 +135,9 @@ export function ErrorBook() {
         )}
 
         {loading ? (
-          <section className="wenyan-surface flex min-h-[260px] items-center justify-center">
+          <div className="flex min-h-[120px] items-center justify-center" role="status">
             <LoadingUI label="正在整理错词" />
-          </section>
+          </div>
         ) : loadError ? (
           <section className="wenyan-surface p-7" role="alert">
             <p>暂时无法读取当前账号的拼写记录。</p>
@@ -147,10 +146,13 @@ export function ErrorBook() {
             </button>
           </section>
         ) : groupedRecords.length === 0 ? (
-          <EmptyState title="目前没有待处理错词" description="最近一次拼对的词会自动移出这里。" />
+          <section className="border-y border-[var(--wenyan-line-soft)] py-8" aria-label="错词状态">
+            <h2 className="text-sm font-medium text-[var(--wenyan-ink)]">目前没有待处理错词</h2>
+            <p className="wenyan-muted mt-2 text-xs leading-5">最近一次已经拼对的词会自动离开这里。</p>
+          </section>
         ) : (
           <div className="overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]">
-            <div className="wenyan-muted grid grid-cols-[1.2fr_3fr_110px_150px] items-center gap-4 border-b border-[var(--wenyan-line-soft)] px-4 py-3 text-[10px]">
+            <div className="wenyan-muted grid grid-cols-[1.2fr_3fr_110px_150px] items-center gap-4 border-b border-[var(--wenyan-line-soft)] px-4 py-3 text-[11px]">
               <span>单词</span>
               <span>释义</span>
               <HeadWrongNumber sortType={sortType} setSortType={setSort} />

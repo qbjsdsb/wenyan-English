@@ -58,7 +58,7 @@ test('gallery search preserves navigation and explicitly leaves old review mode'
 
 test('analysis preserves deduplicated legacy spelling history while preferring immutable facts', async ({ page }) => {
   await page.goto('/analysis')
-  await expect(page.getByRole('heading', { name: '暂无拼写数据', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '还没有拼写记录', exact: true })).toBeVisible()
 
   await page.addScriptTag({ type: 'module', content: `
     import { db } from '/src/utils/db/index.ts'

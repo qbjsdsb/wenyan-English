@@ -1,6 +1,6 @@
-/* Composition Polish v2
- * Page-level composition refinements on top of the Wenyan Studio tokens.
- * Keep material selective: one visual anchor per task, quiet supporting UI.
+/* Composition finish
+ * Page-level refinements on top of the Wenyan tokens.
+ * One visual anchor per task; supporting controls stay ordinary and quiet.
  */
 
 /* Today: Smart Session, direct practice and current-book context read as one compact stage. */
@@ -13,7 +13,7 @@
 }
 
 .wenyan-focus-surface[data-intent-source] h2 {
-  font-size: 25px !important;
+  font-size: 24px !important;
   line-height: 1.34 !important;
 }
 
@@ -36,7 +36,7 @@
 }
 
 .wenyan-direct-practice a:hover {
-  color: var(--wenyan-accent);
+  color: var(--wenyan-ink);
 }
 
 .wenyan-direct-practice-spacer {
@@ -53,7 +53,7 @@
   border-radius: 0 0 var(--wenyan-radius-lg) var(--wenyan-radius-lg);
   background: var(--wenyan-paper-raised);
   border-color: var(--wenyan-line);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.025);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.025);
 }
 
 .wenyan-today-summary {
@@ -100,7 +100,7 @@
   display: none;
 }
 
-/* Practice: a desk, not a task configurator. Selection is quiet until the final action. */
+/* Practice: a desk, not a task configurator. Selection is communicated once. */
 .wenyan-practice-desk {
   border-block: 1px solid var(--wenyan-line-soft);
 }
@@ -130,39 +130,36 @@
   bottom: -1px;
   left: 0.9rem;
   height: 2px;
-  border-radius: 999px 999px 0 0;
-  background: var(--wenyan-accent);
+  background: color-mix(in srgb, var(--wenyan-accent) 74%, var(--wenyan-ink));
   opacity: 0;
-  transform: scaleX(0.65);
-  transition: opacity 140ms ease, transform 160ms ease;
+  transition: opacity 140ms ease;
 }
 
 .wenyan-practice-tab:hover {
-  background: color-mix(in srgb, var(--wenyan-accent) 3%, transparent);
+  background: color-mix(in srgb, var(--wenyan-ink) 1.5%, transparent);
   color: var(--wenyan-ink);
 }
 
 .wenyan-practice-tab.is-selected {
-  background: color-mix(in srgb, var(--wenyan-accent) 4%, transparent);
+  background: transparent;
   color: var(--wenyan-ink);
 }
 
 .wenyan-practice-tab.is-selected::after {
-  opacity: 0.86;
-  transform: scaleX(1);
+  opacity: 0.74;
 }
 
 .wenyan-practice-tab-key {
   margin-left: auto;
   color: var(--wenyan-ink-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
-  opacity: 0.42;
+  opacity: 0.34;
 }
 
 .wenyan-practice-tab.is-selected .wenyan-practice-tab-key {
-  color: var(--wenyan-accent);
-  opacity: 0.72;
+  color: var(--wenyan-ink-muted);
+  opacity: 0.52;
 }
 
 .wenyan-practice-tab:focus-within,
@@ -225,7 +222,7 @@
 .wenyan-practice-pool.is-selected,
 .wenyan-practice-count.is-selected {
   border-color: color-mix(in srgb, var(--wenyan-accent) 15%, transparent);
-  background: color-mix(in srgb, var(--wenyan-accent-soft) 72%, var(--wenyan-paper-raised));
+  background: color-mix(in srgb, var(--wenyan-accent-soft) 58%, var(--wenyan-paper-raised));
   color: var(--wenyan-ink);
 }
 
@@ -342,9 +339,9 @@
 }
 
 .wenyan-context-note {
-  border-left: 2px solid var(--wenyan-accent);
+  border-left: 2px solid color-mix(in srgb, var(--wenyan-accent) 72%, var(--wenyan-ink));
   padding: 8px 14px;
-  background: var(--wenyan-accent-soft);
+  background: color-mix(in srgb, var(--wenyan-accent-soft) 72%, transparent);
   color: var(--wenyan-ink-secondary);
   font-size: 13px;
   line-height: 1.7;
@@ -376,7 +373,7 @@
 .wenyan-segmented-control label.is-selected {
   color: var(--wenyan-ink);
   background: var(--wenyan-paper-raised);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.035);
 }
 .wenyan-segmented-control label:focus-within {
   outline: 2px solid var(--wenyan-accent);

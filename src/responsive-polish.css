@@ -1,22 +1,17 @@
 /* One shell at every window width, including split-screen desktop use. */
 @media (max-width: 900px) {
   .wenyan-header-row {
-    flex-wrap: wrap;
-    gap: 0;
-    padding-top: 12px;
+    gap: 16px;
   }
   .wenyan-header-navigation {
-    order: 3;
-    flex-basis: 100%;
-    justify-content: center;
-    padding-top: 8px;
-  }
-  .wenyan-header-utilities {
-    margin-left: auto;
+    gap: 0;
   }
   .wenyan-header-navigation a {
-    flex: 1;
-    text-align: center;
+    padding-inline: 10px;
+  }
+  .wenyan-header-utilities {
+    gap: 0;
+    padding-left: 10px;
   }
   .wenyan-practice-last-range {
     display: none;
@@ -37,6 +32,32 @@
     gap: 1rem;
   }
 }
+
+/* Only truly narrow windows become a two-row header. */
+@media (max-width: 760px) {
+  .wenyan-header-row {
+    flex-wrap: wrap;
+    gap: 0;
+    padding-top: 10px;
+  }
+  .wenyan-header-navigation {
+    order: 3;
+    flex-basis: 100%;
+    justify-content: center;
+    padding-top: 7px;
+  }
+  .wenyan-header-utilities {
+    margin-left: auto;
+  }
+  .wenyan-header-navigation a {
+    flex: 1;
+    text-align: center;
+  }
+  .wenyan-library-toolbar {
+    top: 112px;
+  }
+}
+
 @media (max-width: 640px) {
   .wenyan-page-title {
     font-size: 26px;
