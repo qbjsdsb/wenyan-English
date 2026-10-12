@@ -1,0 +1,9 @@
+/* Narrow-window escape hatch for the old desktop-only shell.
+ * Desktop remains unchanged; small windows may use the responsive layouts
+ * already defined by the current Wenyan pages instead of inheriting the
+ * upstream 1024px body floor. */
+@media (max-width: 640px) {
+  body {
+    min-width: 320px;
+  }
+}
