@@ -35,7 +35,7 @@ export default function OAuthConsentPage() {
 
   const loadAuthorization = useCallback(async () => {
     if (!authorizationId) {
-      setMessage('这个授权链接缺少 authorization_id。请回到 ChatGPT 重新发起连接。')
+      setMessage('这个授权链接不完整。请回到 ChatGPT 重新发起连接。')
       setLoading(false)
       return
     }
