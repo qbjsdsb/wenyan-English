@@ -1,37 +1,38 @@
 # 当前状态 / 续接入口
 
-更新：2026-10-12。
+更新：2026-10-13。
 
 > 本页只记录已经核实的生产事实、不可破坏边界和下一步高价值工作。新会话接手时仍必须重新读取远端 `main`、开放 PR、最新 CI / Pages 与 Supabase Edge Function；不要把这里的 SHA 当永久真相。
 
 ## 当前生产基线
 
 - 仓库：`qbjsdsb/wenyan-English`。
-- 当前功能代码基线：`8c93ab39d2bb536bfa916fdd91041aacd0184f26`，PR #87 `Fix acceptance follow-ups for Cloud Plan and narrow Practice` 已 squash merge 到 `main`。
-- #87 合并后 `main` CI run `38224363222`：**success**。
-- #87 合并后 Pages deploy run `38224363200`：**success**。
-- PR #87 合并前最终 CI run `38223857144`：**success**；两个 P1 review thread 均已修复并 resolved。
+- 当前 Web / UI 生产基线：`fd557f538d3ffa5ea4abb21715204a79a866d112`，PR #88 `统一纸面微光视觉与学习操作流程` 已 squash merge 到 `main`。
+- PR #88 合并前最终 CI run `38288338980`：**success**，包含 lint、type check、deterministic coaching / MCP checks、56 条浏览器流程、production Pages artifact 与 Pages vocabulary / recovery 验证。
+- PR #88 合并后 `main` CI run `38288924834`：**success**。
+- PR #88 合并后 Pages deploy run `38288924992`：**success**，build 与 deploy 均完成。
+- PR #87 `Fix acceptance follow-ups for Cloud Plan and narrow Practice` 的稳定后端 / capability 基线仍为 `8c93ab39d2bb536bfa916fdd91041aacd0184f26`。
 - Supabase project：`cmjhxvpkdeheujuteqoi`。
 - 生产 Edge Function：`wenyan-english-mcp` **v20 ACTIVE**。
-- v20 部署入口固定 pin 到已验证的 GitHub main commit `8c93ab39d2bb536bfa916fdd91041aacd0184f26`；不是随 `main` 漂移。
+- v20 部署入口固定 pin 到已验证的 GitHub commit `8c93ab39d2bb536bfa916fdd91041aacd0184f26`；不是随 `main` 漂移。PR #88 没有修改 Edge / MCP 后端协议。
 - Edge Function 继续 `verify_jwt=false`，这是既有有意配置；函数本身验证 Supabase OAuth/JWT issuer、audience、subject、session/client identity 与 capability，不代表匿名开放。
 - MCP server contract：0.8.x；Coaching Context：`coaching-context-v1.6`。
 - Reading 仍是实验入口；文学专业课继续冻结。
 
 ## 2026-10-12 生产验收收口
 
-正式实机验收报告在：
+正式实机验收报告：
 
 - `docs/acceptance/PRODUCTION_ACCEPTANCE_2026-10-12.md`
 - `docs/acceptance/PLUGIN_MCP_ACCEPTANCE_2026-10-12.md`
 
-本轮已经收掉的主要问题：
+已收掉的主要问题：
 
 1. **Today / Cloud Plan helper 权限回归**：恢复 authenticated 对纯 helper 的执行权，`anon` 仍拒绝；前端不再把原始 Postgres/RPC 错误直接暴露给用户。
 2. **MCP `plans:read` 授权边界**：外部 OAuth `get_plan_status` 最终由 Postgres fail closed；无 `plans:read` 时返回 `42501 plans_read_not_granted`。
 3. **`plans:write` 内部响应兼容**：create/revise/archive RPC 已有的事务级 `wenyan.plan_write_rpc=1` 标记允许写 RPC 在通过 `plans:write` 后内部调用 `get_plan_status`，不会被额外的 `plans:read` 误伤；外部读取边界不放宽。
 4. **Practice 窄屏发现性**：640px 以下四个专项入口改为 2×2，可直接发现，不再依赖横向滚动；对应 Playwright 回归已进 CI。
-5. **默写无障碍答案泄漏**：发音按钮不再在 accessible name 中暴露隐藏词头，已在前一轮生产修复并回归。
+5. **默写无障碍答案泄漏**：发音按钮不再在 accessible name 中暴露隐藏词头。
 
 生产数据库已应用并记录：
 
@@ -39,7 +40,7 @@
 - `20261012064210 plan_status_plans_read_boundary`
 - `20261012082800 plan_status_write_internal_boundary`
 
-生产只读/事务回滚探针已经确认：
+生产只读 / 事务回滚探针已经确认：
 
 - first-party / authenticated helper 路径可执行；
 - `anon` 无 helper execute；
@@ -50,8 +51,8 @@
 ### 仍保留的非阻塞项
 
 - 验收中发现一条词书释义夹有未翻译英文 token，但报告没有记录精确词条。为避免猜测修改词库，目前保留为 **P3 数据质量项**，后续应做定向词库质量扫描后修复。
-- 插件验收曾观测到 Coaching Context `executionAvailability` 为 stale / unknown。历史/语义证据读取仍可用，但代理不得把该字段解释为“当前候选池已经实时完整评估”。这不是本轮为了收口而仓促改写 planner/runtime 的理由；后续应单独审计 availability 刷新链路。
-- 当前会话没有暴露 `$wenyan` 自定义工具，因此 PR #87 / Edge v20 部署后没有在本会话再做一次真实消费端 `get_plan_status` 调用。数据库 capability 边界、MCP capability regression、CI 与部署均已验证，但不要把这一点伪称为消费端 E2E。
+- 插件验收曾观测到 Coaching Context `executionAvailability` 为 stale / unknown。历史 / 语义证据读取仍可用，但代理不得把该字段解释为“当前候选池已经实时完整评估”。后续应单独审计 availability freshness / persistence 链路。
+- 2026-10-12 验收会话没有暴露 `$wenyan` 自定义工具，因此 PR #87 / Edge v20 部署后没有在该会话再做一次真实消费端 `get_plan_status` 调用。数据库 capability 边界、MCP capability regression、CI 与部署均已验证，但不要把这一点伪称为消费端 E2E。
 
 ## 词汇学习：当前上线能力
 
@@ -81,7 +82,7 @@ Production 仍是手动专项，**没有加入 Smart Session planner**。
 
 2026-10-12 实机验收已通过正常 UI 自然产生并同步 6 条 `semantic_production_attempted` sourceVersion 6 facts（5 对、1 错）。Cloud Work 随后真实调用生产 `get_coaching_context`，返回 `coaching-context-v1.6`，并能独立识别 `semanticProductionEvidence`。
 
-因此现在已经验证：
+因此已经验证：
 
 `真实 UI production → local immutable fact → sync → Supabase learning_events → production MCP v1.6 → semanticProductionEvidence`
 
@@ -135,13 +136,48 @@ Production 仍是手动专项，**没有加入 Smart Session planner**。
 - 不增加万能 SQL / JS / arbitrary control tool；
 - 不伪造个人学习历史、完成记录、掌握率或验证结果。
 
+## 2026-10-13 界面统一与纸面微光（已合并并发布）
+
+PR #88 采取“保留现有 Wenyan 骨架，做收束式精修”的路线，没有采用独立设计原型中的激进重构。主要落地：
+
+### 第一、二批：公共界面与学习流程
+
+- 七个主要页面使用共用标题 / 辅助操作布局；导航在错词、词义子页面保留所属栏目状态，记录与错词可直接切换。
+- Today 快捷入口与统计补齐看义写词；四种练习 measurement 继续独立。
+- 纸面调整为更中性的暖白 / 炭灰层次、细线和轻阴影；删除常驻聚光、按钮扫光、完成页星点及旧任务重播光效。
+- 输入正确只保留短暂 glint 后归于墨色；错误使用短暂暖色和下划线，并尊重 `prefers-reduced-motion`。
+- 取消 641–1023px 窗口仍被强制撑到 1024px 的限制，补导航、专项、词库和设置的窄窗布局。
+- 拼写结果页收成一个主要下一步，Enter 与主按钮一致；其他练习方式进入次级区域。
+- 练习准备栏改为有文字的快捷设置，去掉与主导航重复的统计 / 错词图标；统一三种词义练习顶栏，减少拼写开始 / 暂停时的位置跳动。
+- 专项空候选增加可执行的替代入口；同步页正确标注看义写词；导出失败有可见反馈。
+
+### 第三、四批：连续性与记录页
+
+- 修复“专项设置 → 更换词书 / 章节 → 返回专项设置”路径，保留所选模式、范围和每段词数；返回目标只接受已知安全目标。
+- Smart Session 恢复提示改为真实剩余词数，去掉重复的云安排说明和常驻状态光晕。
+- 记录页按近期拼写、学习日历、词义训练、输入细节重组；两个重复日历合并为一个可切换视图，输入图表默认收起并在展开时才创建。
+- 三种词义训练采用统一记录行，各自回到对应模式和范围；保留自评与客观 measurement 的语义边界。
+- 图表补充空状态、可访问名称和 reduced-motion 支持；统计日期按天稳定计算。
+
+### 最终验证与发布
+
+- PR #88 首轮 CI 的唯一失败来自 Smart Session E2E 仍匹配旧文案；生产实现已经按 cursor 显示真实剩余数量。
+- commit `a8a26157c9c7e86bf9b19dba357cc73339075506` 将测试改为验证“完成 1 / 3 后剩余 2 个”的新语义，没有放宽功能断言。
+- PR head 随后的 CI run `38288338980`：**success**，全部 browser flow、production Pages artifact 与 Pages recovery 验证通过。
+- PR #88 squash merge 后的生产 commit：`fd557f538d3ffa5ea4abb21715204a79a866d112`。
+- `main` CI run `38288924834`：**success**。
+- Pages deploy run `38288924992`：**success**，已发布到生产 Pages。
+- 本轮没有修改 Learning Fact 语义、账号隔离、AI 编排边界或 Edge / MCP 后端协议。
+- 自动浏览器流程已经通过；人工审美验收不视为完成，后续以真实日常使用中发现的具体问题做定点微调，不再开启另一轮大规模视觉换皮。
+
 ## 下一步优先级
 
-1. **主要研发重心转向正式 Reading Loop**：可信 private/provider → 整篇作答 → 一次提交 → immutable reading facts → 复盘 → AI interpretation → future intent。
-2. Reading 稳定后，由用户明确确认是否从 `vocabulary` 切到 `mixed`；不得 AI 自动升级长期学习阶段。
-3. 单独审计 Coaching Context `executionAvailability` 的 freshness / persistence 链路，避免 stale 状态长期存在。
-4. 做一次定向词库数据质量扫描，定位并修复中英文夹杂等 P3 内容问题，不凭验收描述猜词修改。
-5. 再依次扩展新题型、完形、翻译、写作；FSRS 与文学模块继续延后。
+1. **停止继续发散 UI 风格。** 使用当前已发布版本，只有在真实学习中发现具体视觉 / 操作问题时再小批次修复；`design/luminous-paper-v1` 与 `design/mature-html-prototypes` 保留为研究资料，不进入生产。
+2. **主要研发重心转向正式 Reading Loop**：可信 private/provider → 整篇作答 → 一次提交 → immutable reading facts → 复盘 → AI interpretation → future intent。
+3. Reading 稳定后，由用户明确确认是否从 `vocabulary` 切到 `mixed`；不得 AI 自动升级长期学习阶段。
+4. 单独审计 Coaching Context `executionAvailability` 的 freshness / persistence 链路，避免 stale 状态长期存在。
+5. 做一次定向词库数据质量扫描，定位并修复中英文夹杂等 P3 内容问题，不凭验收描述猜词修改。
+6. 再依次扩展新题型、完形、翻译、写作；FSRS 与文学模块继续延后。
 
 ## 续接顺序
 
@@ -149,47 +185,6 @@ Production 仍是手动专项，**没有加入 Smart Session planner**。
 
 1. 先读远端 `main`、开放 PR、最新 CI / Pages、Supabase migration 与 Edge Function；
 2. 再读本页、`ARCHITECTURE.md`、`DATA_MODEL.md`、`MCP_TOOLS.md`、`AI_COACHING_LOOP_V1.md` 与两份 2026-10-12 验收报告；
-3. 不重做稳定的 Typing / Dexie / OAuth / MCP / Smart Session；
+3. 不重做稳定的 Typing / Dexie / OAuth / MCP / Smart Session，也不要重新开启全面 UI redesign；
 4. 每个高价值阶段小批次 commit + push，GitHub 始终保持可续接状态；
 5. 优先真实学习价值、历史真实性、账号隔离、恢复一致性和跨设备闭环，不继续堆零散功能。
-
-## 2026-10-13 界面统一与纸面微光（开发分支，尚未发布）
-
-用户本轮要求优先界面整体性、减少冗余和打磨细节；采用小批次提交，减少验证开销。
-
-第一批：
-- 七个主要页面使用共用标题/辅助操作布局；导航在错词、词义子页面保留所属栏目状态，记录与错词可直接切换。
-- 今日快捷入口与统计补齐看义写词；移除与拼写并列的无错数，四种练习口径仍独立。
-- 纸面使用暖白/炭灰层次、细线和轻阴影；删除常驻聚光、按钮扫光、完成页星点以及旧任务重播光效。
-- 输入正确短暂发光后归于墨色；错误用短暂暖色和下划线，降低整词抖动幅度；尊重减少动态效果设置。
-- 切页保留导航和内容占位；去掉页面祖先 transform 动画，避免影响 fixed / sticky 定位。
-- 取消 641–1023px 窗口仍被强制撑到 1024px 的限制，补导航、专项、词库和设置的窄窗布局。
-
-验证：本批 `tsc --noEmit` 通过（共用标题/导航与主要样式调整后）；未跑完整测试，未发布网站，未修改学习事实/计划执行/同步协议。下一批继续打磨练习准备与结果操作层级。
-
-第二批：
-- 拼写结果页只保留一个主操作（纠错 / 下一章 / 返回所属流程），Enter 与主按钮一致；默写、重练、词义训练收进可展开区域。关闭结果也回到所属专项或错词页。
-- 练习准备栏改为有文字的快捷设置，去掉与主导航重复的统计/错词图标；补齐开关可访问名称、设置页键盘焦点、嵌套弹层边界与短窗口高度。
-- 统一词义回想、选择词义、看义写词的练习页顶栏；补齐此前缺失的 kicker 样式及输入焦点变量；正确答案只短暂照亮边缘。
-- 固定桌面拼写开始/暂停时的顶栏、工具栏和提示占位，减少单词位置跳动；平板说明改为非阻塞文字。
-- 专项空候选增加切换到词义回想的操作；同步页正确标注看义写词；导出失败显示可见提示。
-- 随输入提示文案更新已有测试定位文本，未增加测试套件。
-
-本轮验证：最终 `tsc --noEmit`、生产 `vite build --base=./`、`git diff --check` 均通过；已改动 TS/TSX 的 ESLint 为 0 errors、5 条既有模式警告。构建仍有大 chunk 提醒，本轮没有为此改动打包架构。未运行单元或 E2E 套件。实机视觉检查未完成：本地 Playwright 缺浏览器二进制，Cloud Browser 无法连接容器的本地服务；未追加安装和反复验证。
-
-保存/发布：用户于 2026-10-13 明确授权上传到公开仓库并创建 PR。两批改动已通过已连接的 GitHub 接口保存到 `polish/luminous-paper-coherence`，对应提交 `9bb20fa`、`83a1463`，文件树与本地两批提交完全一致。PR：[#88](https://github.com/qbjsdsb/wenyan-English/pull/88)。**尚未合并或发布**。
-
-下一步：在可用浏览器中快速查看 Today / Practice / Typing / Settings 的浅深色及窄窗，检查 PR 必要检查结果，再决定合并。学习事实、数据隔离、AI 编排与后端协议均未改动。
-
-### 2026-10-13 继续打磨 · 第三批
-
-- 修复“专项设置 → 更换词书 / 章节 → 返回专项设置”路径，保留所选模式、范围和每段词数。普通词库入口仍直接开始拼写；返回目标经过已知选项校验，不接受任意地址。
-- 智能学习恢复提示显示真正剩余词数，去掉重复的云安排说明与常驻状态光晕。
-- 本批 TypeScript 通过；未重复构建或运行完整测试。继续保存到 PR #88，尚未合并上线。
-
-### 2026-10-13 继续打磨 · 第四批
-
-- 记录页按近期拼写、学习日历、词义训练、输入细节组织。两个重复日历合为可切换的一个，输入图表默认收起，展开时才创建。
-- 三种词义训练采用统一记录行，各自进入对应模式与范围；明确自评和客观核对口径，词数日历说明跨日期重复计数。
-- 图表增加空状态、可访问名称与减少动态效果支持，收起时销毁实例。统计日期以天为边界，避免切换界面时因秒数变化重复读取记录。
-- 两批均通过 TypeScript 检查；仅补充本批定向静态检查，不重复构建或完整测试；实机视觉检查仍未完成。第三批已上传，第四批继续提交到 PR #88，尚未合并或发布。
