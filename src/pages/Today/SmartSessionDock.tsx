@@ -1,7 +1,17 @@
 import { semanticRunPath } from '@/semantic/practice'
-import { type PreparedSmartSession, assertPreparedVocabularyBlockStartable, prepareSmartVocabularySession, startPreparedSemanticBlock, startPreparedVocabularyBlock } from '@/smart-session/adapter'
+import {
+  type PreparedSmartSession,
+  assertPreparedVocabularyBlockStartable,
+  prepareSmartVocabularySession,
+  startPreparedSemanticBlock,
+  startPreparedVocabularyBlock,
+} from '@/smart-session/adapter'
 import { reportSmartSessionExecutionAvailability } from '@/smart-session/executionAvailability'
-import { type ResolvedSmartSessionIntent, bindResolvedSessionIntent, resolveSmartSessionLearningIntent } from '@/smart-session/learningIntent'
+import {
+  type ResolvedSmartSessionIntent,
+  bindResolvedSessionIntent,
+  resolveSmartSessionLearningIntent,
+} from '@/smart-session/learningIntent'
 import {
   acknowledgeSmartBreak,
   createSmartSessionId,
@@ -24,12 +34,18 @@ function retryLabel(retryAt: number | undefined) {
 
 function purposeLabel(prepared: PreparedSmartSession | undefined) {
   if (!prepared) return '正在安排下一段…'
-  if (prepared.kind === 'semantic-resume') return `继续刚才的${prepared.run.mode === 'discrimination' ? '选择词义' : '词义回想'}（剩余 ${(prepared.run.discriminationQuestions?.length ?? prepared.run.items.length) - prepared.run.index} 个）`
-  if (prepared.kind === 'resume') return `继续刚才的 ${prepared.record.words.length} 个词`
+  if (prepared.kind === 'semantic-resume')
+    return `继续刚才的${prepared.run.mode === 'discrimination' ? '选择词义' : '词义回想'}（剩余 ${
+      (prepared.run.discriminationQuestions?.length ?? prepared.run.items.length) - prepared.run.index
+    } 个）`
+  if (prepared.kind === 'resume') return `继续刚才的练习（剩余 ${Math.max(0, prepared.record.words.length - prepared.record.index)} 个）`
   if (prepared.draft.disposition === 'break') return '先休息一下'
   const block = prepared.draft.blocks[0]
   if (!block) {
-    if (prepared.draft.reason === 'review_only_waiting_for_correction_cooldown' || prepared.draft.reason === 'waiting_for_correction_cooldown') {
+    if (
+      prepared.draft.reason === 'review_only_waiting_for_correction_cooldown' ||
+      prepared.draft.reason === 'waiting_for_correction_cooldown'
+    ) {
       return '刚练过的错词先放一会儿。'
     }
     if (prepared.draft.reason === 'new_word_ceiling_no_review' || prepared.draft.reason === 'nothing_due_yet') {
@@ -81,8 +97,6 @@ function blockMeta(prepared: PreparedSmartSession | undefined, intent: ResolvedS
     if (retry) meta.push(retry)
     if (intent?.constraints.newWordCeiling === 0) meta.push('今日不加新词')
   }
-  if (intent?.source === 'cloud') meta.push('最近安排已应用')
-  if (intent?.source === 'cached-cloud') meta.push('沿用最近安排')
   if (prepared?.runtime.hardStopMinutes !== undefined || prepared?.runtime.hardStopAt !== undefined) meta.push('到点停止')
   return meta
 }
@@ -109,53 +123,64 @@ export default function SmartSessionDock() {
 
   const supported = dict.language === 'en'
 
-  const refresh = useCallback(async (quiet = false) => {
-    const request = ++generation.current
-    if (!supported) return
-    setBusy(true)
-    setError('')
-    if (!quiet) { setPrepared(undefined); setIntent(undefined) }
-    try {
-      const ownerUserId = getLocalLearningOwnerId()
-      const runtimeSessionId = getCurrentSmartSessionId(ownerUserId) ?? createSmartSessionId()
-      const [recoverableFocus, resolvedIntent] = await Promise.all([
-        getRecoverableSmartSessionFocusDictionary(ownerUserId),
-        resolveSmartSessionLearningIntent(dict.id, runtimeSessionId),
-      ])
-      const focusDictionary = recoverableFocus ?? resolvedIntent.constraints.focusDictionary ?? dict.id
-      const effectiveIntent: ResolvedSmartSessionIntent = {
-        ...resolvedIntent,
-        constraints: { ...resolvedIntent.constraints, focusDictionary },
+  const refresh = useCallback(
+    async (quiet = false) => {
+      const request = ++generation.current
+      if (!supported) return
+      setBusy(true)
+      setError('')
+      if (!quiet) {
+        setPrepared(undefined)
+        setIntent(undefined)
       }
-      const nextPrepared = await prepareSmartVocabularySession(
-        focusDictionary,
-        effectiveIntent.constraints,
-        Date.now(),
-        runtimeSessionId,
-      )
-      if (request !== generation.current) return
-      setIntent(effectiveIntent)
-      setPrepared(nextPrepared)
-      void reportSmartSessionExecutionAvailability(nextPrepared)
-    } catch (cause) {
-      if (request === generation.current) setError(cause instanceof Error ? cause.message : '暂时无法生成下一段学习。')
-    } finally {
-      if (request === generation.current) setBusy(false)
-    }
-  }, [dict.id, supported])
+      try {
+        const ownerUserId = getLocalLearningOwnerId()
+        const runtimeSessionId = getCurrentSmartSessionId(ownerUserId) ?? createSmartSessionId()
+        const [recoverableFocus, resolvedIntent] = await Promise.all([
+          getRecoverableSmartSessionFocusDictionary(ownerUserId),
+          resolveSmartSessionLearningIntent(dict.id, runtimeSessionId),
+        ])
+        const focusDictionary = recoverableFocus ?? resolvedIntent.constraints.focusDictionary ?? dict.id
+        const effectiveIntent: ResolvedSmartSessionIntent = {
+          ...resolvedIntent,
+          constraints: { ...resolvedIntent.constraints, focusDictionary },
+        }
+        const nextPrepared = await prepareSmartVocabularySession(focusDictionary, effectiveIntent.constraints, Date.now(), runtimeSessionId)
+        if (request !== generation.current) return
+        setIntent(effectiveIntent)
+        setPrepared(nextPrepared)
+        void reportSmartSessionExecutionAvailability(nextPrepared)
+      } catch (cause) {
+        if (request === generation.current) setError(cause instanceof Error ? cause.message : '暂时无法生成下一段学习。')
+      } finally {
+        if (request === generation.current) setBusy(false)
+      }
+    },
+    [dict.id, supported],
+  )
 
   useEffect(() => {
     void refresh()
-    const changed = () => { void refresh() }
-    const foreground = () => { if (document.visibilityState === 'visible') void refresh(true) }
+    const changed = () => {
+      void refresh()
+    }
+    const foreground = () => {
+      if (document.visibilityState === 'visible') void refresh(true)
+    }
     window.addEventListener('wenyan-learning-owner-changed', changed)
     window.addEventListener('focus', foreground)
-    return () => { generation.current++; window.removeEventListener('wenyan-learning-owner-changed', changed); window.removeEventListener('focus', foreground) }
+    return () => {
+      generation.current++
+      window.removeEventListener('wenyan-learning-owner-changed', changed)
+      window.removeEventListener('focus', foreground)
+    }
   }, [refresh])
 
   useEffect(() => {
     if (busy) return
-    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(true) }, 60000)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refresh(true)
+    }, 60000)
     return () => window.clearInterval(timer)
   }, [busy, refresh])
 
@@ -166,10 +191,7 @@ export default function SmartSessionDock() {
     return () => window.clearTimeout(id)
   }, [prepared, refresh])
 
-  const label = useMemo(
-    () => error && !prepared ? '暂时无法安排下一段学习。' : purposeLabel(prepared),
-    [error, prepared],
-  )
+  const label = useMemo(() => (error && !prepared ? '暂时无法安排下一段学习。' : purposeLabel(prepared)), [error, prepared])
   const note = useMemo(() => intentNote(intent, prepared), [intent, prepared])
   const meta = useMemo(() => blockMeta(prepared, intent), [intent, prepared])
 
@@ -186,7 +208,10 @@ export default function SmartSessionDock() {
 
       if (prepared.kind === 'draft') assertPreparedVocabularyBlockStartable(prepared)
       await bindResolvedSessionIntent(intent, prepared.runtime.id)
-      if (prepared.kind === 'semantic-resume' || (prepared.kind === 'draft' && prepared.draft.blocks[0]?.activity.kind === 'semantic_recall')) {
+      if (
+        prepared.kind === 'semantic-resume' ||
+        (prepared.kind === 'draft' && prepared.draft.blocks[0]?.activity.kind === 'semantic_recall')
+      ) {
         const active = prepared.kind === 'semantic-resume' ? prepared : await startPreparedSemanticBlock(prepared)
         navigate(semanticRunPath(active.run))
         return
@@ -199,31 +224,32 @@ export default function SmartSessionDock() {
       setReview({ isReviewMode: true, reviewRecord: record })
       setDict(runtime.focusDictionary)
       setChapter(0)
-      navigate(
-        `/?smartSession=${encodeURIComponent(runtime.id)}&smartBlock=${encodeURIComponent(runtime.currentBlock.id)}`,
-      )
+      navigate(`/?smartSession=${encodeURIComponent(runtime.id)}&smartBlock=${encodeURIComponent(runtime.currentBlock.id)}`)
     } catch (cause) {
       setError(userFacingError(cause))
       if (cause instanceof Error && cause.message.includes('session_intent_bound_elsewhere')) await refresh()
+      setBusy(false)
+    } finally {
       setBusy(false)
     }
   }
 
   if (!supported) return null
 
-  const hasBlock = prepared?.kind === 'semantic-resume' || prepared?.kind === 'resume' || (prepared?.kind === 'draft' && prepared.draft.blocks.length > 0)
+  const hasBlock =
+    prepared?.kind === 'semantic-resume' || prepared?.kind === 'resume' || (prepared?.kind === 'draft' && prepared.draft.blocks.length > 0)
   const isBreak = prepared?.kind === 'draft' && prepared.draft.disposition === 'break'
   const canSmartStart = Boolean(hasBlock || isBreak)
   const showNote = Boolean(note)
   const primaryLabel = busy
     ? '正在准备…'
     : isBreak
-      ? '休息好了，继续'
-      : prepared?.kind === 'resume' || prepared?.kind === 'semantic-resume'
-        ? '继续这一段'
-        : hasBlock
-          ? '开始学习'
-          : '重新检查'
+    ? '休息好了，继续'
+    : prepared?.kind === 'resume' || prepared?.kind === 'semantic-resume'
+    ? '继续这一段'
+    : hasBlock
+    ? '开始学习'
+    : '重新检查'
 
   return (
     <section
@@ -234,16 +260,29 @@ export default function SmartSessionDock() {
       <div className="relative z-[1] flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center sm:gap-10">
         <div className="min-w-0 max-w-2xl">
           <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold tracking-[0.015em] text-[var(--wenyan-accent)]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--wenyan-accent)] shadow-[0_0_0_4px_var(--wenyan-accent-soft)]" />
-            <span>{prepared?.kind === 'resume' || prepared?.kind === 'semantic-resume' ? '接着上次的位置' : isBreak ? '留一点间隔' : '现在适合做'}</span>
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--wenyan-accent)]" />
+            <span>
+              {prepared?.kind === 'resume' || prepared?.kind === 'semantic-resume'
+                ? '接着上次的位置'
+                : isBreak
+                ? '留一点间隔'
+                : '现在适合做'}
+            </span>
           </div>
-          <h2 className="text-[25px] font-semibold leading-[1.4] sm:text-[28px] tracking-[-0.036em] text-[var(--wenyan-ink)]">{label}</h2>
+          <h2 className="text-[25px] font-semibold leading-[1.4] tracking-[-0.036em] text-[var(--wenyan-ink)] sm:text-[28px]">{label}</h2>
 
           {meta.length > 0 && (
-            <div className="wenyan-mono mt-3 flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--wenyan-ink-secondary)]" aria-label="这一段概况">
+            <div
+              className="wenyan-mono mt-3 flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--wenyan-ink-secondary)]"
+              aria-label="这一段概况"
+            >
               {meta.map((item, index) => (
                 <span key={item} className="contents">
-                  {index > 0 && <span aria-hidden="true" className="text-[var(--wenyan-ink-muted)] opacity-65">·</span>}
+                  {index > 0 && (
+                    <span aria-hidden="true" className="opacity-65 text-[var(--wenyan-ink-muted)]">
+                      ·
+                    </span>
+                  )}
                   <span>{item}</span>
                 </span>
               ))}
@@ -251,17 +290,16 @@ export default function SmartSessionDock() {
           )}
 
           {showNote && <p className="wenyan-muted mt-3 max-w-xl text-[13px] leading-[1.7]">{note}</p>}
-          {error && <p role="alert" className="mt-3 text-xs leading-5 text-[var(--wenyan-danger)]">{error}</p>}
+          {error && (
+            <p role="alert" className="mt-3 text-xs leading-5 text-[var(--wenyan-danger)]">
+              {error}
+            </p>
+          )}
         </div>
 
         <div className="flex w-full shrink-0 flex-col items-start gap-2.5 sm:w-auto sm:items-end">
           {error && (
-            <button
-              type="button"
-              aria-label="重新安排"
-              onClick={() => void refresh()}
-              className="wenyan-button-secondary"
-            >
+            <button type="button" aria-label="重新安排" onClick={() => void refresh()} className="wenyan-button-secondary">
               重试
             </button>
           )}
@@ -269,7 +307,9 @@ export default function SmartSessionDock() {
             type="button"
             disabled={busy || (!prepared && !error) || Boolean(error)}
             onClick={() => void (canSmartStart ? start() : refresh())}
-            className={`${canSmartStart ? 'wenyan-button-primary' : 'wenyan-button-secondary'} inline-flex min-h-[44px] w-full items-center justify-center gap-2 px-6 sm:w-auto`}
+            className={`${
+              canSmartStart ? 'wenyan-button-primary' : 'wenyan-button-secondary'
+            } inline-flex min-h-[44px] w-full items-center justify-center gap-2 px-6 sm:w-auto`}
           >
             <span>{primaryLabel}</span>
             {canSmartStart && !busy && <ArrowRight aria-hidden="true" size={14} strokeWidth={1.8} />}

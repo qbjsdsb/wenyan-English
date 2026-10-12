@@ -7,8 +7,10 @@ export default function Chapter({
   checked,
   dictID,
   onChange,
+  selectOnly = false,
 }: {
   index: number
+  selectOnly?: boolean
   checked: boolean
   dictID: string
   onChange: (index: number) => void
@@ -34,7 +36,7 @@ export default function Chapter({
     <button
       ref={ref}
       type="button"
-      aria-label={`开始第 ${index + 1} 章`}
+      aria-label={`${selectOnly ? '选择' : '开始'}第 ${index + 1} 章`}
       aria-current={checked ? 'step' : undefined}
       className={`wenyan-chapter-choice relative flex min-h-[76px] w-full cursor-pointer flex-col items-start justify-center rounded-[var(--wenyan-radius-sm)] border px-3 py-2 text-left transition-colors ${
         checked
@@ -43,7 +45,9 @@ export default function Chapter({
       }`}
       onClick={() => onChange(index)}
     >
-      <span className={`text-sm font-medium ${checked ? 'text-[var(--wenyan-accent)]' : 'text-[var(--wenyan-ink)]'}`}>第 {index + 1} 章</span>
+      <span className={`text-sm font-medium ${checked ? 'text-[var(--wenyan-accent)]' : 'text-[var(--wenyan-ink)]'}`}>
+        第 {index + 1} 章
+      </span>
       <span className="wenyan-muted pt-[2px] text-[11px]">
         {chapterStatus ? (chapterStatus.exerciseCount > 0 ? `练习 ${chapterStatus.exerciseCount} 次` : '未练习') : '加载中…'}
       </span>

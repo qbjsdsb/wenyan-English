@@ -2,6 +2,7 @@ import DictionaryGroup from './CategoryDicts'
 import DictRequest from './DictRequest'
 import DictionaryComponent from './DictionaryWithoutCover'
 import { LanguageTabSwitcher } from './LanguageTabSwitcher'
+import { galleryReturnPath } from './navigation'
 import Header from '@/components/Header'
 import Layout from '@/components/Layout'
 import PageHeading from '@/components/PageHeading'
@@ -14,7 +15,7 @@ import { useAtomValue } from 'jotai'
 import { ArrowRight, Search } from 'lucide-react'
 import { createContext, useCallback, useEffect, useMemo, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import type { Updater } from 'use-immer'
 import { useImmer } from 'use-immer'
 
@@ -34,6 +35,9 @@ export const GalleryContext = createContext<{
 export default function GalleryPage() {
   const [galleryState, setGalleryState] = useImmer<GalleryState>(initialGalleryState)
   const navigate = useNavigate()
+  const { search } = useLocation()
+  const returnPath = galleryReturnPath(search)
+  const selectingForPractice = returnPath !== '/'
   const [query, setQuery] = useState('')
   const currentChapter = useAtomValue(currentChapterAtom)
   const currentDictInfo = useAtomValue(currentDictInfoAtom)
@@ -64,8 +68,8 @@ export default function GalleryPage() {
   }, [galleryState.currentLanguageTab])
 
   const onBack = useCallback(() => {
-    navigate('/')
-  }, [navigate])
+    navigate(returnPath)
+  }, [navigate, returnPath])
 
   useHotkeys('esc', onBack, { ignoreEventWhen: ignoresStudyKey, preventDefault: true })
 
@@ -83,11 +87,12 @@ export default function GalleryPage() {
         <Header />
         <main className="mx-auto w-full max-w-5xl px-6 pb-16 pt-9">
           <PageHeading title="词库" description={`${currentDictInfo.name} · 第 ${currentChapter + 1} 章`}>
-            <Link to="/" className="wenyan-button-secondary inline-flex items-center gap-3 no-underline">
-              继续当前学习 <ArrowRight size={14} aria-hidden="true" />
+            <Link to={returnPath} className="wenyan-button-secondary inline-flex items-center gap-3 no-underline">
+              {selectingForPractice ? '返回专项设置' : '继续当前学习'} <ArrowRight size={14} aria-hidden="true" />
             </Link>
           </PageHeading>
 
+          {selectingForPractice && <p className="wenyan-context-note mb-6">选择词书和章节后，将回到刚才的专项设置。</p>}
           <div className="mb-6 flex flex-wrap items-center justify-between gap-6 border-b border-[var(--wenyan-line-soft)] pb-3">
             <LanguageTabSwitcher />
             <div className="relative w-72">

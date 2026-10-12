@@ -256,7 +256,7 @@ export default function PracticePage() {
                 {dict.name} <span className="wenyan-muted font-normal">· 第 {chapter + 1} 章</span>
               </p>
             </div>
-            <Link className="wenyan-link text-xs" to="/gallery">
+            <Link className="wenyan-link text-xs" to={`/gallery?from=practice&mode=${mode}&pool=${pool}&limit=${limit}`}>
               换词书 / 章节
             </Link>
           </div>

@@ -1,10 +1,11 @@
-import { DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { useDeleteWordRecord } from '../../../utils/db'
 import Chapter from '../Chapter'
 import { ErrorTable } from '../ErrorTable'
 import { getRowsFromErrorWordData } from '../ErrorTable/columns'
 import { ReviewDetail } from '../ReviewDetail'
 import useErrorWordData from '../hooks/useErrorWords'
+import { galleryReturnPath } from '../navigation'
+import { DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -13,7 +14,7 @@ import type { Dictionary } from '@/typings'
 import range from '@/utils/range'
 import { useAtom, useSetAtom } from 'jotai'
 import { useCallback, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 enum Tab {
   Chapters = 'chapters',
@@ -30,6 +31,9 @@ export default function DictDetail({ dictionary: dict }: { dictionary: Dictionar
   const [curTab, setCurTab] = useState<Tab>(Tab.Chapters)
   const setReviewModeInfo = useSetAtom(reviewModeInfoAtom)
   const navigate = useNavigate()
+  const { search } = useLocation()
+  const returnPath = galleryReturnPath(search)
+  const selectingForPractice = returnPath !== '/'
   const { deleteWordRecord } = useDeleteWordRecord()
   const [reload, setReload] = useState(false)
 
@@ -50,10 +54,10 @@ export default function DictDetail({ dictionary: dict }: { dictionary: Dictionar
     (index: number) => {
       setCurrentDictId(dict.id)
       setCurrentChapter(index)
-      setReviewModeInfo((old) => ({ ...old, isReviewMode: false }))
-      navigate('/')
+      setReviewModeInfo({ isReviewMode: false, reviewRecord: undefined })
+      navigate(returnPath)
     },
-    [dict.id, navigate, setCurrentChapter, setCurrentDictId, setReviewModeInfo],
+    [dict.id, navigate, returnPath, setCurrentChapter, setCurrentDictId, setReviewModeInfo],
   )
 
   const handleTabChange = useCallback(
@@ -69,15 +73,23 @@ export default function DictDetail({ dictionary: dict }: { dictionary: Dictionar
         <div className="flex items-end justify-between gap-8">
           <div className="min-w-0">
             <DialogTitle className="text-[22px] font-semibold tracking-[-0.03em] text-[var(--wenyan-ink)]">{dict.name}</DialogTitle>
-            <p className="wenyan-muted mt-1.5 text-[11px]">{dict.chapterCount} 章节 · {dict.length} 词 · 点击章节开始练习</p>
+            <p className="wenyan-muted mt-1.5 text-[11px]">
+              {dict.chapterCount} 章节 · {dict.length} 词 · {selectingForPractice ? '选择章节后返回专项设置' : '点击章节开始练习'}
+            </p>
           </div>
 
           <ToggleGroup type="single" value={curTab} onValueChange={handleTabChange} className="shrink-0 gap-4">
-            <ToggleGroupItem value={Tab.Chapters} disabled={curTab === Tab.Chapters} className={tabClass}>章节</ToggleGroupItem>
+            <ToggleGroupItem value={Tab.Chapters} disabled={curTab === Tab.Chapters} className={tabClass}>
+              章节
+            </ToggleGroupItem>
             {errorWordData.length > 0 && (
               <>
-                <ToggleGroupItem value={Tab.Errors} disabled={curTab === Tab.Errors} className={tabClass}>错词</ToggleGroupItem>
-                <ToggleGroupItem value={Tab.Review} disabled={curTab === Tab.Review} className={tabClass}>回顾</ToggleGroupItem>
+                <ToggleGroupItem value={Tab.Errors} disabled={curTab === Tab.Errors} className={tabClass}>
+                  错词
+                </ToggleGroupItem>
+                <ToggleGroupItem value={Tab.Review} disabled={curTab === Tab.Review} className={tabClass}>
+                  回顾
+                </ToggleGroupItem>
               </>
             )}
           </ToggleGroup>
@@ -96,6 +108,7 @@ export default function DictDetail({ dictionary: dict }: { dictionary: Dictionar
                   checked={chapter === index}
                   dictID={dict.id}
                   onChange={onChangeChapter}
+                  selectOnly={selectingForPractice}
                 />
               ))}
             </div>

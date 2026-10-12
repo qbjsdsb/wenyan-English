@@ -340,3 +340,12 @@
     transition: none;
   }
 }
+
+.wenyan-context-note {
+  border-left: 2px solid var(--wenyan-accent);
+  padding: 8px 14px;
+  background: var(--wenyan-accent-soft);
+  color: var(--wenyan-ink-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+}
