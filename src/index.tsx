@@ -43,6 +43,7 @@ function Root() {
   const darkMode = useAtomValue(isOpenDarkModeAtom)
   useEffect(() => {
     darkMode ? document.documentElement.classList.add('dark') : document.documentElement.classList.remove('dark')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', darkMode ? '#1b1e20' : '#f7f6f2')
   }, [darkMode])
 
   useEffect(() => startLearningSync(), [])

@@ -104,12 +104,18 @@ export function ErrorBook() {
     navigate('/practice?mode=spelling&pool=errors')
   }
 
+  const headingDescription = loading
+    ? '正在整理…'
+    : groupedRecords.length > 0
+      ? `${groupedRecords.length} 个最近一次仍拼错的词`
+      : '最近一次已经拼对的词会自动离开这里'
+
   return (
     <div className="wenyan-studio-shell flex min-h-screen flex-col text-[var(--wenyan-ink)]">
       <Header />
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-14 pt-9">
-        <PageHeading title="错词" description={loading ? '正在整理…' : `${groupedRecords.length} 个最近一次仍拼错的词`}>
-          {!loading && !loadError && (
+        <PageHeading title="错词" description={headingDescription}>
+          {!loading && !loadError && groupedRecords.length > 0 && (
             <div className="flex items-center gap-3">
               {practiceDictId && (
                 <button type="button" onClick={startErrorPractice} className="wenyan-button-secondary">
@@ -142,7 +148,7 @@ export function ErrorBook() {
         ) : groupedRecords.length === 0 ? (
           <section className="border-y border-[var(--wenyan-line-soft)] py-8" aria-label="错词状态">
             <h2 className="text-sm font-medium text-[var(--wenyan-ink)]">目前没有待处理错词</h2>
-            <p className="wenyan-muted mt-2 text-xs leading-5">最近一次已经拼对的词会自动离开这里。</p>
+            <p className="wenyan-muted mt-2 text-xs leading-5">继续正常学习即可，新的错词会自动出现在这里。</p>
           </section>
         ) : (
           <div className="wenyan-index-table overflow-hidden border-y border-[var(--wenyan-line-soft)] bg-transparent">
