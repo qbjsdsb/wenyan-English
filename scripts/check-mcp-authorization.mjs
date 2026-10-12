@@ -4,15 +4,18 @@ import { capabilitySnapshotFromRows, capabilityStatus, loadCapabilitySnapshot } 
 const none = capabilitySnapshotFromRows([])
 assert.equal(none.status, 'available')
 assert.equal(capabilityStatus(none, 'intent_read'), 'denied')
+assert.equal(capabilityStatus(none, 'plans_read'), 'denied')
 assert.equal(capabilityStatus(none, 'plans_write'), 'denied')
 
 const readOnly = capabilitySnapshotFromRows([{ capability: 'plans:read' }])
 assert.equal(capabilityStatus(readOnly, 'intent_read'), 'allowed')
+assert.equal(capabilityStatus(readOnly, 'plans_read'), 'allowed')
 assert.equal(capabilityStatus(readOnly, 'intent_write'), 'denied')
 assert.equal(capabilityStatus(readOnly, 'plans_write'), 'denied')
 
 const coach = capabilitySnapshotFromRows([{ capability: 'coach:auto_adjust' }])
 assert.equal(capabilityStatus(coach, 'intent_read'), 'allowed')
+assert.equal(capabilityStatus(coach, 'plans_read'), 'denied')
 assert.equal(capabilityStatus(coach, 'intent_write'), 'allowed')
 
 const controls = capabilitySnapshotFromRows([
@@ -24,11 +27,12 @@ const controls = capabilitySnapshotFromRows([
 assert.equal(capabilityStatus(controls, 'device_read'), 'allowed')
 assert.equal(capabilityStatus(controls, 'navigation_control'), 'allowed')
 assert.equal(capabilityStatus(controls, 'session_control'), 'denied')
+assert.equal(capabilityStatus(controls, 'plans_read'), 'denied')
 assert.equal(capabilityStatus(controls, 'plans_write'), 'allowed')
 assert.equal(controls.capabilities.size, 2)
 
 const unavailable = capabilitySnapshotFromRows({ error: 'unavailable' })
-for (const feature of ['intent_read', 'intent_write', 'plans_write', 'device_read', 'navigation_control', 'session_control']) {
+for (const feature of ['intent_read', 'intent_write', 'plans_read', 'plans_write', 'device_read', 'navigation_control', 'session_control']) {
   assert.equal(capabilityStatus(unavailable, feature), 'unavailable')
 }
 
@@ -55,6 +59,7 @@ assert.equal(requestedHeaders?.get('apikey'), 'publishable-key')
 assert.equal(requestedHeaders?.get('Authorization'), 'Bearer signed-user-token')
 assert.equal(requestedHeaders?.get('Cache-Control'), 'no-store')
 assert.equal(capabilityStatus(fetched, 'intent_read'), 'allowed')
+assert.equal(capabilityStatus(fetched, 'plans_read'), 'allowed')
 
 const deniedLookup = await loadCapabilitySnapshot({
   supabaseUrl: 'https://example.supabase.co',
@@ -66,6 +71,7 @@ const deniedLookup = await loadCapabilitySnapshot({
 })
 assert.equal(deniedLookup.status, 'unavailable')
 assert.equal(capabilityStatus(deniedLookup, 'intent_read'), 'unavailable')
+assert.equal(capabilityStatus(deniedLookup, 'plans_read'), 'unavailable')
 
 const failedLookup = await loadCapabilitySnapshot({
   supabaseUrl: 'https://example.supabase.co',
@@ -78,6 +84,7 @@ const failedLookup = await loadCapabilitySnapshot({
   },
 })
 assert.equal(failedLookup.status, 'unavailable')
+assert.equal(capabilityStatus(failedLookup, 'plans_read'), 'unavailable')
 assert.equal(capabilityStatus(failedLookup, 'plans_write'), 'unavailable')
 
-console.log('9 Wenyan capability mapping and identity lookup scenarios passed')
+console.log('11 Wenyan capability mapping and identity lookup scenarios passed')
