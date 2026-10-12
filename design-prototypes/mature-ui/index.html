@@ -1,0 +1,19 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Wenyan · Index</title><link rel="stylesheet" href="styles.css"></head><body>
+<header class="chrome"><a class="brand" href="today.html">Wenyan</a><nav class="nav"><a href="today.html">今天</a><a class="active" href="index.html">词库</a><a href="#">记录</a></nav><span class="command-key">⌘K</span></header>
+<main class="index-page">
+  <div class="lead"><strong>Index / 词库</strong><span class="tabular">2,416 words</span></div>
+  <div class="index-tools"><label class="search-line"><input id="search" placeholder="搜索词头或释义" autocomplete="off"></label><div class="filters"><button class="active">全部</button><button>最近错误</button><button>词义模糊</button><button>已稳定</button></div></div>
+  <div class="index-table" id="table">
+    <div class="index-head"><span>#</span><span>Word</span><span>Meaning</span><span>State</span><span>Last seen</span><span>Recall</span><span>Next</span></div>
+    <div class="index-row"><span class="id">0214</span><span class="word">consequence</span><span class="meaning">后果；结果；影响</span><span class="stage"><i class="stage-dot live"></i>学习中</span><span class="date">10.13 00:42</span><span class="score">3 / 4</span><span class="next">明日</span></div>
+    <div class="index-row"><span class="id">0215</span><span class="word">constraint</span><span class="meaning">限制；约束；制约因素</span><span class="stage"><i class="stage-dot live"></i>学习中</span><span class="date">10.12 23:58</span><span class="score">2 / 4</span><span class="next">今日</span></div>
+    <div class="index-row"><span class="id">0317</span><span class="word">subtle</span><span class="meaning">微妙的；不易察觉的</span><span class="stage"><i class="stage-dot"></i>复习</span><span class="date">10.12 21:06</span><span class="score">4 / 5</span><span class="next">3 天</span></div>
+    <div class="index-row"><span class="id">0448</span><span class="word">derive</span><span class="meaning">获得；源自；推导</span><span class="stage"><i class="stage-dot"></i>稳定</span><span class="date">10.11 20:31</span><span class="score">6 / 6</span><span class="next">7 天</span></div>
+    <div class="index-row"><span class="id">0472</span><span class="word">implicit</span><span class="meaning">含蓄的；暗示的；内含的</span><span class="stage"><i class="stage-dot live"></i>学习中</span><span class="date">10.11 18:22</span><span class="score">2 / 3</span><span class="next">今日</span></div>
+    <div class="index-row"><span class="id">0519</span><span class="word">coherent</span><span class="meaning">连贯的；一致的；有条理的</span><span class="stage"><i class="stage-dot"></i>复习</span><span class="date">10.10 22:09</span><span class="score">5 / 6</span><span class="next">2 天</span></div>
+    <div class="index-row"><span class="id">0588</span><span class="word">distort</span><span class="meaning">歪曲；扭曲；使变形</span><span class="stage"><i class="stage-dot"></i>稳定</span><span class="date">10.09 17:44</span><span class="score">5 / 5</span><span class="next">11 天</span></div>
+  </div>
+</main>
+<script>
+const input=document.getElementById('search'); input.addEventListener('input',()=>{const q=input.value.trim().toLowerCase();document.querySelectorAll('.index-row').forEach(r=>r.hidden=q&&!r.textContent.toLowerCase().includes(q));});
+</script></body></html>
