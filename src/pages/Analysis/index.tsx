@@ -2,7 +2,6 @@ import HeatmapCharts from './components/HeatmapCharts'
 import KeyboardWithBarCharts from './components/KeyboardWithBarCharts'
 import LineCharts from './components/LineCharts'
 import { useWordStats } from './hooks/useWordStats'
-import EmptyState from '@/components/EmptyState'
 import Header from '@/components/Header'
 import Layout from '@/components/Layout'
 import { LoadingUI } from '@/components/Loading'
@@ -45,17 +44,27 @@ const Analysis = () => {
             </button>
           </section>
         ) : isEmpty === undefined ? (
-          <section className="wenyan-surface flex min-h-[260px] items-center justify-center">
+          <div className="flex min-h-[120px] items-center justify-center" role="status">
             <LoadingUI label="正在整理学习记录" />
-          </section>
+          </div>
         ) : isEmpty ? (
-          <EmptyState title="暂无拼写数据" description="从今天的一小段开始，记录会慢慢积累。" />
+          <section className="mb-8 border-y border-[var(--wenyan-line-soft)] py-6" aria-label="拼写记录">
+            <div className="flex flex-wrap items-center justify-between gap-5">
+              <div>
+                <h2 className="text-sm font-medium text-[var(--wenyan-ink)]">还没有拼写记录</h2>
+                <p className="wenyan-muted mt-1.5 text-xs leading-5">这里只影响拼写统计，下面的词义训练记录仍会正常显示。</p>
+              </div>
+              <button className="wenyan-link text-xs" onClick={() => navigate('/')}>
+                开始一次拼写 →
+              </button>
+            </div>
+          </section>
         ) : (
           <>
             <section className="wenyan-report-summary mb-8 rounded-[var(--wenyan-radius-lg)] border border-[var(--wenyan-line-soft)] px-6 py-5">
               <div className="mb-4 flex items-baseline justify-between gap-4">
                 <div>
-                  <p className="wenyan-muted text-[10px]">最近 7 天</p>
+                  <p className="wenyan-muted text-[11px]">最近 7 天</p>
                   <h2 className="mt-1 text-[16px] font-semibold tracking-[-0.02em] text-[var(--wenyan-ink)]">拼写节奏</h2>
                 </div>
                 <p className="wenyan-muted text-xs">{legacyAttempts > 0 ? `含 ${legacyAttempts} 条旧版本机记录` : '当前账号'}</p>
@@ -70,7 +79,7 @@ const Analysis = () => {
                     <div className="wenyan-metric-value wenyan-mono text-[24px] font-semibold tracking-[-0.04em] text-[var(--wenyan-ink)]">
                       {value}
                     </div>
-                    <div className="wenyan-muted mt-1 text-[10px]">{label}</div>
+                    <div className="wenyan-muted mt-1 text-[11px]">{label}</div>
                   </div>
                 ))}
               </div>
