@@ -43,7 +43,7 @@ export const WordPronunciationIcon = React.forwardRef<
   return (
     <SoundIcon
       animated={isPlaying}
-      label={`播放 ${word.name} 的发音`}
+      label="播放当前单词的发音"
       onClick={playSound}
       className={`cursor-pointer text-[var(--wenyan-ink-muted)] ${className}`}
       iconClassName={iconClassName}
