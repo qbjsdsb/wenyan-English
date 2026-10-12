@@ -161,7 +161,7 @@ function SemanticProductionRun({ runId }: { runId: string }) {
             aria-live="polite"
           >
             <div className="flex items-center justify-between gap-4">
-              <span className="wenyan-kicker">{feedback.isCorrect ? '写对了' : '这次写错了'}</span>
+              <span className="wenyan-kicker">{feedback.isCorrect ? '写对了' : '核对一下'}</span>
               <span className="wenyan-mono wenyan-muted text-xs">
                 {Math.min(run?.index ?? 0, run?.items.length ?? 0)} / {run?.items.length ?? 0}
               </span>
