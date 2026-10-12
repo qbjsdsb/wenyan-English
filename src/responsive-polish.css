@@ -53,6 +53,9 @@
     flex: 1;
     text-align: center;
   }
+  .wenyan-library-toolbar {
+    top: 112px;
+  }
 }
 
 @media (max-width: 640px) {
