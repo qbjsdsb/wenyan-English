@@ -7,20 +7,53 @@
 ## 当前生产基线
 
 - 仓库：`qbjsdsb/wenyan-English`。
-- 当前功能代码基线：`5d8ac1fe13a89e58fbdaa2f115a8087e1f2f496d`，PR #86 `Add semantic production evidence to Coaching Context v1.6` 已 squash merge 到 `main`。
-- #86 合并后 `main` CI run `38168048312`：**success**。
-- 该 main CI 已通过 lint、TypeScript、Smart Session / Review / Semantic / AI Coaching / OAuth deterministic guardrails、旧 v1.5 cloud adapter、v1.6 production evidence Edge-dispatch regression、MCP source packaging、production build、54 条 Chromium browser flows、Pages artifact 与 Pages recovery。
-- 看义写词前端来自 PR #85，生产代码基线 `d4427da76a2eb9e96054f60de91a83fe8f11e592`；#85 main CI `38165104928` 与 Pages deploy `38165105082` 均为 **success**。
+- 当前功能代码基线：`8c93ab39d2bb536bfa916fdd91041aacd0184f26`，PR #87 `Fix acceptance follow-ups for Cloud Plan and narrow Practice` 已 squash merge 到 `main`。
+- #87 合并后 `main` CI run `38224363222`：**success**。
+- #87 合并后 Pages deploy run `38224363200`：**success**。
+- PR #87 合并前最终 CI run `38223857144`：**success**；两个 P1 review thread 均已修复并 resolved。
 - Supabase project：`cmjhxvpkdeheujuteqoi`。
-- 生产 Edge Function：`wenyan-english-mcp` **v16 ACTIVE**。
-- v16 部署入口固定 pin 到已验证的 GitHub main commit `5d8ac1fe13a89e58fbdaa2f115a8087e1f2f496d`；不是随 `main` 漂移。
+- 生产 Edge Function：`wenyan-english-mcp` **v20 ACTIVE**。
+- v20 部署入口固定 pin 到已验证的 GitHub main commit `8c93ab39d2bb536bfa916fdd91041aacd0184f26`；不是随 `main` 漂移。
 - Edge Function 继续 `verify_jwt=false`，这是既有有意配置；函数本身验证 Supabase OAuth/JWT issuer、audience、subject、session/client identity 与 capability，不代表匿名开放。
 - MCP server contract：0.8.x；Coaching Context：`coaching-context-v1.6`。
 - Reading 仍是实验入口；文学专业课继续冻结。
 
-## 词汇学习：当前已上线能力
+## 2026-10-12 生产验收收口
 
-### 四种专项训练
+正式实机验收报告在：
+
+- `docs/acceptance/PRODUCTION_ACCEPTANCE_2026-10-12.md`
+- `docs/acceptance/PLUGIN_MCP_ACCEPTANCE_2026-10-12.md`
+
+本轮已经收掉的主要问题：
+
+1. **Today / Cloud Plan helper 权限回归**：恢复 authenticated 对纯 helper 的执行权，`anon` 仍拒绝；前端不再把原始 Postgres/RPC 错误直接暴露给用户。
+2. **MCP `plans:read` 授权边界**：外部 OAuth `get_plan_status` 最终由 Postgres fail closed；无 `plans:read` 时返回 `42501 plans_read_not_granted`。
+3. **`plans:write` 内部响应兼容**：create/revise/archive RPC 已有的事务级 `wenyan.plan_write_rpc=1` 标记允许写 RPC 在通过 `plans:write` 后内部调用 `get_plan_status`，不会被额外的 `plans:read` 误伤；外部读取边界不放宽。
+4. **Practice 窄屏发现性**：640px 以下四个专项入口改为 2×2，可直接发现，不再依赖横向滚动；对应 Playwright 回归已进 CI。
+5. **默写无障碍答案泄漏**：发音按钮不再在 accessible name 中暴露隐藏词头，已在前一轮生产修复并回归。
+
+生产数据库已应用并记录：
+
+- `20261012062110 plan_status_helper_execute`
+- `20261012064210 plan_status_plans_read_boundary`
+- `20261012082800 plan_status_write_internal_boundary`
+
+生产只读/事务回滚探针已经确认：
+
+- first-party / authenticated helper 路径可执行；
+- `anon` 无 helper execute；
+- 外部 OAuth 无 `plans:read` 时 fail closed；
+- 已通过 `plans:write` 的写 RPC 内部响应路径可继续读取刚写入的 plan status；
+- 未修改真实学习历史或完成记录。
+
+### 仍保留的非阻塞项
+
+- 验收中发现一条词书释义夹有未翻译英文 token，但报告没有记录精确词条。为避免猜测修改词库，目前保留为 **P3 数据质量项**，后续应做定向词库质量扫描后修复。
+- 插件验收曾观测到 Coaching Context `executionAvailability` 为 stale / unknown。历史/语义证据读取仍可用，但代理不得把该字段解释为“当前候选池已经实时完整评估”。这不是本轮为了收口而仓促改写 planner/runtime 的理由；后续应单独审计 availability 刷新链路。
+- 当前会话没有暴露 `$wenyan` 自定义工具，因此 PR #87 / Edge v20 部署后没有在本会话再做一次真实消费端 `get_plan_status` 调用。数据库 capability 边界、MCP capability regression、CI 与部署均已验证，但不要把这一点伪称为消费端 E2E。
+
+## 词汇学习：当前上线能力
 
 当前专项训练包括：
 
@@ -29,7 +62,7 @@
 3. 英文 → 版本化参考释义客观辨认；
 4. 版本化词书释义 → 英文词头主动产出（看义写词）。
 
-看义写词使用：
+看义写词 Learning Fact：
 
 - eventType：`semantic_production_attempted`
 - sourceVersion：`6`
@@ -42,76 +75,35 @@
 
 不得解释为：通用中译英、语境写作、同义词排斥能力、semantic mastery 或 memory strength。
 
-### 看义写词出题 / 执行边界
+Production 仍是手动专项，**没有加入 Smart Session planner**。
 
-- 只有完整可见释义签名在当前词书中只对应一个 normalized headword 的词才可出题；
-- 可见释义若直接包含目标英文词头，出题前即排除；
-- 准备页与 runner 提交前不在 DOM 暴露标准英文词头；
-- 提交成功后才显示当前版本词书参考词头；
-- production run 支持暂停、继续、结束、刷新恢复；
-- 最后一题先显示本题反馈，再进入结果；
-- Learning Fact 与 authoritative run cursor 在同一 Dexie 事务提交；
-- owner 在异步边界捕获并在事务内再次确认，账号切换 fail closed；
-- `词义模糊` 词池可以利用最近 production 写错证据，但 recall / discrimination / production 仍是三条不同 semantic measurement。
+## 真实 v6 生产回流已验收
 
-### Sync / backup
+2026-10-12 实机验收已通过正常 UI 自然产生并同步 6 条 `semantic_production_attempted` sourceVersion 6 facts（5 对、1 错）。Cloud Work 随后真实调用生产 `get_coaching_context`，返回 `coaching-context-v1.6`，并能独立识别 `semanticProductionEvidence`。
 
-- browser Learning Event ingest 对 sourceVersion 6 通用兼容，不需要数据库 migration；
-- cloud pull 已显式支持 `semantic_production_attempted` v6，并走严格 parser；
-- v6 已进入现有 event-restore 回归；
-- 本机备份为整库 Dexie staging + 原子恢复，不需要增加新的 v6 备份格式。
+因此现在已经验证：
 
-## Coaching Context v1.6：已部署
+`真实 UI production → local immutable fact → sync → Supabase learning_events → production MCP v1.6 → semanticProductionEvidence`
 
-生产 MCP 现在把以下学习证据保持为彼此独立的通道：
+不得把这 6 条测试会话结果推广成长期掌握率。
+
+## Coaching Context v1.6
+
+生产 MCP 保持以下证据通道彼此独立：
 
 - spelling evidence；
 - `semanticEvidence`：sourceVersion 4，词义主动回想的用户自评；
 - `semanticDiscriminationEvidence`：sourceVersion 5，客观 reference-choice；
 - `semanticProductionEvidence`：sourceVersion 6，客观 exact reference-headword production。
 
-v1.6 的 production adapter：
-
-- 只读 `semantic_production_attempted`；
-- 只接受 sourceVersion 6；
-- 严格复用 `parseSemanticProductionPayload()`；
-- 14 天窗口，最多读取 500 条有效 facts；
-- invalid rows 单独剔除并进入 coverage；
-- production fingerprint rows 会进入新的 snapshot identity；production facts 变化必须改变 snapshot id；
-- `adapter.semanticProductionReadStatus` 与 `snapshotDescriptor.semanticProductionFacts` 显式暴露该通道状态；
-- agent guidance 明确 production 不是 general translation、contextual production、synonym rejection evidence 或 semantic mastery。
-
-### v1.5 回退与 Edge 验证
-
-原 v1.5 实现以 `coachingV15.ts` 原 blob 保留，不重写其逻辑。
-
-PR #86 review 曾真实发现一个 P1：第一版 `coachingV16.ts` 错从 dispatcher `coaching.ts` 导入 v1.5，在 Deno Edge Runtime 会递归回 v1.6。已修为直接导入 `coachingV15.ts`。
-
-同时 `scripts/check-coaching-production.mjs` 现在显式设置伪 `globalThis.Deno`，通过真实 `coaching.ts` dispatcher 进入 v1.6，因此该回归覆盖的是 Edge 分支，不再只是 Node 直接 import。
-
-## 生产 v6 数据验收边界
-
-2026-10-12 部署 v16 后，使用只读 SQL 查询生产 `learning_events`：
-
-- 当前自然产生的 `semantic_production_attempted` v6 facts：**0 条**。
-
-因此现在已经验证的是：
-
-`前端 v6 fact contract / local persistence / cloud pull → MCP v1.6 production read path → production Edge Function v16 deployment`
-
-但还**不能**声称已经完成“用户本人真实 v6 fact → sync → production MCP summary”的数据回流验收。禁止为了 smoke 制造个人学习历史。
-
-等用户自然做一次看义写词并同步后，再只读检查 v6 facts 与 MCP `semanticProductionEvidence` 即可。
-
-本会话也没有暴露自定义 `$wenyan` 插件工具，因此尚未从 ChatGPT 侧实际调用一次生产 `get_coaching_context`；不要伪称最后一跳已验收。
+不得合并成总 mastery score。
 
 ## Smart Session / AI Coach
 
 - Smart Session：`elastic-v2`；
 - Learning Intent precedence：`session > day > ongoing > local defaults`；
 - 当前稳定编排 review / correction / weak / new / semantic recall，并遵守 cooldown、budget、hard stop、new-word ceiling 与 executor availability；
-- semantic production **当前只做手动专项**，尚未成为 Smart Session planner activity；
-- 只有真实 usage 证明 production 提供稳定、独立的学习价值后，才考虑自动编排；不要仅因为已经有 v6 evidence 就机械加入 planner；
+- semantic production 当前只做手动专项；
 - AI 只判断未来策略；deterministic planner / executor 负责可执行约束与真实完成判定。
 
 ## Cloud Plan / Workspace / Control
@@ -135,7 +127,6 @@ PR #86 review 曾真实发现一个 P1：第一版 `coachingV16.ts` 错从 dispa
 - Only the user confirms long-term learning-stage changes；
 - No evidence != mastery；Spelling != semantic mastery；
 - recall / discrimination / production 是不同 measurement；
-- objective discrimination != free recall / contextual comprehension / mastery；
 - reference-headword production != general translation / contextual production / mastery；
 - Command completion != learning completion；
 - Workspace State != Learning Fact；
@@ -146,19 +137,18 @@ PR #86 review 曾真实发现一个 P1：第一版 `coachingV16.ts` 错从 dispa
 
 ## 下一步优先级
 
-1. 用户自然完成至少一次看义写词并同步后，只读验收 `local v6 fact → cloud → production MCP semanticProductionEvidence`；不要 synthetic history。
-2. 在能调用 `$wenyan` 的 ChatGPT 会话做一次真实生产 `get_coaching_context` smoke，确认 v1.6 四类 evidence 与 uncertainty 边界。
-3. 在出现一定真实 production usage 后，再判断它是否值得进入 Smart Session；默认保持手动专项。
-4. 主要研发重心转向正式 Reading Loop：可信 private/provider → 整篇作答 → 一次提交 → immutable facts → 复盘 → AI interpretation → future intent。
-5. Reading 稳定后，由用户明确确认是否从 `vocabulary` 切到 `mixed`；不得 AI 自动升级长期学习阶段。
-6. 再依次扩展新题型、完形、翻译、写作；FSRS 与文学模块继续延后。
+1. **主要研发重心转向正式 Reading Loop**：可信 private/provider → 整篇作答 → 一次提交 → immutable reading facts → 复盘 → AI interpretation → future intent。
+2. Reading 稳定后，由用户明确确认是否从 `vocabulary` 切到 `mixed`；不得 AI 自动升级长期学习阶段。
+3. 单独审计 Coaching Context `executionAvailability` 的 freshness / persistence 链路，避免 stale 状态长期存在。
+4. 做一次定向词库数据质量扫描，定位并修复中英文夹杂等 P3 内容问题，不凭验收描述猜词修改。
+5. 再依次扩展新题型、完形、翻译、写作；FSRS 与文学模块继续延后。
 
 ## 续接顺序
 
 新会话 / Work / Astra 接手：
 
 1. 先读远端 `main`、开放 PR、最新 CI / Pages、Supabase migration 与 Edge Function；
-2. 再读本页、`ARCHITECTURE.md`、`DATA_MODEL.md`、`MCP_TOOLS.md`、`AI_COACHING_LOOP_V1.md`；
+2. 再读本页、`ARCHITECTURE.md`、`DATA_MODEL.md`、`MCP_TOOLS.md`、`AI_COACHING_LOOP_V1.md` 与两份 2026-10-12 验收报告；
 3. 不重做稳定的 Typing / Dexie / OAuth / MCP / Smart Session；
 4. 每个高价值阶段小批次 commit + push，GitHub 始终保持可续接状态；
 5. 优先真实学习价值、历史真实性、账号隔离、恢复一致性和跨设备闭环，不继续堆零散功能。
