@@ -226,6 +226,9 @@ html.dark .wenyan-settings-dialog {
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
+.wenyan-focus-bar .text-\[10px\] {
+  font-size: 11px !important;
+}
 .wenyan-focus-bar + main .wenyan-focus-surface {
   border-width: 1px 0 0;
   border-radius: 0;
@@ -235,6 +238,18 @@ html.dark .wenyan-settings-dialog {
 }
 .wenyan-focus-bar + main .wenyan-focus-surface[data-feedback='wrong'] {
   border-top-color: color-mix(in srgb, var(--wenyan-danger) 32%, var(--wenyan-line));
+}
+
+/* Completion is a true overlay: ordinary surfaces stay flat, this one earns depth. */
+.wenyan-completion-stage .wenyan-surface {
+  box-shadow: 0 20px 56px color-mix(in srgb, var(--wenyan-canvas) 25%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--wenyan-line) 55%, transparent);
+}
+.wenyan-completion-stage .text-\[10px\] {
+  font-size: 11px !important;
+}
+html.dark .wenyan-completion-stage .wenyan-surface {
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24), 0 0 0 1px var(--wenyan-line-soft);
 }
 
 /* Keyboard hints are tertiary, but never microscopic. */
