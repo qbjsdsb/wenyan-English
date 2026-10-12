@@ -16,6 +16,10 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('dictation mode keeps the hidden answer out of pronunciation accessibility text', async ({ page }) => {
+  await page.evaluate(() => localStorage.setItem('pronunciation', JSON.stringify({ isOpen: true, volume: 0, type: 'us' })))
+  await page.reload()
+  await expect(page.getByText('按任意键开始', { exact: true })).toBeVisible()
+
   await page.getByRole('button', { name: '学习设置' }).click()
   await page.getByRole('button', { name: '开关默写模式' }).click()
   await page.getByRole('switch').click()
