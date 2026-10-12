@@ -1,0 +1,21 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Wenyan · Focus</title><link rel="stylesheet" href="styles.css"></head><body>
+<div class="focus-page" id="focusPage">
+  <header class="focus-chrome"><strong><a href="today.html">Wenyan</a></strong><span class="mode">词义回想</span><span class="progress tabular">08 / 12</span></header>
+  <main class="focus-stage">
+    <section class="focus-center">
+      <div class="object" id="word">consequence</div><div class="phonetic">/ˈkɒnsɪkwens/</div>
+      <div class="prompt">意思？</div>
+      <div class="write-line"><input id="answer" autocomplete="off" aria-label="输入词义" placeholder="在这里写下你记得的词义"></div>
+      <div class="focus-controls"><button class="submit" id="submit">确认 ↵</button><button id="reveal">想不起来</button><button>退出</button></div>
+    </section>
+    <footer class="focus-foot"><span>Enter 确认 · Esc 退出</span><span>本轮：考研核心词汇 · 最近混淆</span></footer>
+  </main>
+</div>
+<script>
+const page=document.getElementById('focusPage'), input=document.getElementById('answer'), submit=document.getElementById('submit'), reveal=document.getElementById('reveal');
+input.addEventListener('focus',()=>page.classList.add('is-attending'));
+input.addEventListener('blur',()=>page.classList.remove('is-attending'));
+function check(){ page.classList.remove('is-wrong','is-correct'); const v=input.value.trim(); if(!v)return; const ok=/后果|结果|影响/.test(v); page.classList.add(ok?'is-correct':'is-wrong'); setTimeout(()=>page.classList.remove('is-correct','is-wrong'),520); }
+submit.addEventListener('click',check); input.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();check();} });
+reveal.addEventListener('click',()=>{input.value='后果；结果；影响'; input.focus(); page.classList.add('is-correct'); setTimeout(()=>page.classList.remove('is-correct'),520);});
+</script></body></html>
