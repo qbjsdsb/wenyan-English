@@ -345,6 +345,20 @@
   }
 }
 
+@media (max-width: 640px) {
+  .wenyan-practice-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wenyan-practice-tab {
+    padding-inline: 0.75rem;
+  }
+
+  .wenyan-practice-tab-key {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .wenyan-practice-tab,
   .wenyan-practice-tab::after,

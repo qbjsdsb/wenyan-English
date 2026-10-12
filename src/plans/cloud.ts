@@ -30,6 +30,15 @@ function validDate(value: string) {
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
 }
 
+function cloudPlanRpcErrorMessage(error: { message?: string } | null) {
+  const message = error?.message ?? ''
+  if (message.includes('browser_owner_changed')) return '登录账号发生变化，请刷新后重试。'
+  if (message.includes('authentication_required') || message.includes('direct_wenyan_session_required')) {
+    return '登录状态已失效，请重新登录。'
+  }
+  return '云端服务暂时不可用，请稍后重试。'
+}
+
 function mapChapterTask(value: unknown): { task?: StudyTask; completion?: CloudTaskCompletion } {
   const row = asObject(value)
   if (!row || row.kind !== 'chapter') return {}
@@ -103,7 +112,7 @@ export async function syncCloudPlanToLocal(requestedPlanId?: string): Promise<Cl
     p_expected_user_id: ownerUserId,
     p_plan_id: requestedPlanId ?? null,
   })
-  if (error) return { status: 'failed', message: error.message }
+  if (error) return { status: 'failed', message: cloudPlanRpcErrorMessage(error) }
 
   if (data == null) {
     if (!requestedPlanId) {
