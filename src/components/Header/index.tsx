@@ -1,6 +1,6 @@
 import { isOpenDarkModeAtom } from '@/store'
 import { useAtom } from 'jotai'
-import { Cloud, Moon, Settings, Sun } from 'lucide-react'
+import { Cloud, Milestone, Moon, Sun } from 'lucide-react'
 import type { PropsWithChildren } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
@@ -20,7 +20,7 @@ const navigation = [
 const utilityClass = (active = false) =>
   `${
     active
-      ? 'bg-[var(--wenyan-accent-soft)] text-[var(--wenyan-accent)]'
+      ? 'bg-[var(--wenyan-paper-muted)] text-[var(--wenyan-ink)]'
       : 'text-[var(--wenyan-ink-muted)] hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]'
   } grid h-[36px] w-[36px] place-items-center rounded-[var(--wenyan-radius-sm)]`
 
@@ -70,7 +70,7 @@ export default function Header({ children }: PropsWithChildren) {
               aria-current={pathname === '/preferences' ? 'page' : undefined}
               className={utilityClass(pathname === '/preferences')}
             >
-              <Settings aria-hidden="true" size={16} strokeWidth={1.7} />
+              <Milestone aria-hidden="true" size={16} strokeWidth={1.7} />
             </Link>
             <button
               type="button"
