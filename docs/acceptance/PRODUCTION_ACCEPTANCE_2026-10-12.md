@@ -24,6 +24,8 @@
 | Supabase Edge Function | `wenyan-english-mcp` ACTIVE version 16；部署源码 pin 到 GitHub commit `5d8ac1fe13a89e58fbdaa2f115a8087e1f2f496d` |
 | Coaching Context | 实际调用返回 `coaching-context-v1.6` |
 | 个人学习数据 | 使用真实账号和正常 UI 操作；本轮通过界面产生并同步的 v6 看义写词记录为 6 条（5 对、1 错），另有真实回想与辨认事实；报告不包含词头、事件 ID 或账号标识 |
+| 近期相关 PR | [#85 看义写词专项](https://github.com/qbjsdsb/wenyan-English/pull/85) 与 [#86 Coaching Context v1.6](https://github.com/qbjsdsb/wenyan-English/pull/86) 均已合并 |
+| 文档对照 | README、AGENTS.md、docs/STATUS.md、docs/MCP_TOOLS.md、docs/ARCHITECTURE.md、docs/DATA_MODEL.md、docs/SYNC_PROTOCOL.md、docs/OBJECTIVE_SEMANTIC_EVIDENCE_V1.md、docs/SMART_SESSION_V1.md、docs/FUNCTIONAL_AUDIT_2026-10-11.md；结论以生产交互为准 |
 | GitHub 主线 | 当前生产 UI 对应本轮修复后的代码；MCP Edge Function 单独 pin 到上述已验证的 v1.6 后端提交 |
 
 ## 3. Tested User Journeys
@@ -95,4 +97,4 @@
 
 ### 报告与范围说明
 
-本报告记录的是 2026-10-12 生产页面验收；报告文件本身将作为仅文档变更追加到 main。浏览器登录期间执行的练习会在用户账号中留下真实记录，这些记录没有被回滚。报告没有记录个人邮箱、学习词头或事件 ID。
+本报告记录的是 2026-10-12 生产页面验收；本文件作为仅文档变更提交到 main。浏览器登录期间执行的练习会在用户账号中留下真实记录，这些记录没有被回滚。报告没有记录个人邮箱、学习词头或事件 ID。
