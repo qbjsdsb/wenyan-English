@@ -37,7 +37,7 @@ export const FriendLinks: React.FC = () => {
             <p className="wenyan-muted mt-2 text-sm">Wenyan 的来源与一些值得看看的网站</p>
           </div>
 
-          <section className="overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]">
+          <section className="border-y border-[var(--wenyan-line-soft)]">
             {links.map((link) => (
               <a
                 key={link.href}
@@ -45,9 +45,9 @@ export const FriendLinks: React.FC = () => {
                 href={link.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="wenyan-friend-link flex items-center gap-4 px-5 py-5 text-[var(--wenyan-ink)] no-underline"
+                className="wenyan-friend-link flex items-center gap-4 px-1 py-5 text-[var(--wenyan-ink)] no-underline"
               >
-                <div className="h-10 w-10 shrink-0 overflow-hidden rounded-[10px] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-muted)]">
+                <div className="h-9 w-9 shrink-0 overflow-hidden rounded-[9px] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-muted)]">
                   <img src={link.imgSrc} alt="" className="h-full w-full object-cover" />
                 </div>
                 <div className="min-w-0 flex-1">
