@@ -205,6 +205,23 @@ html.dark .wenyan-settings-dialog {
   color: var(--wenyan-danger);
 }
 
+/* Focused learning uses a continuous work surface instead of a floating card. */
+.wenyan-focus-bar {
+  background: color-mix(in srgb, var(--wenyan-paper) 94%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.wenyan-focus-bar + main .wenyan-focus-surface {
+  border-width: 1px 0 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding-inline: 0 !important;
+}
+.wenyan-focus-bar + main .wenyan-focus-surface[data-feedback='wrong'] {
+  border-top-color: color-mix(in srgb, var(--wenyan-danger) 32%, var(--wenyan-line));
+}
+
 /* Scrollbars are quiet until the pointer approaches them. */
 * {
   scrollbar-width: thin;
