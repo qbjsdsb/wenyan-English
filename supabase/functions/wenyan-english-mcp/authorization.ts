@@ -11,6 +11,7 @@ export type WenyanCapability = (typeof WENYAN_CAPABILITIES)[number]
 export type CapabilityFeature =
   | 'intent_read'
   | 'intent_write'
+  | 'plans_read'
   | 'plans_write'
   | 'preferences_write'
   | 'device_read'
@@ -36,6 +37,7 @@ const knownCapabilities = new Set<string>(WENYAN_CAPABILITIES)
 const featureRequirements: Record<CapabilityFeature, readonly WenyanCapability[]> = {
   intent_read: ['plans:read', 'coach:auto_adjust'],
   intent_write: ['coach:auto_adjust'],
+  plans_read: ['plans:read'],
   plans_write: ['plans:write'],
   preferences_write: ['preferences:write'],
   device_read: ['navigation:control', 'session:control'],
