@@ -106,14 +106,8 @@ export function ErrorBook() {
 
   return (
     <div className="wenyan-studio-shell flex min-h-screen flex-col text-[var(--wenyan-ink)]">
-      <div className={`transition-opacity duration-150 ${currentRowDetail ? 'opacity-55' : ''}`}>
-        <Header />
-      </div>
-      <main
-        className={`mx-auto w-full max-w-5xl flex-1 px-6 pb-14 pt-9 transition-opacity duration-150 ${
-          currentRowDetail ? 'opacity-55' : ''
-        }`}
-      >
+      <Header />
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-14 pt-9">
         <PageHeading title="错词" description={loading ? '正在整理…' : `${groupedRecords.length} 个最近一次仍拼错的词`}>
           {!loading && !loadError && (
             <div className="flex items-center gap-3">
