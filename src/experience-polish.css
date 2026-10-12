@@ -3,6 +3,11 @@
  * Prefer stable tone and edge changes over shimmer, glow and floating depth.
  */
 
+:root {
+  --wenyan-header-height: 64px;
+  --wenyan-sticky-offset: 64px;
+}
+
 /* Dark paper is separated mostly by tone and fine edges, not deep floating shadows. */
 html.dark {
   --wenyan-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 6px 18px rgba(0, 0, 0, 0.08);
@@ -148,16 +153,6 @@ html.dark .wenyan-settings-dialog {
   border-radius: var(--wenyan-radius-lg);
   background: var(--wenyan-paper-raised);
   box-shadow: var(--wenyan-shadow);
-  animation: wenyan-auth-arrive 180ms ease-out both;
-}
-
-@keyframes wenyan-auth-arrive {
-  from {
-    opacity: 0.84;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 .wenyan-scope-pill {
@@ -222,6 +217,49 @@ html.dark .wenyan-settings-dialog {
   border-top-color: color-mix(in srgb, var(--wenyan-danger) 32%, var(--wenyan-line));
 }
 
+/* Keyboard hints are tertiary, but never microscopic. */
+.wenyan-key {
+  font-size: 11px;
+}
+
+/* Recall choices stay equal. Hover changes paper tone, not perceived correctness. */
+.wenyan-recall-choice:hover:not(:disabled) {
+  border-color: var(--wenyan-line);
+  background: var(--wenyan-paper-muted);
+}
+
+/* Search itself explains the state change; results do not need an entrance animation. */
+.wenyan-library-results {
+  animation: none !important;
+}
+
+/* Sync reads like a utility sheet rather than a dashboard card. */
+.wenyan-sync-surface {
+  overflow: visible !important;
+  border-right: 0 !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+.wenyan-sync-surface > .grid {
+  padding-block: 14px !important;
+}
+.wenyan-sync-surface > .grid > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-inline: 16px !important;
+}
+.wenyan-sync-surface > .grid > div > p:first-child {
+  font-size: 11px !important;
+}
+.wenyan-sync-surface > .grid .wenyan-metric-value {
+  margin-top: 0 !important;
+  font-size: 14px !important;
+  font-weight: 620 !important;
+}
+
 /* Scrollbars are quiet until the pointer approaches them. */
 * {
   scrollbar-width: thin;
@@ -246,8 +284,7 @@ html.dark .wenyan-settings-dialog {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wenyan-inline-loader > span,
-  .wenyan-auth-card {
+  .wenyan-inline-loader > span {
     animation: none !important;
   }
 }
@@ -273,4 +310,10 @@ html.dark .wenyan-settings-dialog {
 .wenyan-study-toolbar-space {
   height: 96px;
   flex-shrink: 0;
+}
+
+@media (max-width: 760px) {
+  :root {
+    --wenyan-sticky-offset: 112px;
+  }
 }
