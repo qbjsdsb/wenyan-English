@@ -177,6 +177,6 @@ Production 仍是手动专项，**没有加入 Smart Session planner**。
 
 本轮验证：最终 `tsc --noEmit`、生产 `vite build --base=./`、`git diff --check` 均通过；已改动 TS/TSX 的 ESLint 为 0 errors、5 条既有模式警告。构建仍有大 chunk 提醒，本轮没有为此改动打包架构。未运行单元或 E2E 套件。实机视觉检查未完成：本地 Playwright 缺浏览器二进制，Cloud Browser 无法连接容器的本地服务；未追加安装和反复验证。
 
-保存/发布：开发分支 `polish/luminous-paper-coherence`。本地分批提交；**尚未推送、未创建 PR、未发布**。GitHub 只读已核实当前账号为 qbjsdsb、仓库 public、具备 admin/push 权限；自动审批仍拒绝 push，要求用户明确允许将界面代码推送到该公开仓库。不可改用其他上传路径绕过。
+保存/发布：用户于 2026-10-13 明确授权上传到公开仓库并创建 PR。两批改动已通过已连接的 GitHub 接口保存到 `polish/luminous-paper-coherence`，对应提交 `9bb20fa`、`83a1463`，文件树与本地两批提交完全一致。PR：[#88](https://github.com/qbjsdsb/wenyan-English/pull/88)。**尚未合并或发布**。
 
-下一步：取得针对 `qbjsdsb/wenyan-English` 公开仓库的明确推送授权后，直接推送本分支并创建 PR；在可用浏览器中快速查看 Today / Practice / Typing / Settings 的浅深色及窄窗。先检查实际视觉，再决定合并。学习事实、数据隔离、AI 编排与后端协议均未改动。
+下一步：在可用浏览器中快速查看 Today / Practice / Typing / Settings 的浅深色及窄窗，检查 PR 必要检查结果，再决定合并。学习事实、数据隔离、AI 编排与后端协议均未改动。
