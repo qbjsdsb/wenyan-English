@@ -114,7 +114,7 @@ export default function OAuthConsentPage() {
       <div className="mx-auto w-full max-w-[620px]">
         <div className="mb-7 text-center sm:text-left">
           <div className="wenyan-brand text-[22px] font-semibold">Wenyan</div>
-          <h1 className="mt-5 text-[30px] font-semibold tracking-[-0.045em] text-[var(--wenyan-ink)]">连接你的学习数据</h1>
+          <h1 className="mt-5 text-[29px] font-semibold tracking-[-0.04em] text-[var(--wenyan-ink)]">连接你的学习数据</h1>
           <p className="wenyan-muted mx-auto mt-3 max-w-[560px] text-sm leading-7 sm:mx-0">
             这里会明确展示谁在申请访问、能读取什么，以及哪些事情它不能做。
           </p>
@@ -156,12 +156,12 @@ export default function OAuthConsentPage() {
           ) : details ? (
             <div className="space-y-7">
               <div>
-                <p className="wenyan-muted text-[10px]">申请访问</p>
+                <p className="wenyan-muted text-[11px]">申请访问</p>
                 <h2 className="mt-1.5 text-xl font-semibold tracking-[-0.025em]">{clientName}</h2>
                 {details.client.uri && <p className="wenyan-muted mt-1 break-all text-[11px]">{details.client.uri}</p>}
               </div>
 
-              <div className="rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[color-mix(in_srgb,var(--wenyan-paper-muted)_58%,transparent)] p-4">
+              <div className="border-y border-[var(--wenyan-line-soft)] py-4">
                 <p className="text-sm font-medium">这次访问可以</p>
                 <ul className="mt-3 space-y-2 text-sm leading-6 text-[var(--wenyan-ink-secondary)]">
                   <li>查看已同步的学习概况、弱词证据和单词历史</li>
@@ -184,7 +184,7 @@ export default function OAuthConsentPage() {
 
               {details.redirect_uri && (
                 <div>
-                  <p className="wenyan-muted text-[10px]">授权完成后返回</p>
+                  <p className="wenyan-muted text-[11px]">授权完成后返回</p>
                   <p className="wenyan-muted mt-1 break-all text-[11px] leading-5">{details.redirect_uri}</p>
                 </div>
               )}
@@ -203,7 +203,11 @@ export default function OAuthConsentPage() {
             </div>
           )}
 
-          {message && authorizationId && <div role="status" className="mt-5 rounded-[var(--wenyan-radius-sm)] bg-[var(--wenyan-paper-muted)] px-4 py-3 text-sm text-[var(--wenyan-ink-secondary)]">{message}</div>}
+          {message && authorizationId && (
+            <div role="status" className="mt-5 border-l-2 border-[var(--wenyan-line)] py-2 pl-3 text-sm leading-6 text-[var(--wenyan-ink-secondary)]">
+              {message}
+            </div>
+          )}
         </section>
 
         <p className="wenyan-muted mt-5 text-center text-[11px] leading-5 sm:text-left">
