@@ -23,6 +23,17 @@ function sourceLabel(snapshot: BrowserLearningPreferencesSnapshot) {
   return snapshot.learningStage.provenance.kind === 'user_confirmation' ? '已确认' : '默认阶段'
 }
 
+function preferenceErrorMessage(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : ''
+  if (message.includes('authentication_required')) return ''
+  if (message.includes('revision_conflict')) return '设置刚刚有变化，请重新确认。'
+  if (message.includes('learning_owner_changed') || message.includes('browser_owner_changed')) return '账号已切换，正在重新读取当前设置。'
+  if (message.includes('invalid_learning_preferences')) return '学习阶段数据暂时无法读取，请稍后重试。'
+  if (message.includes('learning_preferences_unavailable')) return '学习阶段暂时无法读取，请稍后重试。'
+  if (message.includes('learning_stage_update_failed')) return '学习阶段暂时无法保存，请稍后重试。'
+  return message && !/^[a-z0-9_:-]+$/i.test(message) ? message : fallback
+}
+
 export default function PreferencesPage() {
   const [snapshot, setSnapshot] = useState<BrowserLearningPreferencesSnapshot>()
   const [loading, setLoading] = useState(true)
@@ -36,7 +47,7 @@ export default function PreferencesPage() {
       setMessage('')
     } catch (error) {
       setSnapshot(undefined)
-      setMessage(error instanceof Error ? error.message : '暂时无法读取学习阶段。')
+      setMessage(preferenceErrorMessage(error, '暂时无法读取学习阶段。'))
     } finally {
       setLoading(false)
     }
@@ -55,15 +66,15 @@ export default function PreferencesPage() {
       setSnapshot(next)
       setMessage('学习阶段已更新。')
     } catch (error) {
-      const text = error instanceof Error ? error.message : '保存失败，请重试。'
+      const text = error instanceof Error ? error.message : ''
       if (text.includes('revision_conflict')) {
         await refresh()
-        setMessage('设置已更新，请重新确认。')
-      } else if (text.includes('learning_owner_changed')) {
+        setMessage('设置刚刚有变化，请重新确认。')
+      } else if (text.includes('learning_owner_changed') || text.includes('browser_owner_changed')) {
         await refresh()
         setMessage('账号已切换，已重新读取当前设置。')
       } else {
-        setMessage(text)
+        setMessage(preferenceErrorMessage(error, '保存失败，请重试。'))
       }
     } finally {
       setSaving(undefined)
@@ -94,8 +105,9 @@ export default function PreferencesPage() {
         ) : !snapshot ? (
           <section className="border-y border-[var(--wenyan-line-soft)] py-6">
             <p className="text-sm font-medium">需要先登录 Wenyan Cloud</p>
-            <Link className="wenyan-link-accent mt-3 inline-block text-sm" to="/sync">
-              去同步页面
+            <p className="wenyan-muted mt-2 text-xs leading-5">登录后才能跨设备保存和确认长期学习阶段。</p>
+            <Link className="wenyan-link mt-4 inline-block text-sm" to="/sync">
+              去同步页面 →
             </Link>
           </section>
         ) : (
