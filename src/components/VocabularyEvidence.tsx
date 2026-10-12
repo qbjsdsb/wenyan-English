@@ -58,7 +58,7 @@ export default function VocabularyEvidence() {
             </p>
             <p className="wenyan-muted text-xs leading-6">{row.count ? row.detail : '还没有这类练习记录。'}</p>
             <Link
-              className="wenyan-link-accent inline-flex items-center gap-1 text-xs"
+              className="wenyan-link inline-flex items-center gap-1 text-xs"
               aria-label={`${row.title}：${row.revisit ? '回看模糊词' : '开始训练'}`}
               to={`/practice?mode=${row.mode}&pool=${row.revisit ? 'uncertain' : 'chapter'}`}
             >
