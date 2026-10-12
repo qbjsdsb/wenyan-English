@@ -219,3 +219,26 @@
     animation: none !important;
   }
 }
+
+/* Named quick controls reduce icon hunting; detailed settings remain one step away. */
+.wenyan-quick-settings {
+  display: flex;
+  flex-direction: column;
+}
+.wenyan-quick-setting {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--wenyan-line-soft);
+  color: var(--wenyan-ink-secondary);
+  font-size: 12px;
+}
+.wenyan-quick-setting:last-child {
+  border-bottom: 0;
+}
+.wenyan-study-toolbar-space {
+  height: 96px;
+  flex-shrink: 0;
+}

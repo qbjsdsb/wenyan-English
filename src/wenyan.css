@@ -739,3 +739,15 @@ input[type='search']::-webkit-search-cancel-button {
 .wenyan-nav-link.is-active::after {
   opacity: 1;
 }
+
+.wenyan-kicker {
+  color: var(--wenyan-ink-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+}
+.wenyan-answer-choice {
+  justify-content: flex-start;
+  align-items: flex-start;
+  line-height: 1.65;
+}

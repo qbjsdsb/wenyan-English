@@ -58,11 +58,11 @@ export default function WordDictationSwitcher() {
             leaveFrom="opacity-100 translate-y-0"
             leaveTo="opacity-0 translate-y-1"
           >
-            <Popover.Panel className="wenyan-surface absolute left-1/2 z-50 mt-2 w-56 -translate-x-1/2 p-4">
+            <Popover.Panel className="wenyan-surface absolute right-0 z-50 mt-2 w-56 p-4">
               <div className="mb-2 text-[12px] font-semibold text-[var(--wenyan-ink)]">默写模式</div>
               <div className="flex items-center justify-between py-2">
                 <span className="wenyan-body text-xs">启用默写</span>
-                <Switch checked={wordDictationConfig.isOpen} onChange={onToggleWordDictation} className="switch-root">
+                <Switch aria-label="启用默写" checked={wordDictationConfig.isOpen} onChange={onToggleWordDictation} className="switch-root">
                   <span aria-hidden="true" className="switch-thumb" />
                 </Switch>
               </div>

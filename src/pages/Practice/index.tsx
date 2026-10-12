@@ -345,6 +345,11 @@ export default function PracticePage() {
                         练当前章节
                       </button>
                     )}
+                    {!loading && !contentError && !prepared?.count && pool === 'chapter' && mode !== 'recall' && (
+                      <button className="wenyan-link text-sm" onClick={() => change('mode', 'recall')}>
+                        试试词义回想
+                      </button>
+                    )}
                     <button
                       className="wenyan-button-primary inline-flex items-center gap-2"
                       aria-keyshortcuts="Enter"

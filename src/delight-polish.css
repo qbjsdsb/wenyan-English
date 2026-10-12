@@ -370,3 +370,20 @@ html.dark {
     display: none;
   }
 }
+
+/* A saved answer briefly illuminates the paper edge, then settles. */
+.wenyan-focus-surface[data-feedback='correct'] {
+  animation: wenyan-answer-settle 560ms ease-out both;
+}
+.wenyan-focus-surface[data-feedback='wrong'] {
+  border-color: color-mix(in srgb, var(--wenyan-danger) 35%, var(--wenyan-line));
+}
+@keyframes wenyan-answer-settle {
+  0%,
+  100% {
+    box-shadow: var(--wenyan-shadow-focus);
+  }
+  35% {
+    box-shadow: var(--wenyan-shadow-focus), 0 0 18px var(--wenyan-starlight-soft);
+  }
+}

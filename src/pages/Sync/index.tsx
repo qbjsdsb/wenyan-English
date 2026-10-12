@@ -33,6 +33,7 @@ function describeResult(result: LearningDataSyncResult) {
 function practiceModeLabel(mode: WorkspaceState['practiceMode']) {
   if (mode === 'spelling') return '拼写'
   if (mode === 'discrimination') return '选择词义'
+  if (mode === 'production') return '看义写词'
   return '词义回想'
 }
 

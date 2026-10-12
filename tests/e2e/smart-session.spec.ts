@@ -59,7 +59,7 @@ test('Smart Session persists the real spelling cursor, resumes at the next word,
   await expect(page).toHaveURL(/smartSession=/)
   await expect(page).toHaveURL(/smartBlock=/)
   expect(new URL(page.url()).searchParams.get('taskRun')).toBeNull()
-  await expect(page.getByText('按任意键开始', { exact: true })).toBeVisible()
+  await expect(page.getByText('输入字母或按 Enter 开始', { exact: true })).toBeVisible()
 
   await page.keyboard.press('Enter')
   await page.keyboard.type('alpha', { delay: 35 })
@@ -114,7 +114,7 @@ test('Smart Session persists the real spelling cursor, resumes at the next word,
   await page.getByRole('button', { name: '继续这一段', exact: true }).click()
   await expect(page).toHaveURL(/smartSession=/)
   expect(new URL(page.url()).searchParams.get('taskRun')).toBeNull()
-  await expect(page.getByText('按任意键开始', { exact: true })).toBeVisible()
+  await expect(page.getByText('输入字母或按 Enter 开始', { exact: true })).toBeVisible()
 
   await page.keyboard.press('Enter')
   await expect(page.getByText('beta translation', { exact: true })).toBeVisible()

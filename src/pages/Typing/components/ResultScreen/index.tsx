@@ -1,5 +1,4 @@
 import { TypingContext, TypingStateActionType } from '../../store'
-import ShareButton from '../ShareButton'
 import WordChip from './WordChip'
 import Tooltip from '@/components/Tooltip'
 import {
@@ -64,7 +63,7 @@ const ResultScreen = () => {
         writeFileXLSX(wb, `${currentDictInfo.name}第${currentChapter + 1}章.xlsx`)
       })
       .catch(() => {
-        console.log('写入 xlsx 模块导入失败')
+        setReviewError('导出失败，请重试。本次学习记录仍然保存在本机。')
       })
   }, [currentChapter, currentDictInfo.name, state.chapterData])
 
@@ -77,16 +76,16 @@ const ResultScreen = () => {
 
   const isLastChapter = useMemo(() => currentChapter >= currentDictInfo.chapterCount - 1, [currentChapter, currentDictInfo])
   const segmentPractisedCount = state.chapterData.completedWordIndexes.length
-  const isOwnerBoundReview =
-    isReviewMode && ['manual', 'smart', 'correction'].includes(reviewRecord?.origin ?? '')
+  const isOwnerBoundReview = isReviewMode && ['manual', 'smart', 'correction'].includes(reviewRecord?.origin ?? '')
   // ReviewRecord.index/isFinished is the authoritative cursor for owner-bound review execution.
   // A resumed page only knows the inputs completed since it was reopened, so do not mistake that
   // partial UI state for the progress of the whole persisted block.
-  const practisedCount = isOwnerBoundReview && reviewRecord
-    ? reviewRecord.isFinished
-      ? state.chapterData.words.length
-      : Math.min(state.chapterData.words.length, Math.max(reviewRecord.index, segmentPractisedCount))
-    : segmentPractisedCount
+  const practisedCount =
+    isOwnerBoundReview && reviewRecord
+      ? reviewRecord.isFinished
+        ? state.chapterData.words.length
+        : Math.min(state.chapterData.words.length, Math.max(reviewRecord.index, segmentPractisedCount))
+      : segmentPractisedCount
   const unpractisedCount = state.chapterData.words.length - practisedCount
   const firstTryCorrect = state.chapterData.completedWordIndexes.filter(
     (index) => state.chapterData.userInputLogs[index]?.wrongCount === 0,
@@ -171,19 +170,53 @@ const ResultScreen = () => {
     else navigate('/today')
   }, [navigate, reviewRecord?.origin, setReviewModeInfo])
 
+  const reviewLabel =
+    searchParams.has('smartSession') || reviewRecord?.origin === 'smart'
+      ? '本段词汇练习'
+      : reviewRecord?.origin === 'manual'
+      ? '专项拼写'
+      : reviewRecord?.origin === 'correction'
+      ? '错词纠正'
+      : '错词复习'
+  const title = `${currentDictInfo.name} · ${isReviewMode ? reviewLabel : `第 ${currentChapter + 1} 章`}`
+  const ownedExitLabel =
+    reviewRecord?.origin === 'manual' ? '回到专项训练' : reviewRecord?.origin === 'correction' ? '查看剩余错词' : '返回今天'
+
+  const isSmartReview = searchParams.has('smartSession') || reviewRecord?.origin === 'smart'
+  const primaryAction = isReviewMode
+    ? reviewRecord?.origin
+      ? leaveOwnedReview
+      : onNavigateToGallery
+    : wrongWords.length > 0 && !isSmartReview
+    ? reviewWrongWords
+    : !isLastChapter
+    ? nextButtonHandler
+    : returnToday
+  const primaryLabel = isReviewMode
+    ? reviewRecord?.origin
+      ? ownedExitLabel
+      : '选择其他章节'
+    : wrongWords.length > 0 && !isSmartReview
+    ? `只练这 ${wrongWords.length} 个错词`
+    : !isLastChapter
+    ? '下一章'
+    : '返回今天'
+  const closeResult = isReviewMode && reviewRecord?.origin ? leaveOwnedReview : returnToday
+  const primaryAriaLabel = primaryLabel === '下一章' ? '下一章节' : primaryLabel
+
   const ignoresResultKey = (event: KeyboardEvent) =>
     event.isComposing ||
     event.repeat ||
     !(event.target instanceof HTMLElement) ||
     !panelRef.current?.contains(event.target) ||
-    Boolean(event.target.closest('button, a, input, textarea, select, [contenteditable="true"]'))
+    Boolean(event.target.closest('button, a, input, textarea, select, summary, [contenteditable="true"]'))
   useHotkeys(
     'enter',
     () => {
-      if (isReviewMode || isLastChapter) returnToday()
-      else nextButtonHandler()
+      if (!startingReview) void primaryAction()
     },
     { ignoreEventWhen: ignoresResultKey, preventDefault: true },
+    [primaryAction, startingReview],
   )
   useHotkeys(
     'space',
@@ -195,25 +228,11 @@ const ResultScreen = () => {
   )
   useHotkeys('shift+enter', dictationButtonHandler, { ignoreEventWhen: ignoresResultKey, preventDefault: true })
 
-  const reviewLabel = searchParams.has('smartSession') || reviewRecord?.origin === 'smart'
-    ? '本段词汇练习'
-    : reviewRecord?.origin === 'manual'
-      ? '专项拼写'
-      : reviewRecord?.origin === 'correction'
-        ? '错词纠正'
-        : '错词复习'
-  const title = `${currentDictInfo.name} · ${isReviewMode ? reviewLabel : `第 ${currentChapter + 1} 章`}`
-  const ownedExitLabel = reviewRecord?.origin === 'manual'
-    ? '回到专项训练'
-    : reviewRecord?.origin === 'correction'
-      ? '查看剩余错词'
-      : '返回今天'
-
   return (
     <Dialog
       open
       initialFocus={panelRef}
-      onClose={returnToday}
+      onClose={closeResult}
       className="wenyan-completion-stage fixed inset-0 z-50 overflow-y-auto px-6 py-8 backdrop-blur-[3px]"
     >
       <Transition
@@ -242,7 +261,7 @@ const ResultScreen = () => {
                 type="button"
                 aria-label="关闭结果页"
                 className="grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] text-[var(--wenyan-ink-muted)] hover:bg-[var(--wenyan-paper-muted)] hover:text-[var(--wenyan-ink)]"
-                onClick={returnToday}
+                onClick={closeResult}
               >
                 <IconX className="h-4 w-4" />
               </button>
@@ -263,7 +282,8 @@ const ResultScreen = () => {
 
             <div className="px-7 py-6">
               <p className="wenyan-muted mb-5 text-xs leading-6">
-                拼写无错只描述{resumedOwnedReview ? '这次打开后完成的输入' : '本次输入'}；是否理解词义，还需要单独回想。按键准确率 {state.timerData.accuracy}% · {state.timerData.wpm} 词/分钟
+                拼写无错只描述{resumedOwnedReview ? '这次打开后完成的输入' : '本次输入'}；是否理解词义，还需要单独回想。按键准确率{' '}
+                {state.timerData.accuracy}% · {state.timerData.wpm} 词/分钟
               </p>
               <div className="mb-3 flex items-center justify-between gap-4">
                 <div>
@@ -272,13 +292,12 @@ const ResultScreen = () => {
                     {wrongWords.length
                       ? `${wrongWords.length} 个词出现过拼写错误`
                       : resumedOwnedReview
-                        ? '这次继续完成的词没有拼写错误'
-                        : '本段没有拼写错词'}
+                      ? '这次继续完成的词没有拼写错误'
+                      : '本段没有拼写错词'}
                   </p>
                 </div>
                 {!isReviewMode && (
                   <div className="flex items-center gap-2 text-[var(--wenyan-ink-muted)]">
-                    <ShareButton />
                     <Tooltip content="导出本章数据">
                       <button
                         type="button"
@@ -311,53 +330,85 @@ const ResultScreen = () => {
               </p>
             )}
 
-            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--wenyan-line-soft)] px-7 py-4">
-              <button type="button" className="wenyan-button-secondary" onClick={() => { if (isReviewMode) setReviewModeInfo({ isReviewMode: false, reviewRecord: undefined }); navigate('/practice?mode=recall&pool=learned') }}>换成词义训练</button>
-              {(!isReviewMode || reviewRecord?.origin !== 'smart') && (
-                <button type="button" aria-label="返回今日学习" className="wenyan-button-secondary" onClick={returnToday}>
-                  返回今天
+            <div className="border-t border-[var(--wenyan-line-soft)] px-7 py-5">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-4">
+                  {primaryLabel !== '返回今天' && primaryLabel !== '回到专项训练' && primaryLabel !== '查看剩余错词' && (
+                    <button
+                      type="button"
+                      aria-label="返回今日学习"
+                      className="wenyan-link text-xs"
+                      disabled={startingReview}
+                      onClick={returnToday}
+                    >
+                      返回今天
+                    </button>
+                  )}
+                  {!isReviewMode && wrongWords.length > 0 && !isLastChapter && (
+                    <button
+                      type="button"
+                      aria-label="下一章节"
+                      className="wenyan-link text-xs"
+                      disabled={startingReview}
+                      onClick={nextButtonHandler}
+                    >
+                      继续下一章
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  aria-label={primaryAriaLabel}
+                  aria-keyshortcuts="Enter"
+                  disabled={startingReview}
+                  className="wenyan-button-primary inline-flex items-center gap-3"
+                  onClick={() => void primaryAction()}
+                >
+                  {startingReview ? '正在准备…' : primaryLabel}
+                  <kbd aria-hidden="true" className="text-[10px] font-normal opacity-60">
+                    ↵
+                  </kbd>
                 </button>
-              )}
-              {!isReviewMode && (
-                <>
-                  <Tooltip content="快捷键：Shift + Enter">
-                    <button aria-label="默写本章节" className="wenyan-button-secondary" type="button" onClick={dictationButtonHandler}>
-                      默写本章
-                    </button>
-                  </Tooltip>
-                  <Tooltip content="快捷键：Space">
-                    <button aria-label="重复本章节" className="wenyan-button-secondary" type="button" onClick={repeatButtonHandler}>
-                      再练一遍
-                    </button>
-                  </Tooltip>
-                </>
-              )}
-              {!isLastChapter && !isReviewMode && (
-                <Tooltip content="快捷键：Enter">
+              </div>
+              <details className="mt-5 border-t border-[var(--wenyan-line-soft)] pt-3">
+                <summary className="wenyan-link cursor-pointer text-xs">其他练习方式</summary>
+                <div className="mt-3 flex flex-wrap gap-2">
                   <button
-                    aria-label="下一章节"
-                    className={wrongWords.length && !searchParams.has('smartSession') ? 'wenyan-button-secondary' : 'wenyan-button-primary'}
                     type="button"
-                    onClick={nextButtonHandler}
+                    className="wenyan-button-secondary"
+                    onClick={() => {
+                      if (isReviewMode) setReviewModeInfo({ isReviewMode: false, reviewRecord: undefined })
+                      navigate('/practice?mode=recall&pool=learned')
+                    }}
                   >
-                    下一章
+                    换成词义训练
                   </button>
-                </Tooltip>
-              )}
-              {wrongWords.length > 0 && !searchParams.has('smartSession') && (
-                <button disabled={startingReview} type="button" className="wenyan-button-primary" onClick={() => void reviewWrongWords()}>
-                  {startingReview ? '正在准备…' : `只练这 ${wrongWords.length} 个错词`}
-                </button>
-              )}
-              {isReviewMode && reviewRecord?.origin ? (
-                <button aria-label={ownedExitLabel} className="wenyan-button-primary" type="button" onClick={leaveOwnedReview}>
-                  {ownedExitLabel}
-                </button>
-              ) : isReviewMode ? (
-                <button aria-label="练习其他章节" className="wenyan-button-primary" type="button" onClick={onNavigateToGallery}>
-                  选择其他章节
-                </button>
-              ) : null}
+                  {!isReviewMode && (
+                    <>
+                      <Tooltip content="快捷键：Shift + Enter">
+                        <button aria-label="默写本章节" className="wenyan-button-secondary" type="button" onClick={dictationButtonHandler}>
+                          默写本章
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="快捷键：Space">
+                        <button aria-label="重复本章节" className="wenyan-button-secondary" type="button" onClick={repeatButtonHandler}>
+                          再练一遍
+                        </button>
+                      </Tooltip>
+                    </>
+                  )}
+                  {isReviewMode && !isSmartReview && wrongWords.length > 0 && (
+                    <button
+                      disabled={startingReview}
+                      type="button"
+                      className="wenyan-button-secondary"
+                      onClick={() => void reviewWrongWords()}
+                    >
+                      只练这 {wrongWords.length} 个错词
+                    </button>
+                  )}
+                </div>
+              </details>
             </div>
           </Dialog.Panel>
         </div>

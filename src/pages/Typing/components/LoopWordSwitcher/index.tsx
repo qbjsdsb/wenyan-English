@@ -24,7 +24,9 @@ export default function LoopWordSwitcher() {
       {({ open }) => (
         <>
           <Popover.Button
-            className={`${open || loopTimes !== 1 ? 'text-[var(--wenyan-accent)]' : 'text-[var(--wenyan-ink-muted)]'} grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors hover:bg-[var(--wenyan-paper-raised)] hover:text-[var(--wenyan-ink)]`}
+            className={`${
+              open || loopTimes !== 1 ? 'text-[var(--wenyan-accent)]' : 'text-[var(--wenyan-ink-muted)]'
+            } grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors hover:bg-[var(--wenyan-paper-raised)] hover:text-[var(--wenyan-ink)]`}
             type="button"
             aria-label="选择单词循环次数"
           >
@@ -53,7 +55,7 @@ export default function LoopWordSwitcher() {
             leaveFrom="opacity-100 translate-y-0"
             leaveTo="opacity-0 translate-y-1"
           >
-            <Popover.Panel className="wenyan-surface absolute left-1/2 z-50 mt-2 w-52 -translate-x-1/2 p-4">
+            <Popover.Panel className="wenyan-surface absolute right-0 z-50 mt-2 w-52 p-4">
               <div className="mb-3 text-[12px] font-semibold text-[var(--wenyan-ink)]">单词循环</div>
               <RadioGroup.Root
                 className="flex flex-col gap-1"

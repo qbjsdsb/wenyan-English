@@ -1,7 +1,5 @@
 import { ignoresStudyKey } from '../../keyboard'
 import { TypingContext, TypingStateActionType } from '../../store'
-import AnalysisButton from '../AnalysisButton'
-import ErrorBookButton from '../ErrorBookButton'
 import HandPositionIllustration from '../HandPositionIllustration'
 import LoopWordSwitcher from '../LoopWordSwitcher'
 import PronunciationSwitcher from '../PronunciationSwitcher'
@@ -50,7 +48,11 @@ export default function Switcher() {
             leaveTo="opacity-0 translate-y-1"
           >
             {/* Keep portal dialogs alive when moving focus closes the surrounding popover. */}
-            <Popover.Panel unmount={false} data-study-controls className="wenyan-surface absolute right-0 z-40 mt-2 w-[360px] p-4">
+            <Popover.Panel
+              unmount={false}
+              data-study-controls
+              className="wenyan-surface absolute right-0 z-40 mt-2 w-[360px] max-w-[calc(100vw-48px)] p-4"
+            >
               <div className="mb-3">
                 <span className="text-sm font-semibold text-[var(--wenyan-ink)]">学习设置</span>
               </div>
@@ -62,43 +64,46 @@ export default function Switcher() {
                 </div>
               </div>
 
-              <div className="wenyan-study-settings grid grid-cols-4 gap-2 rounded-[var(--wenyan-radius-md)] bg-[var(--wenyan-paper-muted)] p-2">
-                <Tooltip content="音效设置">
+              <div className="wenyan-study-settings wenyan-quick-settings">
+                <div className="wenyan-quick-setting">
+                  <span>按键与提示音</span>
                   <SoundSwitcher />
-                </Tooltip>
-                <Tooltip content="设置单个单词循环">
+                </div>
+                <div className="wenyan-quick-setting">
+                  <span>单词循环</span>
                   <LoopWordSwitcher />
-                </Tooltip>
-                <Tooltip content={`开关默写模式（${CTRL} + V）`}>
+                </div>
+                <div className="wenyan-quick-setting">
+                  <span>默写模式</span>
                   <WordDictationSwitcher />
-                </Tooltip>
-                <Tooltip content={`开关释义显示（${CTRL} + Shift + V）`}>
-                  <button
-                    className={`${
-                      state?.isTransVisible ? 'text-[var(--wenyan-accent)]' : 'text-[var(--wenyan-ink-muted)]'
-                    } grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors hover:bg-[var(--wenyan-paper-raised)] hover:text-[var(--wenyan-ink)]`}
-                    type="button"
-                    onClick={(e) => {
-                      changeTransVisibleState()
-                      e.currentTarget.blur()
-                    }}
-                    aria-label={`开关释义显示（${CTRL} + Shift + V）`}
-                  >
-                    {state?.isTransVisible ? <IconLanguage /> : <IconLanguageOff />}
-                  </button>
-                </Tooltip>
-                <Tooltip content="错词本">
-                  <ErrorBookButton />
-                </Tooltip>
-                <Tooltip content="查看数据统计">
-                  <AnalysisButton />
-                </Tooltip>
-                <Tooltip content="指法图示">
+                </div>
+                <div className="wenyan-quick-setting">
+                  <span>显示释义</span>
+                  <Tooltip content={`开关释义显示（${CTRL} + Shift + V）`}>
+                    <button
+                      className={`${
+                        state?.isTransVisible ? 'text-[var(--wenyan-accent)]' : 'text-[var(--wenyan-ink-muted)]'
+                      } grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors hover:bg-[var(--wenyan-paper-raised)] hover:text-[var(--wenyan-ink)]`}
+                      type="button"
+                      onClick={(e) => {
+                        changeTransVisibleState()
+                        e.currentTarget.blur()
+                      }}
+                      aria-label={`开关释义显示（${CTRL} + Shift + V）`}
+                      aria-pressed={state?.isTransVisible ?? false}
+                    >
+                      {state?.isTransVisible ? <IconLanguage /> : <IconLanguageOff />}
+                    </button>
+                  </Tooltip>
+                </div>
+                <div className="wenyan-quick-setting">
+                  <span>键盘指法</span>
                   <HandPositionIllustration />
-                </Tooltip>
-                <Tooltip content="更多设置">
+                </div>
+                <div className="wenyan-quick-setting">
+                  <span>声音、显示与备份</span>
                   <Setting />
-                </Tooltip>
+                </div>
               </div>
             </Popover.Panel>
           </Transition>

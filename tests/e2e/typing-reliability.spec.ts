@@ -12,7 +12,7 @@ test.beforeEach(async ({ page }, testInfo) => {
     localStorage.setItem('currentDict', JSON.stringify('2025KaoYanHongBaoShu'))
   }, testInfo.title.includes('dictation mode keeps the hidden answer'))
   await page.goto('/')
-  await expect(page.getByText('按任意键开始', { exact: true })).toBeVisible()
+  await expect(page.getByText('输入字母或按 Enter 开始', { exact: true })).toBeVisible()
 })
 
 test('dictation mode keeps the hidden answer out of pronunciation accessibility text', async ({ page }) => {
@@ -214,7 +214,7 @@ test('random order and repetition boundary survive reload; owner and content cha
   `,
   })
   await expect(page.locator('body')).toHaveAttribute('data-repeat', '2')
-  await expect(page.getByText('按任意键开始', { exact: true })).toBeVisible()
+  await expect(page.getByText('输入字母或按 Enter 开始', { exact: true })).toBeVisible()
   await page.addScriptTag({
     type: 'module',
     content: `
