@@ -1,6 +1,25 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Wenyan Reading Prototype</title><link rel="stylesheet" href="styles.css"></head><body>
-<div class="app"><aside class="spine"><div class="mark"></div><nav class="spine-nav"><a href="today.html">今</a><a href="vocab.html">学</a><a class="active" href="reading.html">阅</a><a href="#">词</a><a href="#">记</a></nav><div class="spine-foot">⌘</div></aside>
-<div class="shell" style="position:relative"><header class="topbar"><div class="brand">Wenyan</div><div class="top-date">阅读 · 现代文学</div><div class="command"><span>搜索书内内容、概念或人名</span><span class="kbd">⌘ K</span></div></header><div class="reading-tools"><span>Aa</span><span>目录</span><span>•••</span></div>
-<main class="reading"><article class="article"><div class="breadcrumb">现代文学　/　鲁迅　/　《呐喊》</div><h1>呐喊 · 自序</h1><div class="article-meta">鲁迅　1922</div><div class="prose"><p>我在年青时候也曾经做过许多梦，后来大半都忘却了，但自己也并不以为可惜。</p><p>我有四年多，曾经常常，几乎是每天，出入于质铺和药店里，年纪可是忘却了，总之是药店的柜台正和我一样高，质铺的是比我高一倍。</p><p>我于是以为这并不是一件很难的事。然而后来，我忽然醒悟到，凡是愚弱的国民，即使体格如何健全，如何茁壮，也只能做毫无意义的示众的材料和看客，病死多少是不必以为不幸的。</p><p>所以我们的第一要著，是在改变他们的精神，而善于改变精神的是，我那时以为当然要推文艺，于是想提倡文艺运动了。</p><p>我希望有更多的人，在冷淡的现实中，依然保持对自由的向往，对人的尊严的信念。这里所谓的自由，并不是孤立的个人主义，而是在一个时代里重新学习怎样成为人。<button class="note-anchor" id="anchor">新文化运动<sup>1</sup></button></p><p>因为我相信，这些微小的光，终将汇聚成照亮时代的光。</p></div></article>
-<aside class="context"><div class="context-head"><span>注释</span><b>关联</b><span>笔记</span></div><div class="context-body" id="context"><div class="context-index">01 · 概念</div><h3>新文化运动</h3><p>20 世纪初以思想启蒙、文学革命与文化更新为核心的一系列运动。这里与鲁迅对于“改变精神”的认识形成直接关联。</p><div class="context-list"><div class="context-row"><span>《新青年》</span><span>期刊</span></div><div class="context-row"><span>陈独秀</span><span>人物</span></div><div class="context-row"><span>白话文运动</span><span>概念</span></div><div class="context-row"><span>五四运动</span><span>事件</span></div></div></div></aside></main></div></div>
-<script>const a=document.getElementById('anchor'),c=document.getElementById('context');a.onclick=()=>{a.classList.remove('active');void a.offsetWidth;a.classList.add('active');c.classList.add('visible')};</script></body></html>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Wenyan · Folio</title><link rel="stylesheet" href="styles.css"></head><body>
+<header class="chrome"><a class="brand" href="today.html">Wenyan</a><nav class="nav"><a href="today.html">今天</a><a href="index.html">词库</a><a class="active" href="reading.html">阅读</a></nav><span class="command-key">⌘K</span></header>
+<main class="folio">
+  <div class="lead"><strong>Folio / Reading</strong><span class="tabular">02 / 05 · 预计 9 分钟</span></div>
+  <div class="folio-grid">
+    <aside class="folio-meta">Text 2<br>Argument<br>2026.10.13<br><br><span class="secondary">阅读时，工具退到页边。</span></aside>
+    <article>
+      <h1>The quiet mechanics of attention</h1><div class="byline">Wenyan reading sample · original practice text</div>
+      <div class="prose">
+        <p>Attention is often described as a spotlight, but the metaphor can be misleading. A spotlight makes one object brighter. Human attention frequently works by doing something subtler: it allows everything else to become less demanding.</p>
+        <p>Good tools understand this. They do not announce focus with constant animation. Instead, they <button class="note" data-note="1">reduce the number of things asking to be noticed<sup>1</sup></button>. The result feels calm even when the underlying task is difficult.</p>
+        <p>This is especially important in learning. A learner moves repeatedly between recognition, recall, uncertainty and correction. Each transition needs enough feedback to be understood, but not so much that the feedback becomes a second task.</p>
+        <p>In that sense, an interface can behave less like a stage and more like <button class="note" data-note="2">a margin around thought<sup>2</sup></button>: present, useful, and quiet until the reader reaches for it.</p>
+      </div>
+    </article>
+    <aside class="marginia">
+      <section class="margin-note" data-panel="1"><div class="n">01</div><h3>Attention by subtraction</h3><p>Focus can be produced by lowering surrounding contrast instead of adding glow to the current object.</p></section>
+      <section class="margin-note" data-panel="2"><div class="n">02</div><h3>Margin as tool space</h3><p>Notes and concepts stay on the same paper plane. They become prominent only when called.</p></section>
+    </aside>
+  </div>
+</main>
+<script>
+const notes=[...document.querySelectorAll('.note')], panels=[...document.querySelectorAll('.margin-note')];
+notes.forEach(n=>n.addEventListener('click',()=>{const id=n.dataset.note; panels.forEach(p=>p.classList.toggle('active',p.dataset.panel===id));}));
+</script></body></html>
