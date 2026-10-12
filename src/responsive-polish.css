@@ -1,4 +1,8 @@
 /* One shell at every window width, including split-screen desktop use. */
+.wenyan-library-toolbar {
+  top: var(--wenyan-sticky-offset);
+}
+
 @media (max-width: 900px) {
   .wenyan-header-row {
     gap: 16px;
@@ -52,9 +56,6 @@
   .wenyan-header-navigation a {
     flex: 1;
     text-align: center;
-  }
-  .wenyan-library-toolbar {
-    top: 112px;
   }
 }
 

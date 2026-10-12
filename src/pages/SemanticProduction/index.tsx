@@ -166,11 +166,27 @@ function SemanticProductionRun({ runId }: { runId: string }) {
                 {Math.min(run?.index ?? 0, run?.items.length ?? 0)} / {run?.items.length ?? 0}
               </span>
             </div>
-            <p className={`mt-8 text-lg font-medium ${feedback.isCorrect ? '' : 'text-[var(--wenyan-danger)]'}`}>
-              {feedback.isCorrect ? '和词书参考一致。' : `你写的是：${feedback.response}`}
-            </p>
-            <p className="wenyan-muted mt-5 text-sm">参考词头</p>
-            <p className="wenyan-mono mt-2 break-words text-4xl font-medium tracking-tight sm:text-5xl">{feedback.correctHeadword}</p>
+
+            {feedback.isCorrect ? (
+              <div className="mt-8 border-y border-[var(--wenyan-line-soft)] py-6">
+                <p className="wenyan-muted text-[11px]">参考词头</p>
+                <p className="wenyan-mono mt-2 break-words text-4xl font-medium tracking-tight sm:text-5xl">{feedback.correctHeadword}</p>
+              </div>
+            ) : (
+              <div className="mt-8 space-y-6">
+                <div>
+                  <p className="wenyan-muted text-[11px]">你的答案</p>
+                  <p className="wenyan-mono mt-2 break-words text-xl text-[var(--wenyan-ink-secondary)] underline decoration-[color-mix(in_srgb,var(--wenyan-danger)_48%,transparent)] decoration-1 underline-offset-4">
+                    {feedback.response}
+                  </p>
+                </div>
+                <div className="border-l-2 border-[var(--wenyan-success)] pl-5">
+                  <p className="wenyan-muted text-[11px]">参考词头</p>
+                  <p className="wenyan-mono mt-2 break-words text-4xl font-medium tracking-tight sm:text-5xl">{feedback.correctHeadword}</p>
+                </div>
+              </div>
+            )}
+
             <button className="wenyan-button-primary mt-8" onClick={continueAfterFeedback}>
               {run?.completedAt !== undefined ? '查看结果' : '下一个'}{' '}
               <kbd aria-hidden="true" className="wenyan-key ml-3">
@@ -198,22 +214,24 @@ function SemanticProductionRun({ runId }: { runId: string }) {
                 void submit()
               }}
             >
-              <label className="wenyan-muted block text-sm" htmlFor="semantic-production-answer">
+              <label className="wenyan-muted block text-[11px]" htmlFor="semantic-production-answer">
                 英文词头
               </label>
-              <input
-                id="semantic-production-answer"
-                ref={input}
-                value={response}
-                onChange={(event) => setResponse(event.target.value)}
-                autoComplete="off"
-                autoCapitalize="none"
-                spellCheck={false}
-                maxLength={300}
-                disabled={busy || stopped}
-                className="wenyan-input mt-3 w-full px-4 py-3 text-xl"
-                placeholder="输入英文词"
-              />
+              <div className="mt-2 border-b border-[var(--wenyan-line)] transition-colors focus-within:border-[var(--wenyan-accent)]">
+                <input
+                  id="semantic-production-answer"
+                  ref={input}
+                  value={response}
+                  onChange={(event) => setResponse(event.target.value)}
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  maxLength={300}
+                  disabled={busy || stopped}
+                  className="wenyan-mono w-full bg-transparent px-0 py-3 text-2xl tracking-tight text-[var(--wenyan-ink)] outline-none placeholder:text-[var(--wenyan-ink-muted)] disabled:opacity-50 sm:text-[28px]"
+                  placeholder="输入英文词"
+                />
+              </div>
               <div className="mt-5 flex items-center justify-between gap-4">
                 <p className="wenyan-muted text-xs">{busy ? '正在保存…' : 'Enter 提交'}</p>
                 <button type="submit" className="wenyan-button-primary" disabled={busy || stopped || !response.trim()}>

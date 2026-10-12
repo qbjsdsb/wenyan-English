@@ -147,24 +147,26 @@ function SemanticCheckRun({ runId }: { runId: string }) {
             <h1 ref={focus} tabIndex={-1} className="mt-6 break-words text-4xl font-medium tracking-tight outline-none sm:text-5xl">
               {feedback.question.word}
             </h1>
-            <div className="mt-8 space-y-3">
+            <div className="mt-8 border-y border-[var(--wenyan-line-soft)]">
               {feedback.question.options.map((option, index) => {
                 const correct = option.contentId === feedback.question.correctContentId
                 const selected = option.contentId === feedback.selectedContentId
+                const wrongSelection = selected && !correct
                 return (
                   <div
                     key={option.contentId}
-                    className={`rounded-[var(--wenyan-radius-sm)] border px-4 py-3 text-sm leading-6 ${
+                    className={`relative border-b border-[var(--wenyan-line-soft)] py-4 pl-5 pr-2 text-sm leading-6 last:border-b-0 before:absolute before:bottom-3 before:left-0 before:top-3 before:w-[2px] before:rounded-full ${
                       correct
-                        ? 'border-[var(--wenyan-success)] bg-[color-mix(in_srgb,var(--wenyan-success)_7%,transparent)]'
-                        : selected
-                        ? 'border-[var(--wenyan-danger)]'
-                        : 'border-[var(--wenyan-line-soft)]'
+                        ? 'text-[var(--wenyan-ink)] before:bg-[var(--wenyan-success)]'
+                        : wrongSelection
+                          ? 'text-[var(--wenyan-ink-secondary)] before:bg-[color-mix(in_srgb,var(--wenyan-danger)_68%,var(--wenyan-line))]'
+                          : 'text-[var(--wenyan-ink-secondary)] before:bg-transparent'
                     }`}
                   >
-                    <div className="mb-1 flex items-center justify-between gap-3">
-                      <span className="wenyan-mono wenyan-muted text-[10px]">{index + 1}</span>
+                    <div className="mb-1.5 flex items-center justify-between gap-3">
+                      <span className="wenyan-mono wenyan-muted text-[11px]">{String(index + 1).padStart(2, '0')}</span>
                       {correct && <span className="text-[11px] text-[var(--wenyan-success)]">正确释义</span>}
+                      {wrongSelection && <span className="text-[11px] text-[var(--wenyan-danger)]">你的选择</span>}
                     </div>
                     {option.meanings.map((meaning, meaningIndex) => (
                       <p key={meaningIndex}>{meaning}</p>

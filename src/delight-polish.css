@@ -3,19 +3,6 @@
  * Feedback therefore changes tone, edge and emphasis briefly, then returns to ink.
  */
 
-/* Page changes should be noticed as continuity, not as a staged entrance. */
-.wenyan-studio-shell > main {
-  animation: wenyan-page-arrive 140ms ease-out both;
-}
-@keyframes wenyan-page-arrive {
-  from {
-    opacity: 0.82;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 /* Correct input settles from the active accent into ordinary ink. */
 .wenyan-letter-correct {
   position: relative;
@@ -31,7 +18,7 @@
   }
 }
 
-/* Wrong input is a small correction, never a glowing alarm. */
+/* Wrong input is a small ink correction, never a shake or glowing alarm. */
 .wenyan-letter-wrong {
   text-decoration: underline;
   text-decoration-color: color-mix(in srgb, var(--wenyan-danger) 48%, transparent);
@@ -42,11 +29,9 @@
 @keyframes wenyan-letter-error {
   0% {
     color: color-mix(in srgb, var(--wenyan-danger) 74%, var(--wenyan-ink));
-    transform: translateX(-0.5px);
   }
   100% {
     color: inherit;
-    transform: translateX(0);
   }
 }
 
@@ -66,8 +51,7 @@
 
 .wenyan-completion-stage {
   isolation: isolate;
-  background: color-mix(in srgb, var(--wenyan-paper) 96%, transparent);
-  backdrop-filter: blur(3px);
+  background: var(--wenyan-paper);
 }
 .wenyan-completion-stage > * {
   position: relative;
@@ -96,52 +80,10 @@
   box-shadow: inset 2px 0 0 color-mix(in srgb, var(--wenyan-accent) 58%, var(--wenyan-line));
 }
 .wenyan-reading-option.is-correct {
-  animation: wenyan-answer-correct 260ms ease-out both;
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--wenyan-success) 76%, var(--wenyan-line));
 }
 .wenyan-reading-option.is-wrong {
-  animation: wenyan-answer-wrong 220ms ease-out both;
-}
-.wenyan-reading-question.is-revealed {
-  animation: wenyan-answer-reveal 220ms ease-out both;
-}
-.wenyan-reading-result {
-  animation: wenyan-result-settle 280ms ease-out both;
-}
-
-@keyframes wenyan-answer-correct {
-  0% {
-    box-shadow: inset 2px 0 0 transparent;
-  }
-  100% {
-    box-shadow: inset 2px 0 0 color-mix(in srgb, var(--wenyan-success) 72%, var(--wenyan-line));
-  }
-}
-@keyframes wenyan-answer-wrong {
-  0% {
-    transform: translateX(0);
-  }
-  45% {
-    transform: translateX(-1px);
-  }
-  100% {
-    transform: translateX(0);
-  }
-}
-@keyframes wenyan-answer-reveal {
-  from {
-    opacity: 0.82;
-  }
-  to {
-    opacity: 1;
-  }
-}
-@keyframes wenyan-result-settle {
-  from {
-    opacity: 0.86;
-  }
-  to {
-    opacity: 1;
-  }
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--wenyan-danger) 62%, var(--wenyan-line));
 }
 
 /* Stable facts read as ink. */
@@ -151,18 +93,6 @@
 
 .wenyan-report-summary {
   background: var(--wenyan-paper-raised);
-}
-.wenyan-report-section {
-  animation: wenyan-report-reveal 220ms ease-out both;
-  animation-delay: var(--wenyan-delay, 0ms);
-}
-@keyframes wenyan-report-reveal {
-  from {
-    opacity: 0.84;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 /* Error recurrence uses a tiny ink mark rather than heat or glow. */
@@ -202,42 +132,6 @@
   100% {
     color: inherit;
   }
-}
-
-/* Learning journey: progress is a quiet path, not a settings table. */
-.wenyan-stage-path {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-.wenyan-stage-path::before {
-  content: '';
-  position: absolute;
-  left: 16.66%;
-  right: 16.66%;
-  top: 10px;
-  height: 1px;
-  background: var(--wenyan-line);
-}
-.wenyan-stage-node {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-}
-.wenyan-stage-node-dot {
-  margin: 0 auto 9px;
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  border: 1px solid var(--wenyan-line);
-  background: var(--wenyan-paper-raised);
-  transition: border-color 160ms ease, background-color 160ms ease;
-}
-.wenyan-stage-node.is-active .wenyan-stage-node-dot {
-  border-color: color-mix(in srgb, var(--wenyan-accent) 58%, var(--wenyan-line));
-  background: color-mix(in srgb, var(--wenyan-accent) 11%, var(--wenyan-paper-raised));
-  box-shadow: inset 0 0 0 5px var(--wenyan-paper-raised);
 }
 
 .wenyan-overview-surface,

@@ -15,8 +15,8 @@ type StageOption = {
 
 const stages: StageOption[] = [
   { id: 'vocabulary', title: '词汇阶段', description: '以背词、复习、拼写和词义训练为主。', available: true },
-  { id: 'mixed', title: '词汇 + 阅读', description: '阅读训练还在完善，暂未开放。', available: false },
-  { id: 'exam_practice', title: '真题阶段', description: '真题训练还在准备，暂未开放。', available: false },
+  { id: 'mixed', title: '词汇 + 阅读', description: '把稳定的词汇训练和完整阅读训练放在同一个阶段。', available: false },
+  { id: 'exam_practice', title: '真题阶段', description: '以成套真题、复盘和阶段性验证为主。', available: false },
 ]
 
 function sourceLabel(snapshot: BrowserLearningPreferencesSnapshot) {
@@ -72,12 +72,14 @@ export default function PreferencesPage() {
 
   const currentStage = snapshot ? stages.find((stage) => stage.id === snapshot.learningStage.current) : undefined
   const currentStageUnavailable = Boolean(currentStage && !currentStage.available)
+  const currentConfirmed = Boolean(snapshot && snapshot.learningStage.provenance.kind === 'user_confirmation' && !currentStageUnavailable)
+  const upcomingStages = stages.filter((stage) => !stage.available)
 
   return (
     <div className="wenyan-studio-shell flex min-h-screen flex-col text-[var(--wenyan-ink)]">
       <Header />
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 pb-16 pt-9">
-        <PageHeading title="学习阶段" description="决定接下来主要练什么。" />
+        <PageHeading title="学习阶段" description="只决定接下来主要练什么，不改动过去的学习记录。" />
 
         {message && (
           <p role="status" className="wenyan-body mb-5 text-sm">
@@ -86,90 +88,84 @@ export default function PreferencesPage() {
         )}
 
         {loading ? (
-          <section className="wenyan-surface flex min-h-[220px] items-center justify-center">
+          <section className="flex min-h-[220px] items-center justify-center border-y border-[var(--wenyan-line-soft)]">
             <LoadingUI label="正在读取学习阶段" />
           </section>
         ) : !snapshot ? (
-          <div className="wenyan-surface p-5">
+          <section className="border-y border-[var(--wenyan-line-soft)] py-6">
             <p className="text-sm font-medium">需要先登录 Wenyan Cloud</p>
             <Link className="wenyan-link-accent mt-3 inline-block text-sm" to="/sync">
               去同步页面
             </Link>
-          </div>
+          </section>
         ) : (
           <>
-            <section className="wenyan-surface mb-5 px-5 py-5">
-              <div className="flex items-center justify-between gap-6">
-                <div>
-                  <p className="wenyan-muted text-[10px]">当前阶段</p>
-                  <p className="mt-1 text-lg font-semibold text-[var(--wenyan-ink)]">
+            <section className="border-y border-[var(--wenyan-line-soft)] py-6" aria-labelledby="current-learning-stage">
+              <div className="flex flex-wrap items-start justify-between gap-6">
+                <div className="min-w-0 flex-1">
+                  <p className="wenyan-kicker">当前阶段</p>
+                  <h2 id="current-learning-stage" className="mt-2 text-xl font-semibold tracking-[-0.02em] text-[var(--wenyan-ink)]">
                     {currentStage?.title ?? snapshot.learningStage.current}
+                  </h2>
+                  <p className="wenyan-muted mt-2 max-w-xl text-sm leading-6">
+                    {currentStage?.description ?? '当前阶段由 Wenyan 保存，用来决定后续学习安排。'}
                   </p>
                 </div>
-                <span className="wenyan-muted text-xs">{sourceLabel(snapshot)}</span>
+                <span className="wenyan-muted pt-0.5 text-[11px]">{sourceLabel(snapshot)}</span>
               </div>
 
               {currentStageUnavailable && (
-                <p className="mt-4 rounded-[var(--wenyan-radius-sm)] bg-[var(--wenyan-paper-muted)] px-3 py-2 text-xs leading-5 text-[var(--wenyan-ink-muted)]">
-                  这个阶段还没开放，当前不会把它加入学习安排。你可以切回词汇阶段。
-                </p>
+                <div className="wenyan-danger-note mt-5 px-4 py-3 text-xs leading-5 text-[var(--wenyan-ink-secondary)]">
+                  这个阶段还没有完整开放，当前不会把它加入新的学习安排。先切回词汇阶段最稳妥。
+                </div>
               )}
 
-              <div className="wenyan-stage-path mt-6" aria-label="学习路径">
-                {stages.map((stage) => {
-                  const active = snapshot.learningStage.current === stage.id
-                  return (
-                    <div key={stage.id} className={`wenyan-stage-node ${active ? 'is-active' : ''}`}>
-                      <div className="wenyan-stage-node-dot" aria-hidden="true" />
-                      <div className={`text-[11px] ${active ? 'font-medium text-[var(--wenyan-ink)]' : 'text-[var(--wenyan-ink-muted)]'}`}>
-                        {stage.title}
-                        {!stage.available ? ' · 规划中' : ''}
-                      </div>
-                    </div>
-                  )
-                })}
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                {currentStageUnavailable ? (
+                  <button
+                    type="button"
+                    disabled={Boolean(saving)}
+                    onClick={() => void confirm('vocabulary')}
+                    className="wenyan-button-primary"
+                  >
+                    {saving === 'vocabulary' ? '保存中…' : '切回词汇阶段'}
+                  </button>
+                ) : !currentConfirmed ? (
+                  <button
+                    type="button"
+                    disabled={Boolean(saving)}
+                    onClick={() => void confirm(snapshot.learningStage.current)}
+                    className="wenyan-button-secondary"
+                  >
+                    {saving === snapshot.learningStage.current ? '保存中…' : '确认继续使用'}
+                  </button>
+                ) : null}
+                <span className="wenyan-muted text-xs">阶段变化始终需要你自己确认。</span>
               </div>
             </section>
 
-            <section
-              aria-label="学习阶段选项"
-              className="overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]"
-            >
-              {stages.map((stage, index) => {
-                const active = snapshot.learningStage.current === stage.id
-                const confirmed = active && snapshot.learningStage.provenance.kind === 'user_confirmation'
-                const disabled = Boolean(saving) || confirmed || !stage.available
-                return (
-                  <div
-                    key={stage.id}
-                    className={`${
-                      index > 0 ? 'border-t border-[var(--wenyan-line-soft)]' : ''
-                    } flex items-center justify-between gap-8 px-5 py-5 ${active ? 'bg-[var(--wenyan-accent-soft)]' : ''}`}
-                  >
+            <section aria-labelledby="future-learning-stages" className="mt-10">
+              <div className="mb-4">
+                <h2 id="future-learning-stages" className="wenyan-section-title">以后可用</h2>
+                <p className="wenyan-muted mt-1.5 text-xs leading-5">等对应学习闭环真正稳定后，这些阶段才会成为可选项。</p>
+              </div>
+              <div className="border-t border-[var(--wenyan-line-soft)]">
+                {upcomingStages.map((stage) => (
+                  <div key={stage.id} className="flex items-start justify-between gap-8 border-b border-[var(--wenyan-line-soft)] py-4">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-sm font-medium text-[var(--wenyan-ink)]">{stage.title}</h2>
-                        {active && <span className="text-[10px] text-[var(--wenyan-accent)]">当前</span>}
-                      </div>
-                      <p className="wenyan-muted mt-1.5 text-xs leading-5">{stage.description}</p>
+                      <h3 className="text-sm font-medium text-[var(--wenyan-ink)]">{stage.title}</h3>
+                      <p className="wenyan-muted mt-1 text-xs leading-5">{stage.description}</p>
                     </div>
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => void confirm(stage.id)}
-                      className="wenyan-button-secondary shrink-0"
-                    >
-                      {!stage.available ? '未开放' : saving === stage.id ? '保存中…' : confirmed ? '已确认' : active ? '确认' : '切换'}
-                    </button>
+                    <span className="wenyan-muted shrink-0 pt-0.5 text-[11px]">完善中</span>
                   </div>
-                )
-              })}
+                ))}
+              </div>
             </section>
 
             <details className="wenyan-muted mt-8 text-xs">
-              <summary className="wenyan-link cursor-pointer select-none text-xs">为什么有些阶段不能选？</summary>
+              <summary className="wenyan-link cursor-pointer select-none text-xs">为什么不能提前切换？</summary>
               <div className="mt-3 space-y-2 leading-6">
-                <p>只有当前能完整练习并保存进度的阶段才会开放。学习阶段只影响之后的安排，不会改动过去的记录。</p>
+                <p>只有当前能够完整练习、保存进度并可靠恢复的阶段才会开放。阶段设置只影响未来安排，不会改写过去的学习事实。</p>
               </div>
             </details>
           </>
