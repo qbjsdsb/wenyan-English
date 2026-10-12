@@ -25,7 +25,7 @@ const ErrorRow: FC<IErrorRowProps> = ({ record }) => {
 
   return (
     <div
-      className="grid cursor-pointer grid-cols-[1.2fr_3fr_110px_150px] items-center gap-4 px-4 py-3.5 text-sm transition-[background-color,transform] duration-150 hover:bg-[var(--wenyan-paper-muted)]"
+      className="wenyan-index-row grid cursor-pointer grid-cols-[1.2fr_3fr_110px_150px] items-center gap-4 px-4 py-3.5 text-sm transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--wenyan-ink)_2%,transparent)]"
       onClick={onClick}
       role="button"
       tabIndex={0}
