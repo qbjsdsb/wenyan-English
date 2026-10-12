@@ -196,8 +196,8 @@ export default function TodayPage() {
   return (
     <div className="wenyan-studio-shell flex min-h-screen flex-col text-[var(--wenyan-ink)]">
       <Header />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-14 pt-10">
-        <PageHeading title="今天" description="从这一段开始。">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-14 pt-9">
+        <PageHeading title="今天">
           <div className="wenyan-muted flex flex-wrap items-center gap-3 text-xs">
             <time dateTime={today} className="wenyan-mono">
               {today}
@@ -228,7 +228,7 @@ export default function TodayPage() {
 
         <section aria-label="今日概况" className="wenyan-overview-surface wenyan-today-overview mb-10">
           <div className="min-w-0">
-            <div className="wenyan-muted text-[10px] font-medium tracking-[0.02em]">当前词书</div>
+            <div className="wenyan-muted text-[11px] font-medium tracking-[0.02em]">当前词书</div>
             <div className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
               <div className="truncate text-[14px] font-semibold text-[var(--wenyan-ink)]">{dict.name}</div>
               <div className="wenyan-muted text-[11px]">第 {chapter + 1} 章</div>
@@ -244,7 +244,7 @@ export default function TodayPage() {
           </div>
 
           <div className="wenyan-today-summary" aria-label="今日学习记录摘要">
-            <span className="wenyan-muted text-[10px] font-medium">今天</span>
+            <span className="wenyan-muted text-[11px] font-medium">今天</span>
             <span>
               <strong>{data?.attempts ?? '—'}</strong> 拼写
             </span>
