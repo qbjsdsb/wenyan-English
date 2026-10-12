@@ -38,7 +38,9 @@ export default function Setting() {
       <button
         type="button"
         onClick={openModal}
-        className={`${isOpen ? 'bg-[var(--wenyan-paper-raised)] text-[var(--wenyan-ink)]' : 'text-[var(--wenyan-ink-muted)]'} grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors hover:bg-[var(--wenyan-paper-raised)] hover:text-[var(--wenyan-ink)]`}
+        className={`${
+          isOpen ? 'bg-[var(--wenyan-paper-raised)] text-[var(--wenyan-ink)]' : 'text-[var(--wenyan-ink-muted)]'
+        } grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors hover:bg-[var(--wenyan-paper-raised)] hover:text-[var(--wenyan-ink)]`}
         title="学习设置"
         aria-label="打开学习设置"
       >
@@ -70,11 +72,13 @@ export default function Setting() {
                 leaveFrom="opacity-100 translate-y-0 scale-100"
                 leaveTo="opacity-0 translate-y-1 scale-[0.992]"
               >
-                <Dialog.Panel className="wenyan-settings-dialog flex h-[36rem] w-[52rem] max-w-[92vw] flex-col overflow-hidden rounded-[var(--wenyan-radius-lg)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)] p-0 text-left">
+                <Dialog.Panel className="wenyan-settings-dialog flex h-[36rem] max-h-[calc(100dvh-48px)] w-[52rem] max-w-[92vw] flex-col overflow-hidden rounded-[var(--wenyan-radius-lg)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)] p-0 text-left">
                   <div className="relative flex h-[58px] shrink-0 items-center border-b border-[var(--wenyan-line-soft)] px-5">
                     <div>
-                      <Dialog.Title as="h3" className="text-[15px] font-semibold text-[var(--wenyan-ink)]">学习设置</Dialog.Title>
-                      <p className="wenyan-muted mt-0.5 text-[10px]">这些偏好只影响练习体验，不会改写学习记录。</p>
+                      <Dialog.Title as="h3" className="text-[15px] font-semibold text-[var(--wenyan-ink)]">
+                        学习设置
+                      </Dialog.Title>
+                      <p className="wenyan-muted mt-0.5 text-[10px]">调整后自动保存，关闭即可继续练习。</p>
                     </div>
                     <button
                       type="button"
@@ -95,7 +99,7 @@ export default function Setting() {
                             key={label}
                             className={({ selected }) =>
                               classNames(
-                                'flex min-h-[48px] w-full cursor-pointer items-center gap-2.5 rounded-[var(--wenyan-radius-sm)] px-3 text-left outline-none transition-colors',
+                                'flex min-h-[48px] w-full cursor-pointer items-center gap-2.5 rounded-[var(--wenyan-radius-sm)] px-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--wenyan-accent)]',
                                 selected
                                   ? 'bg-[var(--wenyan-paper-raised)] text-[var(--wenyan-ink)] shadow-[0_4px_14px_color-mix(in_srgb,var(--wenyan-canvas)_10%,transparent)]'
                                   : 'text-[var(--wenyan-ink-secondary)] hover:bg-[color-mix(in_srgb,var(--wenyan-paper-raised)_68%,transparent)] hover:text-[var(--wenyan-ink)]',
@@ -112,10 +116,18 @@ export default function Setting() {
                       </Tab.List>
 
                       <Tab.Panels className="min-w-0 flex-1 bg-[var(--wenyan-paper-raised)]">
-                        <Tab.Panel className="flex h-full w-full focus:outline-none"><SoundSetting /></Tab.Panel>
-                        <Tab.Panel className="flex h-full w-full focus:outline-none"><AdvancedSetting /></Tab.Panel>
-                        <Tab.Panel className="flex h-full w-full focus:outline-none"><ViewSetting /></Tab.Panel>
-                        <Tab.Panel className="flex h-full w-full focus:outline-none"><DataSetting /></Tab.Panel>
+                        <Tab.Panel className="flex h-full w-full focus:outline-none">
+                          <SoundSetting />
+                        </Tab.Panel>
+                        <Tab.Panel className="flex h-full w-full focus:outline-none">
+                          <AdvancedSetting />
+                        </Tab.Panel>
+                        <Tab.Panel className="flex h-full w-full focus:outline-none">
+                          <ViewSetting />
+                        </Tab.Panel>
+                        <Tab.Panel className="flex h-full w-full focus:outline-none">
+                          <DataSetting />
+                        </Tab.Panel>
                       </Tab.Panels>
                     </div>
                   </Tab.Group>

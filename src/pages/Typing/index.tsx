@@ -11,6 +11,7 @@ import { useWordList } from './hooks/useWordList'
 import { ignoresStudyKey } from './keyboard'
 import { TypingContext, TypingStateActionType, initialState, typingReducer } from './store'
 import Header from '@/components/Header'
+import { LoadingUI } from '@/components/Loading'
 import Tooltip from '@/components/Tooltip'
 import { idDictionaryMap } from '@/resources/dictionary'
 import { currentChapterAtom, currentDictIdAtom, isReviewModeAtom, randomConfigAtom, reviewModeInfoAtom } from '@/store'
@@ -27,6 +28,7 @@ import { useImmerReducer } from 'use-immer'
 const App: React.FC = () => {
   const [state, dispatch] = useImmerReducer(typingReducer, structuredClone(initialState))
   const [preparingChapter, setPreparingChapter] = useState(true)
+  const [desktop] = useState(IsDesktop)
   const isLoading = preparingChapter || state.chapterData.words.length === 0
   const [ownerUserId, setOwnerUserId] = useState(getLocalLearningOwnerId)
   const [recoveryMessage, setRecoveryMessage] = useState('')
@@ -64,8 +66,7 @@ const App: React.FC = () => {
 
   const reviewModeInfo = useAtomValue(reviewModeInfoAtom)
   const isReviewMode = useAtomValue(isReviewModeAtom)
-  const ownerBoundReview =
-    isReviewMode && ['manual', 'smart', 'correction'].includes(reviewModeInfo.reviewRecord?.origin ?? '')
+  const ownerBoundReview = isReviewMode && ['manual', 'smart', 'correction'].includes(reviewModeInfo.reviewRecord?.origin ?? '')
   const checkpointEnabled = !isReviewMode && !searchParams.has('smartSession') && idDictionaryMap[currentDictId]?.language === 'en'
   const taskRunId = searchParams.get('taskRun')
 
@@ -95,14 +96,6 @@ const App: React.FC = () => {
     },
     [dispatch, state.isSavingRecord, state.checkpoint],
   )
-
-  useEffect(() => {
-    if (!IsDesktop()) {
-      setTimeout(() => {
-        alert('Wenyan 英语学习目前以桌面键盘为主要使用方式。平板设备建议连接外接键盘。')
-      }, 500)
-    }
-  }, [])
 
   useEffect(() => {
     const id = currentDictId
@@ -282,7 +275,7 @@ const App: React.FC = () => {
       <main className={`wenyan-focus-shell ${state.isTyping ? 'is-active' : ''} flex min-h-screen w-full flex-col`}>
         {state.isTyping ? (
           <div className="wenyan-focus-bar">
-            <div className="mx-auto flex h-12 w-full max-w-5xl items-center justify-between px-6 text-[11px] text-[var(--wenyan-ink-muted)]">
+            <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between px-6 text-[11px] text-[var(--wenyan-ink-muted)]">
               <Link
                 to="/today"
                 aria-label="今日学习"
@@ -293,7 +286,13 @@ const App: React.FC = () => {
               <div className="flex items-center gap-2.5">
                 <span>
                   {idDictionaryMap[currentDictId]?.name} ·{' '}
-                  {isReviewMode ? (searchParams.has('smartSession') ? '本段词汇练习' : (reviewModeInfo.reviewRecord?.origin === 'manual' ? '专项拼写' : '错词复习')) : `第 ${currentChapter + 1} 章`}
+                  {isReviewMode
+                    ? searchParams.has('smartSession')
+                      ? '本段词汇练习'
+                      : reviewModeInfo.reviewRecord?.origin === 'manual'
+                      ? '专项拼写'
+                      : '错词复习'
+                    : `第 ${currentChapter + 1} 章`}
                 </span>
                 {state.chapterData.words.length > 0 && (
                   <span className="wenyan-mono text-[10px] text-[var(--wenyan-ink-secondary)]">
@@ -312,9 +311,16 @@ const App: React.FC = () => {
         )}
 
         <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-6">
-          {!state.isTyping && (
+          {state.isTyping ? (
+            <div aria-hidden="true" className="wenyan-study-toolbar-space" />
+          ) : (
             <div className="wenyan-setup-bar my-4 flex items-center justify-between gap-6 px-4 py-3">
-              <div className="flex items-center gap-4"><DictChapterButton /><Link to="/practice" className="wenyan-link text-xs">换一种训练</Link></div>
+              <div className="flex items-center gap-4">
+                <DictChapterButton />
+                <Link to="/practice" className="wenyan-link text-xs">
+                  换一种训练
+                </Link>
+              </div>
               <div className="flex items-center gap-1.5">
                 <WordList inline />
                 <Switcher />
@@ -324,6 +330,9 @@ const App: React.FC = () => {
             </div>
           )}
 
+          {!desktop && !state.isTyping && (
+            <p className="wenyan-muted mb-2 text-center text-xs">拼写练习建议连接键盘；也可以去专项训练里选择词义。</p>
+          )}
           {fromCache && !state.isTyping && (
             <p role="status" className="wenyan-muted text-center text-xs">
               正在使用本机保存的词库，可以继续练习。
@@ -356,10 +365,7 @@ const App: React.FC = () => {
                 </div>
               ) : isLoading ? (
                 <div role="status" className="flex flex-col items-center gap-4">
-                  <span
-                    aria-hidden="true"
-                    className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--wenyan-line)] border-r-transparent"
-                  />
+                  <LoadingUI label="正在准备单词" />
                   <span className="wenyan-muted text-sm">正在准备这一章的单词…</span>
                 </div>
               ) : (
@@ -375,5 +381,9 @@ const App: React.FC = () => {
 }
 
 export default function TypingPage() {
-  return <ManualReviewGate><App /></ManualReviewGate>
+  return (
+    <ManualReviewGate>
+      <App />
+    </ManualReviewGate>
+  )
 }

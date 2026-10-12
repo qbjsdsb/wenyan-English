@@ -35,6 +35,7 @@ const LineCharts: FC<LineChartsProps> = ({ data, title, suffix, name }) => {
 
     chart.setOption({
       backgroundColor: 'transparent',
+      animation: !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
       tooltip: { trigger: 'axis' },
       grid: { left: 46, right: 18, top: 24, bottom: 34 },
       xAxis: {
@@ -46,7 +47,7 @@ const LineCharts: FC<LineChartsProps> = ({ data, title, suffix, name }) => {
         axisPointer: {
           label: {
             formatter: function (params: { seriesData: [{ data: [string, number] }] }) {
-              return params.seriesData[0].data[0]
+              return params.seriesData?.[0]?.data?.[0] ?? ''
             },
           },
         },
@@ -71,6 +72,7 @@ const LineCharts: FC<LineChartsProps> = ({ data, title, suffix, name }) => {
         },
       ],
     })
+    return () => chart?.dispose()
   }, [data, suffix, name, isOpenDarkMode])
 
   useEffect(() => {
@@ -81,7 +83,11 @@ const LineCharts: FC<LineChartsProps> = ({ data, title, suffix, name }) => {
   return (
     <div className="flex h-full flex-col">
       <h2 className="mb-3 text-sm font-medium text-gray-900 dark:text-gray-200">{title}</h2>
-      <div ref={chartRef} className="min-h-0 flex-1" />
+      {data.length ? (
+        <div ref={chartRef} className="min-h-0 flex-1" role="img" aria-label={title} />
+      ) : (
+        <p className="wenyan-muted flex flex-1 items-center justify-center text-xs">这段时间还没有可展示的数据。</p>
+      )}
     </div>
   )
 }

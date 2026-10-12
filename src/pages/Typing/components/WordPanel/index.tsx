@@ -153,11 +153,7 @@ export default function WordPanel() {
       <div className="flex w-full flex-grow flex-col items-center justify-center px-8 pt-8">
         {currentWord && (
           <div className="wenyan-fade-in relative flex w-full justify-center">
-            <div
-              className={`relative flex flex-col items-center transition-transform duration-200 ${
-                state.isTyping ? '-translate-y-3' : '-translate-y-1'
-              }`}
-            >
+            <div className="relative flex -translate-y-1 flex-col items-center">
               <WordComponent
                 word={currentWord}
                 onFinish={onFinish}
@@ -170,13 +166,16 @@ export default function WordPanel() {
                 onMouseEnter={() => handleShowTranslation(true)}
                 onMouseLeave={() => handleShowTranslation(false)}
               />
-              {!state.isTyping && (
-                <p className="mt-3 select-none text-center text-[11px] font-medium tracking-[0.02em] text-[var(--wenyan-accent)]">
-                  {state.isSavingRecord
-                    ? '先保存当前词，再继续'
-                    : `按任意键${state.chapterData.wordCount || state.timerData.time ? '继续' : '开始'}`}
-                </p>
-              )}
+              <p
+                aria-hidden={state.isTyping}
+                className={`mt-3 min-h-[20px] select-none text-center text-xs text-[var(--wenyan-ink-muted)] ${
+                  state.isTyping ? 'invisible' : ''
+                }`}
+              >
+                {state.isSavingRecord
+                  ? '先保存当前词，再继续'
+                  : `输入字母或按 Enter ${state.chapterData.wordCount || state.timerData.time ? '继续' : '开始'}`}
+              </p>
             </div>
           </div>
         )}

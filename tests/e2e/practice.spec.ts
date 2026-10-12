@@ -22,11 +22,11 @@ test.describe('Practice', () => {
   })
 
   test('Press any key to start', async ({ page }) => {
-    await expect(await page.getByText('按任意键开始').isVisible()).toBeTruthy()
+    await expect(await page.getByText('输入字母或按 Enter 开始').isVisible()).toBeTruthy()
 
     await page.keyboard.press('Enter')
     await page.waitForTimeout(300)
-    await expect(await page.locator('p').getByText('按任意键开始').isHidden()).toBeTruthy()
+    await expect(await page.locator('p').getByText('输入字母或按 Enter 开始').isHidden()).toBeTruthy()
   })
 
   test('Enter the correct word', async ({ page }) => {

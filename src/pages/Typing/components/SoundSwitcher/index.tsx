@@ -22,7 +22,9 @@ export default function SoundSwitcher() {
       {({ open }) => (
         <>
           <Popover.Button
-            className={`${open ? 'bg-[var(--wenyan-paper-raised)] text-[var(--wenyan-ink)]' : 'text-[var(--wenyan-ink-muted)]'} grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors hover:bg-[var(--wenyan-paper-raised)] hover:text-[var(--wenyan-ink)]`}
+            className={`${
+              open ? 'bg-[var(--wenyan-paper-raised)] text-[var(--wenyan-ink)]' : 'text-[var(--wenyan-ink-muted)]'
+            } grid h-8 w-8 place-items-center rounded-[var(--wenyan-radius-sm)] transition-colors hover:bg-[var(--wenyan-paper-raised)] hover:text-[var(--wenyan-ink)]`}
             aria-label="音效设置"
             title="音效设置"
           >
@@ -38,18 +40,18 @@ export default function SoundSwitcher() {
             leaveFrom="opacity-100 translate-y-0"
             leaveTo="opacity-0 translate-y-1"
           >
-            <Popover.Panel className="wenyan-surface absolute left-1/2 z-50 mt-2 w-56 -translate-x-1/2 p-4">
+            <Popover.Panel className="wenyan-surface absolute right-0 z-50 mt-2 w-56 p-4">
               <div className="mb-2 text-[12px] font-semibold text-[var(--wenyan-ink)]">音效</div>
               <div className="divide-y divide-[var(--wenyan-line-soft)]">
                 <div className="flex items-center justify-between py-2">
                   <span className="wenyan-body text-xs">按键音</span>
-                  <Switch checked={keySoundsConfig.isOpen} onChange={onChangeKeySound} className="switch-root">
+                  <Switch aria-label="按键音" checked={keySoundsConfig.isOpen} onChange={onChangeKeySound} className="switch-root">
                     <span aria-hidden="true" className="switch-thumb" />
                   </Switch>
                 </div>
                 <div className="flex items-center justify-between py-2">
                   <span className="wenyan-body text-xs">提示音</span>
-                  <Switch checked={hintSoundsConfig.isOpen} onChange={onChangeHintSound} className="switch-root">
+                  <Switch aria-label="提示音" checked={hintSoundsConfig.isOpen} onChange={onChangeHintSound} className="switch-root">
                     <span aria-hidden="true" className="switch-thumb" />
                   </Switch>
                 </div>

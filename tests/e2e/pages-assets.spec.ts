@@ -29,7 +29,7 @@ test('production Pages artifact loads real vocabulary and local sound assets', a
   expect(requests).toContain(dictionaryPath)
   expect(requests.some((path) => path.startsWith('/qwerty-learner/'))).toBe(false)
   await page.getByRole('link', { name: '练习', exact: true }).click()
-  await expect(page.getByText('按任意键开始', { exact: true })).toBeVisible()
+  await expect(page.getByText('输入字母或按 Enter 开始', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled()
 })
 
@@ -48,7 +48,7 @@ for (const failure of [
     await expect(page.getByRole('status')).toHaveCount(0)
     await page.unroute(`**${dictionaryPath}`)
     await page.getByRole('button', { name: '重新加载词库', exact: true }).click()
-    await expect(page.getByText('按任意键开始', { exact: true })).toBeVisible()
+    await expect(page.getByText('输入字母或按 Enter 开始', { exact: true })).toBeVisible()
     await expect(page.getByRole('alert')).toHaveCount(0)
     await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled()
   })

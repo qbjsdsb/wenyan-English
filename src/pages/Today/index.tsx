@@ -1,15 +1,16 @@
+import SmartSessionDock from './SmartSessionDock'
 import Header from '@/components/Header'
+import PageHeading from '@/components/PageHeading'
 import { useLearningOwner } from '@/hooks/useLearningOwner'
 import { learningEventsForOwnerBetween } from '@/learning/eventQueries'
-import type { WordAttemptedPayload } from '@/learning/types'
 import { createLearningEvent } from '@/learning/types'
 import { syncCloudPlanToLocal } from '@/plans/cloud'
 import { exportStudyPlan, importStudyPlan, startStudyTask } from '@/plans/repository'
 import type { StoredStudyPlan, StudyPlan, StudyTask } from '@/plans/types'
 import { dateInTimezone } from '@/plans/validation'
 import { idDictionaryMap } from '@/resources/dictionary'
-import { practiceReturnPath, readPracticeChoices } from '@/semantic/practiceChoices'
 import type { PracticePool } from '@/semantic/practice'
+import { practiceReturnPath, readPracticeChoices } from '@/semantic/practiceChoices'
 import { currentChapterAtom, currentDictIdAtom, currentDictInfoAtom, reviewModeInfoAtom } from '@/store'
 import { db } from '@/utils/db'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -18,7 +19,6 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import SmartSessionDock from './SmartSessionDock'
 
 const secondary = 'wenyan-button-secondary'
 const quietLink = 'wenyan-link text-[13px]'
@@ -92,7 +92,6 @@ export default function TodayPage() {
       db.learningEvents.where('syncState').anyOf('pending', 'failed').toArray(),
     ])
     const attempts = visibleEvents.filter((event) => event.eventType === 'word_attempted')
-    const correct = attempts.filter((event) => (event.payload as WordAttemptedPayload).wrongCount === 0).length
     const visiblePlans = plans.filter((plan) => {
       if (plan.origin !== 'cloud') return true
       if (!owner || plan.ownerUserId !== owner || plan.cloudStatus !== 'active') return false
@@ -106,9 +105,9 @@ export default function TodayPage() {
       runs,
       pending: pendingEvents.filter((event) => event.ownerUserId === owner).length,
       attempts: attempts.length,
-      correct,
       semantic: visibleEvents.filter((event) => event.eventType === 'semantic_recall_attempted').length,
       recognition: visibleEvents.filter((event) => event.eventType === 'semantic_discrimination_attempted').length,
+      production: visibleEvents.filter((event) => event.eventType === 'semantic_production_attempted').length,
       chapters: visibleEvents.filter((event) => event.eventType === 'chapter_completed').length,
     }
   }, [today, owner])
@@ -198,19 +197,16 @@ export default function TodayPage() {
     <div className="wenyan-studio-shell flex min-h-screen flex-col text-[var(--wenyan-ink)]">
       <Header />
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-14 pt-10">
-        <div className="mb-7 flex items-end justify-between gap-6">
-          <div>
-            <h1 className="wenyan-page-title">今天</h1>
-            <p className="wenyan-muted mt-2 text-sm">先做眼前这一小段。</p>
-          </div>
-          <div className="wenyan-mono flex items-center gap-2 text-[10px] text-[var(--wenyan-ink-muted)]">
-            <span>{today}</span>
-            <span aria-hidden="true" className="opacity-45">·</span>
-            <Link to="/sync" className="wenyan-link text-[10px]">
-              {data ? (data.pending ? `本机已保存 · ${data.pending} 条待同步` : '查看同步状态') : '正在读取本机记录…'}
+        <PageHeading title="今天" description="从这一段开始。">
+          <div className="wenyan-muted flex flex-wrap items-center gap-3 text-xs">
+            <time dateTime={today} className="wenyan-mono">
+              {today}
+            </time>
+            <Link to="/sync" className="wenyan-link">
+              {data?.pending ? `${data.pending} 条待同步` : '同步状态'}
             </Link>
           </div>
-        </div>
+        </PageHeading>
 
         <SmartSessionDock />
 
@@ -219,11 +215,15 @@ export default function TodayPage() {
           <Link to={practiceReturnPath('spelling', practiceChoices)}>拼写</Link>
           <Link to={practiceReturnPath('recall', practiceChoices)}>词义回想</Link>
           <Link to={practiceReturnPath('discrimination', practiceChoices)}>选择词义</Link>
-          <span className="wenyan-muted text-[10px]">
-            上次范围 · {practicePoolLabel(practiceChoices.pool)}{practiceChoices.pool === 'chapter' ? '' : ` · 每段 ${practiceChoices.limit}`}
+          <Link to={practiceReturnPath('production', practiceChoices)}>看义写词</Link>
+          <span className="wenyan-practice-last-range wenyan-muted text-[11px]">
+            上次范围 · {practicePoolLabel(practiceChoices.pool)}
+            {practiceChoices.pool === 'chapter' ? '' : ` · 每段 ${practiceChoices.limit}`}
           </span>
           <span className="wenyan-direct-practice-spacer" aria-hidden="true" />
-          <Link to={practiceReturnPath(practiceChoices.mode, practiceChoices)} className="wenyan-muted">更多设置</Link>
+          <Link to={practiceReturnPath(practiceChoices.mode, practiceChoices)} className="wenyan-muted">
+            全部专项 →
+          </Link>
         </nav>
 
         <section aria-label="今日概况" className="wenyan-overview-surface wenyan-today-overview mb-10">
@@ -234,17 +234,29 @@ export default function TodayPage() {
               <div className="wenyan-muted text-[11px]">第 {chapter + 1} 章</div>
             </div>
             <div className="mt-2.5 flex items-center gap-4">
-              <Link to="/" className={quietLink}>继续背词</Link>
-              <Link to="/gallery" className={quietLink}>切换词书</Link>
+              <Link to="/" className={quietLink}>
+                继续背词
+              </Link>
+              <Link to="/gallery" className={quietLink}>
+                切换词书
+              </Link>
             </div>
           </div>
 
           <div className="wenyan-today-summary" aria-label="今日学习记录摘要">
             <span className="wenyan-muted text-[10px] font-medium">今天</span>
-            <span><strong>{data?.attempts ?? '—'}</strong> 拼写</span>
-            <span><strong>{data?.correct ?? '—'}</strong> 无错</span>
-            <span><strong>{data?.semantic ?? '—'}</strong> 回想</span>
-            <span><strong>{data?.recognition ?? '—'}</strong> 选择</span>
+            <span>
+              <strong>{data?.attempts ?? '—'}</strong> 拼写
+            </span>
+            <span>
+              <strong>{data?.semantic ?? '—'}</strong> 回想
+            </span>
+            <span>
+              <strong>{data?.recognition ?? '—'}</strong> 选择
+            </span>
+            <span>
+              <strong>{data?.production ?? '—'}</strong> 写词
+            </span>
           </div>
         </section>
 
@@ -255,22 +267,41 @@ export default function TodayPage() {
               <p className="wenyan-muted mt-1 text-[11px]">需要按计划完成的安排。</p>
             </div>
             <div className="flex items-center gap-4">
-              <button disabled={cloudBusy} onClick={() => void refreshCloudPlan(true)} className="wenyan-link inline-flex items-center gap-1.5 text-[13px] disabled:opacity-50">
+              <button
+                disabled={cloudBusy}
+                onClick={() => void refreshCloudPlan(true)}
+                className="wenyan-link inline-flex items-center gap-1.5 text-[13px] disabled:opacity-50"
+              >
                 <RefreshCw aria-hidden="true" size={12} className={cloudBusy ? 'animate-spin' : ''} />
                 {cloudBusy ? '同步中' : '刷新'}
               </button>
-              <button onClick={() => setShowImport(!showImport)} className="wenyan-link text-[13px]">
+              <button
+                onClick={() => setShowImport(!showImport)}
+                aria-expanded={showImport}
+                aria-controls="plan-import"
+                className="wenyan-link text-[13px]"
+              >
                 {showImport ? '收起导入' : '导入任务'}
               </button>
             </div>
           </div>
 
-          {cloudMessage && <p role="status" className="wenyan-muted mb-3.5 text-xs">{cloudMessage}</p>}
-          {message && <p role="status" className="wenyan-body mb-3.5 text-sm">{message}</p>}
+          {cloudMessage && (
+            <p role="status" className="wenyan-muted mb-3.5 text-xs">
+              {cloudMessage}
+            </p>
+          )}
+          {message && (
+            <p role="status" className="wenyan-body mb-3.5 text-sm">
+              {message}
+            </p>
+          )}
 
           {showImport && (
-            <div className="wenyan-surface mb-5 p-5">
-              <label htmlFor="plan-json" className="text-sm font-medium">粘贴任务 JSON</label>
+            <div id="plan-import" className="wenyan-surface mb-5 p-5">
+              <label htmlFor="plan-json" className="text-sm font-medium">
+                粘贴任务 JSON
+              </label>
               <textarea
                 id="plan-json"
                 value={json}
@@ -280,8 +311,17 @@ export default function TodayPage() {
                 className="wenyan-input mt-3 w-full select-text p-3 font-mono text-xs outline-none"
               />
               <div className="mt-3 flex items-center gap-3">
-                <button disabled={busy || !json.trim()} onClick={handleImport} className={secondary}>保存任务</button>
-                <a href="https://github.com/qbjsdsb/wenyan-English/blob/main/docs/PLAN_FORMAT.md" target="_blank" rel="noreferrer" className="wenyan-link text-xs">格式说明</a>
+                <button disabled={busy || !json.trim()} onClick={handleImport} className={secondary}>
+                  保存任务
+                </button>
+                <a
+                  href="https://github.com/qbjsdsb/wenyan-English/blob/main/docs/PLAN_FORMAT.md"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="wenyan-link text-xs"
+                >
+                  格式说明
+                </a>
               </div>
             </div>
           )}
@@ -291,7 +331,9 @@ export default function TodayPage() {
           ) : data.plans.length === 0 ? (
             <div className="wenyan-overview-surface flex flex-wrap items-center justify-between gap-4 px-5 py-4">
               <p className="text-sm text-[var(--wenyan-ink-secondary)]">没有必须完成的任务。上方智能学习可以直接开始。</p>
-              <button disabled={busy} onClick={createToday} className={secondary}>安排一章</button>
+              <button disabled={busy} onClick={createToday} className={secondary}>
+                安排一章
+              </button>
             </div>
           ) : (
             <div className="overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]">
@@ -305,7 +347,9 @@ export default function TodayPage() {
                     {plan.origin !== 'cloud' && (
                       <button
                         className="wenyan-link text-xs"
-                        onClick={() => saveAs(new Blob([exportStudyPlan(plan)], { type: 'application/json' }), `wenyan-plan-${plan.id}.json`)}
+                        onClick={() =>
+                          saveAs(new Blob([exportStudyPlan(plan)], { type: 'application/json' }), `wenyan-plan-${plan.id}.json`)
+                        }
                       >
                         导出
                       </button>
@@ -323,12 +367,23 @@ export default function TodayPage() {
                           const complete = Boolean(plan.cloudCompletions?.[task.id]) || runs.some((run) => run.completionEventId)
                           const planToday = dateInTimezone(now, plan.timezone)
                           return (
-                            <div key={task.id} className={`${complete ? 'wenyan-task-complete ' : ''}${taskIndex > 0 ? 'border-t border-[var(--wenyan-line-soft)] ' : ''}flex items-center justify-between gap-5 py-3`} data-testid={`task-${task.id}`}>
+                            <div
+                              key={task.id}
+                              className={`${complete ? 'wenyan-task-complete ' : ''}${
+                                taskIndex > 0 ? 'border-t border-[var(--wenyan-line-soft)] ' : ''
+                              }flex items-center justify-between gap-5 py-3`}
+                              data-testid={`task-${task.id}`}
+                            >
                               <div className="min-w-0">
                                 <h4 className="text-sm text-[var(--wenyan-ink-secondary)]">{task.title}</h4>
                                 <p className="wenyan-muted mt-1 text-[11px]">
-                                  {task.dueDate === planToday ? '今天' : !complete && task.dueDate < planToday ? `${task.dueDate} · 待补` : task.dueDate}
-                                  {' · '}{idDictionaryMap[task.dictId]?.name} · 第 {task.chapterIndex + 1} 章 · 约 {task.estimatedMinutes} 分钟
+                                  {task.dueDate === planToday
+                                    ? '今天'
+                                    : !complete && task.dueDate < planToday
+                                    ? `${task.dueDate} · 待补`
+                                    : task.dueDate}
+                                  {' · '}
+                                  {idDictionaryMap[task.dictId]?.name} · 第 {task.chapterIndex + 1} 章 · 约 {task.estimatedMinutes} 分钟
                                 </p>
                               </div>
                               {complete ? (
@@ -350,8 +405,12 @@ export default function TodayPage() {
         </section>
 
         <nav aria-label="更多学习入口" className="flex flex-wrap items-center gap-5 pt-1 text-[13px]">
-          <Link to="/error-book" className={quietLink}>错词</Link>
-          <Link to="/reading/wenyan-demo-reading-01" className={quietLink} title="阅读功能仍在实验阶段">阅读实验</Link>
+          <Link to="/error-book" className={quietLink}>
+            错词
+          </Link>
+          <Link to="/reading/wenyan-demo-reading-01" className={quietLink} title="阅读功能仍在实验阶段">
+            阅读实验
+          </Link>
         </nav>
       </main>
     </div>

@@ -3,30 +3,19 @@
  * Motion stays quiet: soft arrival, state clarity, no decorative loops.
  */
 
-.wenyan-loading-screen {
-  background:
-    radial-gradient(520px 260px at 50% 44%, color-mix(in srgb, var(--wenyan-accent) 8%, transparent), transparent 72%),
-    var(--wenyan-paper);
-}
-
-.wenyan-loading-mark {
-  animation: wenyan-loading-mark 920ms ease-in-out infinite alternate;
-}
-
 .wenyan-inline-loader > span {
-  opacity: 0.22;
-  box-shadow: 0 0 0 transparent;
-  animation: wenyan-loading-dot 860ms ease-in-out infinite;
+  opacity: 0.35;
+  animation: wenyan-loading-dot 1100ms ease-in-out infinite;
 }
-
-@keyframes wenyan-loading-mark {
-  from { opacity: 0.72; transform: translateY(0); }
-  to { opacity: 1; transform: translateY(-1px); }
-}
-
 @keyframes wenyan-loading-dot {
-  0%, 70%, 100% { opacity: 0.22; transform: translateY(0) scale(0.88); box-shadow: 0 0 0 transparent; }
-  34% { opacity: 0.95; transform: translateY(-2px) scale(1); box-shadow: 0 0 10px var(--wenyan-starlight-soft); }
+  0%,
+  70%,
+  100% {
+    opacity: 0.25;
+  }
+  35% {
+    opacity: 0.85;
+  }
 }
 
 .wenyan-subtle-skeleton {
@@ -46,12 +35,13 @@
 }
 
 @keyframes wenyan-skeleton {
-  to { transform: translateX(120%); }
+  to {
+    transform: translateX(120%);
+  }
 }
 
 .wenyan-settings-dialog {
-  box-shadow:
-    0 30px 90px color-mix(in srgb, var(--wenyan-canvas) 40%, transparent),
+  box-shadow: 0 30px 90px color-mix(in srgb, var(--wenyan-canvas) 40%, transparent),
     0 0 0 1px color-mix(in srgb, var(--wenyan-accent) 5%, transparent);
 }
 
@@ -69,7 +59,6 @@
   border-radius: 999px;
   background: var(--wenyan-accent);
   transform: translateY(-50%);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--wenyan-accent) 26%, transparent);
 }
 
 .wenyan-setting-section {
@@ -91,9 +80,7 @@
 .wenyan-setting-preview {
   border: 1px solid var(--wenyan-line-soft);
   border-radius: var(--wenyan-radius-md);
-  background:
-    radial-gradient(280px 120px at 50% 45%, color-mix(in srgb, var(--wenyan-accent) 7%, transparent), transparent 75%),
-    color-mix(in srgb, var(--wenyan-paper-raised) 92%, var(--wenyan-paper-muted));
+  background: var(--wenyan-paper);
 }
 
 .wenyan-data-progress {
@@ -108,7 +95,7 @@
   width: 100%;
   background: linear-gradient(90deg, color-mix(in srgb, var(--wenyan-accent) 64%, var(--wenyan-paper-raised)), var(--wenyan-accent));
   box-shadow: 0 0 12px color-mix(in srgb, var(--wenyan-accent) 20%, transparent);
-  transition: transform 420ms cubic-bezier(.2,.8,.2,1);
+  transition: transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .wenyan-danger-note {
@@ -133,8 +120,7 @@
 }
 
 .wenyan-auth-shell {
-  background:
-    radial-gradient(720px 360px at 50% 8%, color-mix(in srgb, var(--wenyan-accent) 10%, transparent), transparent 70%),
+  background: radial-gradient(720px 360px at 50% 8%, color-mix(in srgb, var(--wenyan-accent) 10%, transparent), transparent 70%),
     var(--wenyan-paper);
 }
 
@@ -147,8 +133,14 @@
 }
 
 @keyframes wenyan-auth-arrive {
-  from { opacity: 0; transform: translateY(5px) scale(.995); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(5px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .wenyan-scope-pill {
@@ -181,11 +173,12 @@
   background: color-mix(in srgb, var(--wenyan-accent) 4%, transparent);
 }
 
-.wenyan-friend-link:hover::before { height: 26px; }
+.wenyan-friend-link:hover::before {
+  height: 26px;
+}
 
 .wenyan-mobile-note {
-  background:
-    radial-gradient(560px 300px at 50% 30%, color-mix(in srgb, var(--wenyan-accent) 12%, transparent), transparent 72%),
+  background: radial-gradient(560px 300px at 50% 30%, color-mix(in srgb, var(--wenyan-accent) 12%, transparent), transparent 72%),
     var(--wenyan-paper);
 }
 
@@ -202,21 +195,50 @@
   scrollbar-color: color-mix(in srgb, var(--wenyan-ink-muted) 32%, transparent) transparent;
 }
 
-*::-webkit-scrollbar { width: 9px; height: 9px; }
-*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
 *::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: 999px;
   background-clip: padding-box;
   background-color: color-mix(in srgb, var(--wenyan-ink-muted) 28%, transparent);
 }
-*::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--wenyan-ink-muted) 46%, transparent); }
+*::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--wenyan-ink-muted) 46%, transparent);
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .wenyan-loading-mark,
   .wenyan-inline-loader > span,
   .wenyan-subtle-skeleton::after,
   .wenyan-auth-card {
     animation: none !important;
   }
+}
+
+/* Named quick controls reduce icon hunting; detailed settings remain one step away. */
+.wenyan-quick-settings {
+  display: flex;
+  flex-direction: column;
+}
+.wenyan-quick-setting {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--wenyan-line-soft);
+  color: var(--wenyan-ink-secondary);
+  font-size: 12px;
+}
+.wenyan-quick-setting:last-child {
+  border-bottom: 0;
+}
+.wenyan-study-toolbar-space {
+  height: 96px;
+  flex-shrink: 0;
 }

@@ -1,7 +1,8 @@
-import { LoadingUI } from '@/components/Loading'
-import Header from '@/components/Header'
 import { type BrowserLearningPreferencesSnapshot, confirmLearningStage, getLearningPreferences } from '@/coaching/preferences'
 import type { LearningStage } from '@/coaching/types'
+import Header from '@/components/Header'
+import { LoadingUI } from '@/components/Loading'
+import PageHeading from '@/components/PageHeading'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -76,12 +77,13 @@ export default function PreferencesPage() {
     <div className="wenyan-studio-shell flex min-h-screen flex-col text-[var(--wenyan-ink)]">
       <Header />
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 pb-16 pt-9">
-        <div className="mb-7">
-          <h1 className="wenyan-page-title">学习阶段</h1>
-          <p className="wenyan-muted mt-2 text-sm">决定接下来主要练什么。</p>
-        </div>
+        <PageHeading title="学习阶段" description="决定接下来主要练什么。" />
 
-        {message && <p role="status" className="wenyan-body mb-5 text-sm">{message}</p>}
+        {message && (
+          <p role="status" className="wenyan-body mb-5 text-sm">
+            {message}
+          </p>
+        )}
 
         {loading ? (
           <section className="wenyan-surface flex min-h-[220px] items-center justify-center">
@@ -90,7 +92,9 @@ export default function PreferencesPage() {
         ) : !snapshot ? (
           <div className="wenyan-surface p-5">
             <p className="text-sm font-medium">需要先登录 Wenyan Cloud</p>
-            <Link className="wenyan-link-accent mt-3 inline-block text-sm" to="/sync">去同步页面</Link>
+            <Link className="wenyan-link-accent mt-3 inline-block text-sm" to="/sync">
+              去同步页面
+            </Link>
           </div>
         ) : (
           <>
@@ -118,7 +122,8 @@ export default function PreferencesPage() {
                     <div key={stage.id} className={`wenyan-stage-node ${active ? 'is-active' : ''}`}>
                       <div className="wenyan-stage-node-dot" aria-hidden="true" />
                       <div className={`text-[11px] ${active ? 'font-medium text-[var(--wenyan-ink)]' : 'text-[var(--wenyan-ink-muted)]'}`}>
-                        {stage.title}{!stage.available ? ' · 规划中' : ''}
+                        {stage.title}
+                        {!stage.available ? ' · 规划中' : ''}
                       </div>
                     </div>
                   )
@@ -126,13 +131,21 @@ export default function PreferencesPage() {
               </div>
             </section>
 
-            <section aria-label="学习阶段选项" className="overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]">
+            <section
+              aria-label="学习阶段选项"
+              className="overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]"
+            >
               {stages.map((stage, index) => {
                 const active = snapshot.learningStage.current === stage.id
                 const confirmed = active && snapshot.learningStage.provenance.kind === 'user_confirmation'
                 const disabled = Boolean(saving) || confirmed || !stage.available
                 return (
-                  <div key={stage.id} className={`${index > 0 ? 'border-t border-[var(--wenyan-line-soft)]' : ''} flex items-center justify-between gap-8 px-5 py-5 ${active ? 'bg-[var(--wenyan-accent-soft)]' : ''}`}>
+                  <div
+                    key={stage.id}
+                    className={`${
+                      index > 0 ? 'border-t border-[var(--wenyan-line-soft)]' : ''
+                    } flex items-center justify-between gap-8 px-5 py-5 ${active ? 'bg-[var(--wenyan-accent-soft)]' : ''}`}
+                  >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <h2 className="text-sm font-medium text-[var(--wenyan-ink)]">{stage.title}</h2>
@@ -146,15 +159,7 @@ export default function PreferencesPage() {
                       onClick={() => void confirm(stage.id)}
                       className="wenyan-button-secondary shrink-0"
                     >
-                      {!stage.available
-                        ? '未开放'
-                        : saving === stage.id
-                          ? '保存中…'
-                          : confirmed
-                            ? '已确认'
-                            : active
-                              ? '确认'
-                              : '切换'}
+                      {!stage.available ? '未开放' : saving === stage.id ? '保存中…' : confirmed ? '已确认' : active ? '确认' : '切换'}
                     </button>
                   </div>
                 )
@@ -177,8 +182,12 @@ export default function PreferencesPage() {
               <p className="wenyan-muted mt-1 text-[11px]">个人英语学习工作区</p>
             </div>
             <div className="flex items-center gap-4 text-[11px]">
-              <a href="https://github.com/qbjsdsb/wenyan-English" target="_blank" rel="noreferrer" className="wenyan-link">项目</a>
-              <a href="https://github.com/RealKai42/qwerty-learner" target="_blank" rel="noreferrer" className="wenyan-link">GPL-3.0</a>
+              <a href="https://github.com/qbjsdsb/wenyan-English" target="_blank" rel="noreferrer" className="wenyan-link">
+                项目
+              </a>
+              <a href="https://github.com/RealKai42/qwerty-learner" target="_blank" rel="noreferrer" className="wenyan-link">
+                GPL-3.0
+              </a>
             </div>
           </div>
         </section>
