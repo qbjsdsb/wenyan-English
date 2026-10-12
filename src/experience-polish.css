@@ -14,10 +14,45 @@ html.dark {
   --wenyan-shadow-focus: 0 1px 2px rgba(0, 0, 0, 0.14), 0 10px 26px rgba(0, 0, 0, 0.1);
 }
 
-/* Wenyan is now a reading and knowledge tool as well as a typing tool. */
+/* Quality is carried by typography and edge discipline before depth. */
 body {
   user-select: text;
+  font-kerning: normal;
+  font-feature-settings: 'kern' 1, 'liga' 1;
+  text-autospace: normal;
 }
+.wenyan-chrome {
+  background: color-mix(in srgb, var(--wenyan-paper) 98%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.wenyan-surface {
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--wenyan-canvas) 8%, transparent);
+}
+.wenyan-overview-surface,
+.wenyan-setup-bar {
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--wenyan-canvas) 7%, transparent);
+}
+.wenyan-mono,
+.wenyan-metric-value {
+  font-variant-numeric: tabular-nums;
+}
+.wenyan-page-title {
+  text-wrap: balance;
+}
+.wenyan-page-description {
+  max-width: 46rem;
+  text-wrap: pretty;
+}
+.wenyan-nav-link::after {
+  height: 1px;
+  background: color-mix(in srgb, var(--wenyan-accent) 68%, var(--wenyan-ink));
+}
+/* Pure arrival animation does not earn attention in a daily workspace. */
+.wenyan-fade-in {
+  animation: none !important;
+}
+
 button,
 a,
 label,
@@ -154,6 +189,9 @@ html.dark .wenyan-settings-dialog {
   background: var(--wenyan-paper-raised);
   box-shadow: var(--wenyan-shadow);
 }
+.wenyan-auth-card .text-\[10px\] {
+  font-size: 11px !important;
+}
 
 .wenyan-scope-pill {
   border: 1px solid var(--wenyan-line);
@@ -163,30 +201,12 @@ html.dark .wenyan-settings-dialog {
 }
 
 .wenyan-friend-link {
-  position: relative;
   border-bottom: 1px solid var(--wenyan-line-soft);
   transition: background-color 140ms ease;
 }
 
-.wenyan-friend-link::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 2px;
-  height: 0;
-  border-radius: 999px;
-  background: var(--wenyan-accent);
-  transform: translateY(-50%);
-  transition: height 140ms ease;
-}
-
 .wenyan-friend-link:hover {
-  background: color-mix(in srgb, var(--wenyan-accent) 3%, transparent);
-}
-
-.wenyan-friend-link:hover::before {
-  height: 24px;
+  background: color-mix(in srgb, var(--wenyan-ink) 2%, transparent);
 }
 
 .wenyan-mobile-note {
@@ -202,9 +222,12 @@ html.dark .wenyan-settings-dialog {
 
 /* Focused learning uses a continuous work surface instead of a floating card. */
 .wenyan-focus-bar {
-  background: color-mix(in srgb, var(--wenyan-paper) 94%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: color-mix(in srgb, var(--wenyan-paper) 96%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.wenyan-focus-bar .text-\[10px\] {
+  font-size: 11px !important;
 }
 .wenyan-focus-bar + main .wenyan-focus-surface {
   border-width: 1px 0 0;
@@ -217,8 +240,21 @@ html.dark .wenyan-settings-dialog {
   border-top-color: color-mix(in srgb, var(--wenyan-danger) 32%, var(--wenyan-line));
 }
 
+/* Completion is a true overlay: ordinary surfaces stay flat, this one earns depth. */
+.wenyan-completion-stage .wenyan-surface {
+  box-shadow: 0 20px 56px color-mix(in srgb, var(--wenyan-canvas) 25%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--wenyan-line) 55%, transparent);
+}
+.wenyan-completion-stage .text-\[10px\] {
+  font-size: 11px !important;
+}
+html.dark .wenyan-completion-stage .wenyan-surface {
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24), 0 0 0 1px var(--wenyan-line-soft);
+}
+
 /* Keyboard hints are tertiary, but never microscopic. */
-.wenyan-key {
+.wenyan-key,
+.wenyan-practice-tab-key {
   font-size: 11px;
 }
 
@@ -231,6 +267,46 @@ html.dark .wenyan-settings-dialog {
 /* Search itself explains the state change; results do not need an entrance animation. */
 .wenyan-library-results {
   animation: none !important;
+}
+
+/* Empty space should read as a quiet state in the current page, not a SaaS illustration card. */
+.wenyan-empty-state {
+  min-height: 260px;
+  border-right: 0;
+  border-left: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.wenyan-empty-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--wenyan-paper-muted);
+  color: var(--wenyan-ink-muted);
+}
+
+/* Records are an index of evidence, not a KPI dashboard. */
+.wenyan-report-summary {
+  border-right: 0 !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding-right: 0 !important;
+  padding-left: 0 !important;
+}
+
+/* Practice metadata has one readable floor and icons remain supporting marks. */
+.wenyan-practice-tab > svg {
+  opacity: 0.56;
+  transition: opacity 140ms ease;
+}
+.wenyan-practice-tab.is-selected > svg {
+  opacity: 0.9;
+}
+.wenyan-practice-context p:first-child,
+.wenyan-practice-count-group > span,
+.wenyan-practice-launch > div:first-child > p:first-child {
+  font-size: 11px !important;
 }
 
 /* Sync reads like a utility sheet rather than a dashboard card. */
@@ -251,7 +327,8 @@ html.dark .wenyan-settings-dialog {
   gap: 10px;
   padding-inline: 16px !important;
 }
-.wenyan-sync-surface > .grid > div > p:first-child {
+.wenyan-sync-surface > .grid > div > p:first-child,
+.wenyan-sync-surface > div:first-child p:first-child {
   font-size: 11px !important;
 }
 .wenyan-sync-surface > .grid .wenyan-metric-value {

@@ -9,7 +9,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--wenyan-paper, #f7f6f2);
   transition: background-color 160ms ease-out, color 160ms ease-out;
-  user-select: none;
 }
 
 html.dark body {
@@ -17,7 +16,7 @@ html.dark body {
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  font-family: var(--wenyan-font-mono, source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace);
 }
 
 html,
@@ -280,46 +279,23 @@ body,
   }
 }
 
-.gradient-text {
-  background-image: linear-gradient(90deg, #f66, #f90);
-  background-clip: text;
-  color: transparent;
-  animation: gradient-text-hue 5s linear infinite;
-}
-
-@keyframes gradient-text-hue {
-  from { filter: hue-rotate(0); }
-  to { filter: hue-rotate(-1turn); }
-}
-
-@keyframes typing {
-  from { width: 0; }
-  to { width: 30em; }
-}
-
-@keyframes blink-caret {
-  from, to { border-color: transparent; }
-  50% { border-color: #f0f0f0; }
-}
-
-.typewriter {
-  width: 30em;
-  margin: 0 auto;
-}
-
-@keyframes hideCaret {
-  to { border-right-color: transparent; }
-}
-
-@keyframes gradientBG {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
   outline-color: var(--wenyan-accent, #465d74);
+}
+
+.wenyan-index-row:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--wenyan-accent) 56%, transparent);
+  outline-offset: -2px;
+}
+
+.wenyan-modal-surface {
+  box-shadow: 0 20px 56px color-mix(in srgb, var(--wenyan-canvas) 26%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--wenyan-line) 55%, transparent);
+}
+
+html.dark .wenyan-modal-surface {
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.26), 0 0 0 1px var(--wenyan-line-soft);
 }

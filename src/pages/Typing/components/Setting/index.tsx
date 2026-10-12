@@ -78,7 +78,7 @@ export default function Setting() {
                       <Dialog.Title as="h3" className="text-[15px] font-semibold text-[var(--wenyan-ink)]">
                         学习设置
                       </Dialog.Title>
-                      <p className="wenyan-muted mt-0.5 text-[10px]">调整后自动保存，关闭即可继续练习。</p>
+                      <p className="wenyan-muted mt-0.5 text-[11px]">调整后自动保存，关闭即可继续练习。</p>
                     </div>
                     <button
                       type="button"
@@ -93,23 +93,23 @@ export default function Setting() {
 
                   <Tab.Group vertical>
                     <div className="flex min-h-0 flex-1">
-                      <Tab.List className="wenyan-settings-tabs flex w-[184px] shrink-0 flex-col gap-1 border-r border-[var(--wenyan-line-soft)] bg-[color-mix(in_srgb,var(--wenyan-paper-muted)_58%,var(--wenyan-paper-raised))] p-3">
+                      <Tab.List className="wenyan-settings-tabs flex w-[184px] shrink-0 flex-col gap-1 border-r border-[var(--wenyan-line-soft)] bg-[color-mix(in_srgb,var(--wenyan-paper-muted)_48%,var(--wenyan-paper-raised))] p-3">
                         {tabs.map(([label, description, Icon]) => (
                           <Tab
                             key={label}
                             className={({ selected }) =>
                               classNames(
-                                'flex min-h-[48px] w-full cursor-pointer items-center gap-2.5 rounded-[var(--wenyan-radius-sm)] px-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--wenyan-accent)]',
+                                'flex min-h-[50px] w-full cursor-pointer items-center gap-2.5 rounded-[var(--wenyan-radius-sm)] px-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--wenyan-accent)]',
                                 selected
-                                  ? 'bg-[var(--wenyan-paper-raised)] text-[var(--wenyan-ink)] shadow-[0_4px_14px_color-mix(in_srgb,var(--wenyan-canvas)_10%,transparent)]'
-                                  : 'text-[var(--wenyan-ink-secondary)] hover:bg-[color-mix(in_srgb,var(--wenyan-paper-raised)_68%,transparent)] hover:text-[var(--wenyan-ink)]',
+                                  ? 'bg-transparent text-[var(--wenyan-ink)]'
+                                  : 'text-[var(--wenyan-ink-secondary)] hover:bg-[color-mix(in_srgb,var(--wenyan-paper-raised)_54%,transparent)] hover:text-[var(--wenyan-ink)]',
                               )
                             }
                           >
                             <Icon className="h-4 w-4 shrink-0 text-[var(--wenyan-ink-muted)]" />
                             <span className="min-w-0">
-                              <span className="block text-[12px] font-medium">{label}</span>
-                              <span className="wenyan-muted mt-0.5 block truncate text-[9px]">{description}</span>
+                              <span className="block text-[13px] font-medium">{label}</span>
+                              <span className="wenyan-muted mt-0.5 block truncate text-[11px]">{description}</span>
                             </span>
                           </Tab>
                         ))}

@@ -145,7 +145,7 @@ export function ErrorBook() {
             <p className="wenyan-muted mt-2 text-xs leading-5">最近一次已经拼对的词会自动离开这里。</p>
           </section>
         ) : (
-          <div className="overflow-hidden rounded-[var(--wenyan-radius-md)] border border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper-raised)]">
+          <div className="wenyan-index-table overflow-hidden border-y border-[var(--wenyan-line-soft)] bg-transparent">
             <div className="wenyan-muted grid grid-cols-[1.2fr_3fr_110px_150px] items-center gap-4 border-b border-[var(--wenyan-line-soft)] px-4 py-3 text-[11px]">
               <span>单词</span>
               <span>释义</span>

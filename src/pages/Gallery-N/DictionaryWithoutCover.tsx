@@ -38,20 +38,18 @@ export default function DictionaryComponent({ dictionary, withTopBorder = false 
           aria-label={`选择词书：${dictionary.name}`}
           ref={divRef}
           className={`${withTopBorder ? 'border-t border-[var(--wenyan-line-soft)]' : ''} ${
-            isSelected ? 'bg-[color-mix(in_srgb,var(--wenyan-accent-soft)_58%,transparent)]' : ''
+            isSelected ? 'bg-[color-mix(in_srgb,var(--wenyan-ink)_1.5%,transparent)]' : ''
           } group flex min-h-[76px] w-full cursor-pointer items-center gap-4 px-3 py-3.5 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--wenyan-paper-muted)_78%,transparent)] wenyan-library-choice`}
         >
           <span
             aria-hidden="true"
-            className={`${isSelected ? 'bg-[var(--wenyan-accent)]' : 'bg-[var(--wenyan-line-soft)]'} h-8 w-[3px] shrink-0 rounded-full transition-colors`}
+            className={`${isSelected ? 'bg-[var(--wenyan-accent)]' : 'bg-[var(--wenyan-line-soft)]'} h-8 w-[2px] shrink-0 rounded-full transition-colors`}
           />
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2.5">
-              <h3 className={`truncate text-[14px] font-semibold ${isSelected ? 'text-[var(--wenyan-accent)]' : 'text-[var(--wenyan-ink)]'}`}>
-                {dictionary.name}
-              </h3>
-              {isSelected && <span className="text-[10px] font-medium text-[var(--wenyan-accent)]">当前</span>}
+              <h3 className="truncate text-[14px] font-semibold text-[var(--wenyan-ink)]">{dictionary.name}</h3>
+              {isSelected && <span className="wenyan-muted text-[11px] font-medium">当前</span>}
             </div>
             <TooltipProvider>
               <Tooltip delayDuration={400}>
@@ -87,7 +85,7 @@ export default function DictionaryComponent({ dictionary, withTopBorder = false 
                 已练 {progress}% 章节{legacyFallbackCount > 0 ? ' · 含旧记录' : ''}
               </span>
             )}
-            <ChevronRight aria-hidden="true" size={14} strokeWidth={1.6} className="transition-transform group-hover:translate-x-0.5" />
+            <ChevronRight aria-hidden="true" size={14} strokeWidth={1.6} />
           </div>
         </button>
       </DialogTrigger>
