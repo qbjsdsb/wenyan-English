@@ -93,9 +93,9 @@ export default function GalleryPage() {
           </PageHeading>
 
           {selectingForPractice && <p className="wenyan-context-note mb-6">选择词书和章节后，将回到刚才的专项设置。</p>}
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-6 border-b border-[var(--wenyan-line-soft)] pb-3">
+          <div className="wenyan-library-toolbar sticky top-16 z-20 -mx-2 mb-6 flex flex-wrap items-center justify-between gap-6 border-b border-[var(--wenyan-line-soft)] bg-[var(--wenyan-paper)] px-2 pb-3 pt-2">
             <LanguageTabSwitcher />
-            <div className="relative w-72">
+            <div className="relative w-72 max-w-full">
               <Search size={15} aria-hidden="true" className="wenyan-muted pointer-events-none absolute left-3 top-3" />
               <input
                 aria-label="搜索词书"
@@ -120,9 +120,9 @@ export default function GalleryPage() {
                   ))}
                 </div>
               ) : (
-                <div className="wenyan-empty-state">
-                  <p>没有找到匹配的词书</p>
-                  <button className="wenyan-button-secondary mt-4" onClick={() => setQuery('')}>
+                <div className="border-y border-[var(--wenyan-line-soft)] py-8">
+                  <p className="text-sm text-[var(--wenyan-ink-secondary)]">没有找到匹配的词书。</p>
+                  <button className="wenyan-link mt-3 text-xs" onClick={() => setQuery('')}>
                     清除搜索
                   </button>
                 </div>
