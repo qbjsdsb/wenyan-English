@@ -1,4 +1,6 @@
+import Header from '@/components/Header'
 import React from 'react'
+import { useLocation } from 'react-router-dom'
 
 type LoadingUIProps = {
   className?: string
@@ -23,12 +25,18 @@ export const LoadingUI: React.FC<LoadingUIProps> = ({ className = '', label = '�
 }
 
 const Loading: React.FC = () => {
+  const { pathname } = useLocation()
+  const standalone = pathname.startsWith('/oauth/')
   return (
-    <div className="wenyan-loading-screen fixed inset-0 z-50 grid place-items-center text-[var(--wenyan-ink)]">
-      <div className="flex flex-col items-center gap-4">
-        <div className="wenyan-loading-mark wenyan-brand text-[21px] font-semibold">Wenyan</div>
-        <LoadingUI label="正在打开 Wenyan" />
-      </div>
+    <div className="wenyan-page-loading text-[var(--wenyan-ink)]" aria-busy="true">
+      {!standalone && <Header />}
+      <main className="wenyan-page-loading-content">
+        <div aria-hidden="true" className="wenyan-subtle-skeleton h-7 w-28" />
+        <p>
+          <LoadingUI size="sm" label="正在打开页面" /> <span className="ml-2">正在准备内容…</span>
+        </p>
+        <div aria-hidden="true" className="wenyan-subtle-skeleton h-40 w-full" />
+      </main>
     </div>
   )
 }

@@ -1,4 +1,3 @@
-import EmptyState from '@/components/EmptyState'
 import DropdownExport from './DropdownExport'
 import ErrorRow from './ErrorRow'
 import type { ISortType } from './HeadWrongNumber'
@@ -7,8 +6,11 @@ import Pagination, { ITEM_PER_PAGE } from './Pagination'
 import RowDetail from './RowDetail'
 import { currentRowDetailAtom } from './store'
 import type { groupedWordRecords } from './type'
-import { LoadingUI } from '@/components/Loading'
+import EmptyState from '@/components/EmptyState'
 import Header from '@/components/Header'
+import { LoadingUI } from '@/components/Loading'
+import PageHeading from '@/components/PageHeading'
+import RecordNavigation from '@/components/RecordNavigation'
 import { useLearningOwner } from '@/hooks/useLearningOwner'
 import { buildActiveSpellingErrorsFromAttempts, visibleSpellingAttemptsWithLegacy } from '@/learning/spellingEvidence'
 import { idDictionaryMap } from '@/resources/dictionary'
@@ -57,7 +59,9 @@ export function ErrorBook() {
   const legacyCount = data?.legacyCount ?? 0
   const totalPages = useMemo(() => Math.max(1, Math.ceil(groupedRecords.length / ITEM_PER_PAGE)), [groupedRecords.length])
 
-  useEffect(() => { setCurrentPage((page) => Math.min(page, totalPages)) }, [totalPages])
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages))
+  }, [totalPages])
 
   const setPage = (page: number) => {
     if (page < 1 || page > totalPages) return
@@ -81,12 +85,13 @@ export function ErrorBook() {
 
   const practiceEligibleRecords = useMemo(() => {
     const cutoff = Date.now() - ERROR_PRACTICE_WINDOW_MS
-    return groupedRecords.filter((record) => (
-      record.latestSource === 'fact' &&
-      record.latestOccurredAt >= cutoff &&
-      Boolean(idDictionaryMap[record.dict]) &&
-      idDictionaryMap[record.dict]?.language === 'en'
-    ))
+    return groupedRecords.filter(
+      (record) =>
+        record.latestSource === 'fact' &&
+        record.latestOccurredAt >= cutoff &&
+        Boolean(idDictionaryMap[record.dict]) &&
+        idDictionaryMap[record.dict]?.language === 'en',
+    )
   }, [groupedRecords])
   const practiceDictId = useMemo(() => {
     if (practiceEligibleRecords.some((record) => record.dict === currentDictId)) return currentDictId
@@ -105,12 +110,12 @@ export function ErrorBook() {
       <div className={`transition-[filter] duration-150 ${currentRowDetail ? 'blur-[1px]' : ''}`}>
         <Header />
       </div>
-      <main className={`mx-auto w-full max-w-5xl flex-1 px-6 pb-14 pt-9 transition-[filter] duration-150 ${currentRowDetail ? 'blur-[1px]' : ''}`}>
-        <div className="mb-7 flex items-end justify-between gap-6">
-          <div>
-            <h1 className="wenyan-page-title">错词</h1>
-            <p className="wenyan-muted mt-2 text-sm">{loading ? '正在整理…' : `${groupedRecords.length} 个最近一次仍拼错的词`}</p>
-          </div>
+      <main
+        className={`mx-auto w-full max-w-5xl flex-1 px-6 pb-14 pt-9 transition-[filter] duration-150 ${
+          currentRowDetail ? 'blur-[1px]' : ''
+        }`}
+      >
+        <PageHeading title="错词" description={loading ? '正在整理…' : `${groupedRecords.length} 个最近一次仍拼错的词`}>
           {!loading && !loadError && (
             <div className="flex items-center gap-3">
               {practiceDictId && (
@@ -121,7 +126,8 @@ export function ErrorBook() {
               <DropdownExport renderRecords={sortedRecords} />
             </div>
           )}
-        </div>
+        </PageHeading>
+        <RecordNavigation />
 
         {!loading && !loadError && groupedRecords.length > 0 && (
           <p className="wenyan-muted mb-5 max-w-3xl text-xs leading-5">
@@ -134,7 +140,12 @@ export function ErrorBook() {
             <LoadingUI label="正在整理错词" />
           </section>
         ) : loadError ? (
-          <section className="wenyan-surface p-7" role="alert"><p>暂时无法读取当前账号的拼写记录。</p><button className="wenyan-button-secondary mt-4" onClick={() => setRetry((value) => value + 1)}>重新读取</button></section>
+          <section className="wenyan-surface p-7" role="alert">
+            <p>暂时无法读取当前账号的拼写记录。</p>
+            <button className="wenyan-button-secondary mt-4" onClick={() => setRetry((value) => value + 1)}>
+              重新读取
+            </button>
+          </section>
         ) : groupedRecords.length === 0 ? (
           <EmptyState title="目前没有待处理错词" description="最近一次拼对的词会自动移出这里。" />
         ) : (

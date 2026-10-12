@@ -1,9 +1,98 @@
-/* Narrow-window escape hatch for the old desktop-only shell.
- * Desktop remains unchanged; small windows may use the responsive layouts
- * already defined by the current Wenyan pages instead of inheriting the
- * upstream 1024px body floor. */
+/* One shell at every window width, including split-screen desktop use. */
+@media (max-width: 900px) {
+  .wenyan-header-row {
+    flex-wrap: wrap;
+    gap: 0;
+    padding-top: 12px;
+  }
+  .wenyan-header-navigation {
+    order: 3;
+    flex-basis: 100%;
+    justify-content: center;
+    padding-top: 8px;
+  }
+  .wenyan-header-utilities {
+    margin-left: auto;
+  }
+  .wenyan-header-navigation a {
+    flex: 1;
+    text-align: center;
+  }
+  .wenyan-practice-last-range {
+    display: none;
+  }
+  .wenyan-practice-launch {
+    flex-wrap: wrap;
+  }
+  .wenyan-practice-launch > :last-child {
+    width: 100%;
+    align-items: flex-start;
+  }
+  .wenyan-setup-bar {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .wenyan-library-group {
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    gap: 1rem;
+  }
+}
 @media (max-width: 640px) {
-  body {
-    min-width: 320px;
+  .wenyan-page-title {
+    font-size: 26px;
+  }
+  .wenyan-page-heading {
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .wenyan-page-actions {
+    max-width: 100%;
+  }
+  .wenyan-focus-surface[data-intent-source] {
+    padding: 1.25rem !important;
+  }
+  .wenyan-direct-practice {
+    padding-inline: 1.25rem;
+  }
+  .wenyan-today-overview {
+    padding-inline: 1.25rem !important;
+  }
+  .wenyan-today-summary {
+    gap: 12px;
+  }
+  .wenyan-today-summary > span + span {
+    padding-left: 0;
+  }
+  .wenyan-today-summary > span + span::before {
+    display: none;
+  }
+  .wenyan-practice-context {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .wenyan-library-group {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .wenyan-library-tags {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .wenyan-library-tags [role='radio'] {
+    width: auto;
+  }
+  .wenyan-settings-tabs {
+    width: 112px;
+    padding: 8px;
+  }
+  .wenyan-settings-tabs button {
+    padding-inline: 8px;
+    gap: 6px;
+  }
+  .wenyan-settings-tabs button span span + span {
+    display: none;
+  }
+  .wenyan-settings-dialog {
+    max-height: calc(100dvh - 32px);
   }
 }

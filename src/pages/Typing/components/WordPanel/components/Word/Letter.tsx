@@ -8,12 +8,12 @@ export type LetterState = 'normal' | 'correct' | 'wrong'
 const stateClassNameMap: Record<string, Record<LetterState, string>> = {
   true: {
     normal: 'text-[var(--wenyan-ink-muted)]',
-    correct: 'text-[var(--wenyan-success)]',
+    correct: 'text-[var(--wenyan-ink)]',
     wrong: 'text-[var(--wenyan-danger)]',
   },
   false: {
     normal: 'text-[var(--wenyan-ink-secondary)]',
-    correct: 'text-[var(--wenyan-success)]',
+    correct: 'text-[var(--wenyan-ink)]',
     wrong: 'text-[var(--wenyan-danger)]',
   },
 }
