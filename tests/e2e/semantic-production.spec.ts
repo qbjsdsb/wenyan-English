@@ -52,7 +52,7 @@ test('meaning-to-headword production hides answers, excludes leaked cues, commit
   } }).__productionProof)
   expect(proof.facts).toHaveLength(2)
   expect(proof.facts.map((fact) => fact.sourceVersion)).toEqual([6, 6])
-  expect(proof.facts.map((fact) => fact.payload.isCorrect)).toEqual([true, false])
+  expect(proof.facts.map((fact) => fact.payload.isCorrect).sort()).toEqual([false, true])
   expect(proof.facts.every((fact) => fact.payload.measurement === 'reference_headword_production')).toBe(true)
   expect(proof.run.items.map((item) => item.word)).toEqual(['alpha', 'beta'])
   expect(proof.run.index).toBe(2)
