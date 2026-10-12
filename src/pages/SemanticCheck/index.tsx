@@ -143,7 +143,7 @@ function SemanticCheckRun({ runId }: { runId: string }) {
 
         {run && feedback ? (
           <section className="wenyan-focus-surface mt-8 p-6 sm:p-10" data-feedback={feedback.isCorrect ? 'correct' : 'wrong'}>
-            <p className="wenyan-kicker">{feedback.isCorrect ? '已保存' : '核对答案'}</p>
+            <p className="wenyan-kicker">{feedback.isCorrect ? '选对了' : '这次选错了'}</p>
             <h1 ref={focus} tabIndex={-1} className="mt-6 break-words text-4xl font-medium tracking-tight outline-none sm:text-5xl">
               {feedback.question.word}
             </h1>
