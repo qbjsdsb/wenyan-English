@@ -2,24 +2,20 @@ import { expect, test, type Page } from '@playwright/test'
 
 const fixtureWords = ['alpha', 'beta'].map((name) => ({ name, trans: [`meaning-${name}`], usphone: '', ukphone: '' }))
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }, testInfo) => {
   await page.route('**/*.supabase.co/**', (route) => route.abort())
   await page.route('**/dicts/2025KaoYanHongBaoShu.json', (route) => route.fulfill({ json: fixtureWords }))
-  await page.addInitScript(() => {
+  await page.addInitScript((enablePronunciation: boolean) => {
     localStorage.setItem('hasSeenEnhancedPromotion', 'true')
     localStorage.setItem('dismissStartCardDate', JSON.stringify(new Date().toISOString()))
-    localStorage.setItem('pronunciation', JSON.stringify({ isOpen: false, volume: 0, type: 'us' }))
+    localStorage.setItem('pronunciation', JSON.stringify({ isOpen: enablePronunciation, volume: 0, type: 'us' }))
     localStorage.setItem('currentDict', JSON.stringify('2025KaoYanHongBaoShu'))
-  })
+  }, testInfo.title.includes('dictation mode keeps the hidden answer'))
   await page.goto('/')
   await expect(page.getByText('按任意键开始', { exact: true })).toBeVisible()
 })
 
 test('dictation mode keeps the hidden answer out of pronunciation accessibility text', async ({ page }) => {
-  await page.evaluate(() => localStorage.setItem('pronunciation', JSON.stringify({ isOpen: true, volume: 0, type: 'us' })))
-  await page.reload()
-  await expect(page.getByText('按任意键开始', { exact: true })).toBeVisible()
-
   await page.getByRole('button', { name: '学习设置' }).click()
   await page.getByRole('button', { name: '开关默写模式' }).click()
   await page.getByRole('switch').click()
