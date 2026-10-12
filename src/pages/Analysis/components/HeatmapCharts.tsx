@@ -1,7 +1,7 @@
 import { isOpenDarkModeAtom } from '@/store'
 import { useAtom } from 'jotai'
 import type { FC } from 'react'
-import React from 'react'
+import React, { useId } from 'react'
 import type { Activity } from 'react-activity-calendar'
 import ActivityCalendar from 'react-activity-calendar'
 import { Tooltip as ReactTooltip } from 'react-tooltip'
@@ -10,9 +10,11 @@ import 'react-tooltip/dist/react-tooltip.css'
 interface HeatmapChartsProps {
   title: string
   data: Activity[]
+  metric?: 'attempts' | 'words'
 }
 
-const HeatmapCharts: FC<HeatmapChartsProps> = ({ data, title }) => {
+const HeatmapCharts: FC<HeatmapChartsProps> = ({ data, title, metric = 'attempts' }) => {
+  const tooltipId = useId()
   const [isOpenDarkMode] = useAtom(isOpenDarkModeAtom)
 
   return (
@@ -32,20 +34,22 @@ const HeatmapCharts: FC<HeatmapChartsProps> = ({ data, title }) => {
           }}
           renderBlock={(block, activity) =>
             React.cloneElement(block, {
-              'data-tooltip-id': 'react-tooltip',
-              'data-tooltip-html': `${activity.date} 练习 ${activity.count} 次`,
+              'data-tooltip-id': tooltipId,
+              'data-tooltip-content': `${activity.date} · ${
+                metric === 'words' ? `不同单词 ${activity.count} 个` : `练习 ${activity.count} 次`
+              }`,
             })
           }
           showWeekdayLabels
           labels={{
             months: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'],
             weekdays: ['日', '一', '二', '三', '四', '五', '六'],
-            totalCount: '过去一年总计 {{count}} 次',
+            totalCount: metric === 'words' ? '每日不同单词累计 {{count}} 个' : '过去一年总计 {{count}} 次',
             legend: { less: '少', more: '多' },
           }}
         />
       </div>
-      <ReactTooltip id="react-tooltip" />
+      <ReactTooltip id={tooltipId} />
     </div>
   )
 }

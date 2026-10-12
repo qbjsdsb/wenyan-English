@@ -45,6 +45,7 @@ const KeyboardWithBarCharts: FC<KeyboardWithBarChartsProps> = ({ data, title, na
 
     const mapOption = {
       backgroundColor: 'transparent',
+      animation: !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
       tooltip: { trigger: 'item', showDelay: 0, transitionDuration: 0.2 },
       toolbox: {
         feature: {
@@ -85,6 +86,7 @@ const KeyboardWithBarCharts: FC<KeyboardWithBarChartsProps> = ({ data, title, na
 
     const barOption = {
       backgroundColor: 'transparent',
+      animation: !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
       tooltip: { trigger: 'axis' },
       toolbox: {
         feature: {
@@ -116,6 +118,7 @@ const KeyboardWithBarCharts: FC<KeyboardWithBarChartsProps> = ({ data, title, na
     }
 
     chart.setOption(mapOption)
+    return () => chart?.dispose()
   }, [data, name, isOpenDarkMode])
 
   useEffect(() => {
@@ -126,7 +129,11 @@ const KeyboardWithBarCharts: FC<KeyboardWithBarChartsProps> = ({ data, title, na
   return (
     <div className="flex h-full flex-col">
       <h2 className="mb-3 text-sm font-medium text-gray-900 dark:text-gray-200">{title}</h2>
-      <div ref={chartRef} className="min-h-0 flex-1" />
+      {data.length ? (
+        <div ref={chartRef} className="min-h-0 flex-1" role="img" aria-label={title} />
+      ) : (
+        <p className="wenyan-muted flex flex-1 items-center justify-center text-xs">这段时间没有按键错误记录。</p>
+      )}
     </div>
   )
 }
