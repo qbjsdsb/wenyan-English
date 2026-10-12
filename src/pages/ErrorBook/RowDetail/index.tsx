@@ -54,7 +54,7 @@ const RowDetail: React.FC<RowDetailProps> = ({ currentRowDetail, allRecords }) =
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-6 backdrop-blur-[2px]">
       <button aria-label="关闭错词详情" className="absolute inset-0 cursor-default" onClick={onClose} />
-      <section className="wenyan-surface relative z-10 w-full max-w-xl px-8 py-8">
+      <section className="wenyan-surface wenyan-modal-surface relative z-10 w-full max-w-xl px-8 py-8">
         <button
           type="button"
           aria-label="关闭"
