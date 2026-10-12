@@ -170,9 +170,29 @@ PR #88 采取“保留现有 Wenyan 骨架，做收束式精修”的路线，�
 - 本轮没有修改 Learning Fact 语义、账号隔离、AI 编排边界或 Edge / MCP 后端协议。
 - 自动浏览器流程已经通过；人工审美验收不视为完成，后续以真实日常使用中发现的具体问题做定点微调，不再开启另一轮大规模视觉换皮。
 
+## 2026-10-13 Interface Finishing Pass（分支，未发布）
+
+分支：`ui/interface-finishing-pass`。这轮不是新视觉方案，而是在 PR #88 生产骨架上做一次定点收缝，目前**尚未合并、尚未发布，也尚未把 CI / 浏览器验证写成成功事实**。
+
+已经提交的主要改动：
+
+- 删除交互层里的 starlight / halo / radial bloom / 同步呼吸光，把正确、错误、完成反馈收成短暂的颜色、边缘、明度变化；Reading 顶部进度改为实色细线。
+- Loading 去掉大块 shimmer skeleton，只保留小型状态指示；OAuth / Mobile 等工具页去掉背景 radial glow；设置、同步、数据进度去掉额外发光与渐变。
+- 暗色模式显著降低 surface / focus shadow，更多依赖纸面明度和细边界区分层级。
+- `body` 恢复可选择文本；Typing Focus 区继续禁止误选，阅读、释义和以后文学材料可正常复制选择。
+- 三种词义训练保留现有功能，但把 `TrainingHeader` 后的 focus surface 收成连续 work surface，减少“卡片中的卡片”。
+- 900px 以下先压缩 Header 间距，直到 760px 才换成双层导航，改善桌面分屏；Gallery 长列表增加 sticky language / search strip，并适配窄窗 Header 高度。
+- Today 删除无意义的副标题，11px 取代关键 10px 元信息，Smart Session 继续保持第一视觉锚点。
+- Records 的“暂无拼写数据”改成局部拼写状态，不再让下面仍有词义记录的页面看起来像整页为空；错词为空同样改成安静的局部状态。
+- Header 的“学习阶段”不再使用通用齿轮图标，降低与背词页“学习设置”的语义冲突；Header utility active 状态减少强调色占用。
+- Practice mode 选中只保留一套主要视觉信号，快捷键字号从 9px 提高，Today / Practice 的阴影和 selected background 进一步收轻。
+- 删除未发现使用点的全局 `animate.css` import；依赖本身暂未删除，避免为了清依赖扩大 lockfile 改动。
+
+这轮明确没有修改：Learning Fact 语义、Dexie schema、owner 隔离、Cloud Plan / MCP / Smart Session 协议、Supabase Edge Function、真实学习历史。
+
 ## 下一步优先级
 
-1. **停止继续发散 UI 风格。** 使用当前已发布版本，只有在真实学习中发现具体视觉 / 操作问题时再小批次修复；`design/luminous-paper-v1` 与 `design/mature-html-prototypes` 保留为研究资料，不进入生产。
+1. **先收口 `ui/interface-finishing-pass`。** 只做最小 lint / build / 关键浏览器 smoke；若发现回归只修本轮相关问题，通过后再 PR / merge，不再扩大视觉范围。
 2. **主要研发重心转向正式 Reading Loop**：可信 private/provider → 整篇作答 → 一次提交 → immutable reading facts → 复盘 → AI interpretation → future intent。
 3. Reading 稳定后，由用户明确确认是否从 `vocabulary` 切到 `mixed`；不得 AI 自动升级长期学习阶段。
 4. 单独审计 Coaching Context `executionAvailability` 的 freshness / persistence 链路，避免 stale 状态长期存在。
