@@ -15,6 +15,15 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByText('按任意键开始', { exact: true })).toBeVisible()
 })
 
+test('dictation mode keeps the hidden answer out of pronunciation accessibility text', async ({ page }) => {
+  await page.getByRole('button', { name: '学习设置' }).click()
+  await page.getByRole('button', { name: '开关默写模式' }).click()
+  await page.getByRole('switch').click()
+
+  await expect(page.getByRole('button', { name: '播放当前单词的发音' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '播放 alpha 的发音' })).toHaveCount(0)
+})
+
 async function counts(page: Page) {
   await page.addScriptTag({
     type: 'module',
