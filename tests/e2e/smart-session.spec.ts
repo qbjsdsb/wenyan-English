@@ -66,7 +66,7 @@ test('Smart Session persists the real spelling cursor, resumes at the next word,
   await page.waitForTimeout(500)
   await page.getByRole('link', { name: '今日学习', exact: true }).click()
 
-  await expect(page.getByText('继续刚才的 3 个词', { exact: true })).toBeVisible()
+  await expect(page.getByText('继续刚才的练习（剩余 2 个）', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: '继续这一段', exact: true })).toBeEnabled()
 
   await page.addScriptTag({
