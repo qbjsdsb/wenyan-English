@@ -108,3 +108,15 @@
 2. 修正 `get_plan_status` 的 OAuth capability 授权路径和错误码映射，再用真实账户复测。
 3. 在 Wenyan 页面保持一个设备在线后，执行 `open_today` 并读取 `get_action_status`，验证仅导航命令的排队、执行与确认。
 4. 若要验收计划/intent 写入能力，先授权在真实账户创建并清理一条临时、短时效 future intent/plan；写入测试仍不得修改历史事实。
+
+
+## 9. 用户重新选择插件后的复测补充
+
+- 复测时间：2026-10-12（Asia/Shanghai，约 14:05）
+- 使用：本轮用户重新选择的 Wenyan 插件。
+- GitHub main 在复测时已包含首版插件报告提交 `5dcb9ff0836c47fdc42b14331a525326f849e26a`；该提交仅新增文档。
+- 再次调用 `get_plan_status({})`：仍失败。工具文本明确为当前 OAuth session 未授权此 Wenyan 操作，结构化错误码仍为 `INVALID_ARGUMENT`。因此，单纯重新选择插件没有补齐此操作所需授权。
+- 使用 `candidatePurpose=stage_assessment` 再次调用 `get_coaching_context`：成功返回 `coaching-context-v1.6`；四个证据通道仍分开，coverage 仍为 partial，执行可用性仍为 stale。
+- 再次读取设备状态：查询成功，但没有在线设备；网页导航及 action status 仍不能做端到端复测。
+- 本次复测仍为只读，没有新增或修改学习事实、计划、学习意图或网页命令。
+- **验收结论不变：PASS WITH ISSUES。** `get_plan_status` 需要单独完成 OAuth capability 授权；网页控制验收需要至少一台 Wenyan 设备在线。
