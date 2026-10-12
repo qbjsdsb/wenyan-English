@@ -18,6 +18,7 @@ html.dark {
 body {
   user-select: text;
   font-kerning: normal;
+  font-feature-settings: 'kern' 1, 'liga' 1;
   text-autospace: normal;
 }
 .wenyan-chrome {
@@ -42,6 +43,14 @@ body {
 .wenyan-page-description {
   max-width: 46rem;
   text-wrap: pretty;
+}
+.wenyan-nav-link::after {
+  height: 1px;
+  background: color-mix(in srgb, var(--wenyan-accent) 68%, var(--wenyan-ink));
+}
+/* Pure arrival animation does not earn attention in a daily workspace. */
+.wenyan-fade-in {
+  animation: none !important;
 }
 
 button,
@@ -180,6 +189,9 @@ html.dark .wenyan-settings-dialog {
   background: var(--wenyan-paper-raised);
   box-shadow: var(--wenyan-shadow);
 }
+.wenyan-auth-card .text-\[10px\] {
+  font-size: 11px !important;
+}
 
 .wenyan-scope-pill {
   border: 1px solid var(--wenyan-line);
@@ -189,30 +201,12 @@ html.dark .wenyan-settings-dialog {
 }
 
 .wenyan-friend-link {
-  position: relative;
   border-bottom: 1px solid var(--wenyan-line-soft);
   transition: background-color 140ms ease;
 }
 
-.wenyan-friend-link::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 2px;
-  height: 0;
-  border-radius: 999px;
-  background: var(--wenyan-accent);
-  transform: translateY(-50%);
-  transition: height 140ms ease;
-}
-
 .wenyan-friend-link:hover {
-  background: color-mix(in srgb, var(--wenyan-accent) 3%, transparent);
-}
-
-.wenyan-friend-link:hover::before {
-  height: 24px;
+  background: color-mix(in srgb, var(--wenyan-ink) 2%, transparent);
 }
 
 .wenyan-mobile-note {
