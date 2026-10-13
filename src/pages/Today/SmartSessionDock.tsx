@@ -120,13 +120,20 @@ export default function SmartSessionDock() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const generation = useRef(0)
+  const starting = useRef<number>()
+  const refreshing = useRef<number>()
 
   const supported = dict.language === 'en'
 
   const refresh = useCallback(
     async (quiet = false) => {
+      // Foreground/timer refreshes must not supersede an explicit start.
+      if (quiet && (starting.current !== undefined || refreshing.current !== undefined)) return
       const request = ++generation.current
       if (!supported) return
+      refreshing.current = request
+      const ownerUserId = getLocalLearningOwnerId()
+      const isCurrent = () => request === generation.current && ownerUserId === getLocalLearningOwnerId()
       setBusy(true)
       setError('')
       if (!quiet) {
@@ -134,26 +141,27 @@ export default function SmartSessionDock() {
         setIntent(undefined)
       }
       try {
-        const ownerUserId = getLocalLearningOwnerId()
         const runtimeSessionId = getCurrentSmartSessionId(ownerUserId) ?? createSmartSessionId()
         const [recoverableFocus, resolvedIntent] = await Promise.all([
           getRecoverableSmartSessionFocusDictionary(ownerUserId),
           resolveSmartSessionLearningIntent(dict.id, runtimeSessionId),
         ])
+        if (!isCurrent()) return
         const focusDictionary = recoverableFocus ?? resolvedIntent.constraints.focusDictionary ?? dict.id
         const effectiveIntent: ResolvedSmartSessionIntent = {
           ...resolvedIntent,
           constraints: { ...resolvedIntent.constraints, focusDictionary },
         }
         const nextPrepared = await prepareSmartVocabularySession(focusDictionary, effectiveIntent.constraints, Date.now(), runtimeSessionId)
-        if (request !== generation.current) return
+        if (!isCurrent()) return
         setIntent(effectiveIntent)
         setPrepared(nextPrepared)
         void reportSmartSessionExecutionAvailability(nextPrepared)
       } catch (cause) {
-        if (request === generation.current) setError(cause instanceof Error ? cause.message : '暂时无法生成下一段学习。')
+        if (isCurrent()) setError(cause instanceof Error ? cause.message : '暂时无法生成下一段学习。')
       } finally {
-        if (request === generation.current) setBusy(false)
+        if (refreshing.current === request) refreshing.current = undefined
+        if (isCurrent()) setBusy(false)
       }
     },
     [dict.id, supported],
@@ -161,7 +169,11 @@ export default function SmartSessionDock() {
 
   useEffect(() => {
     void refresh()
+    let observedOwner = getLocalLearningOwnerId()
     const changed = () => {
+      const nextOwner = getLocalLearningOwnerId()
+      if (nextOwner === observedOwner) return
+      observedOwner = nextOwner
       void refresh()
     }
     const foreground = () => {
@@ -169,10 +181,17 @@ export default function SmartSessionDock() {
     }
     window.addEventListener('wenyan-learning-owner-changed', changed)
     window.addEventListener('focus', foreground)
+    window.addEventListener('online', foreground)
+    window.addEventListener('storage', changed)
+    document.addEventListener('visibilitychange', foreground)
+    const invalidate = () => { generation.current++ }
     return () => {
-      generation.current++
+      invalidate()
       window.removeEventListener('wenyan-learning-owner-changed', changed)
       window.removeEventListener('focus', foreground)
+      window.removeEventListener('online', foreground)
+      window.removeEventListener('storage', changed)
+      document.removeEventListener('visibilitychange', foreground)
     }
   }, [refresh])
 
@@ -196,7 +215,15 @@ export default function SmartSessionDock() {
   const meta = useMemo(() => blockMeta(prepared, intent), [intent, prepared])
 
   const start = async () => {
-    if (!prepared || !intent || !supported) return
+    if (!prepared || !intent || !supported || busy || starting.current !== undefined) return
+    const ownerUserId = getLocalLearningOwnerId()
+    if (prepared.runtime.ownerUserId !== ownerUserId) {
+      void refresh()
+      return
+    }
+    const request = ++generation.current
+    starting.current = request
+    const isCurrent = () => request === generation.current && ownerUserId === getLocalLearningOwnerId()
     setBusy(true)
     setError('')
     try {
@@ -208,15 +235,18 @@ export default function SmartSessionDock() {
 
       if (prepared.kind === 'draft') assertPreparedVocabularyBlockStartable(prepared)
       await bindResolvedSessionIntent(intent, prepared.runtime.id)
+      if (!isCurrent()) return
       if (
         prepared.kind === 'semantic-resume' ||
         (prepared.kind === 'draft' && prepared.draft.blocks[0]?.activity.kind === 'semantic_recall')
       ) {
         const active = prepared.kind === 'semantic-resume' ? prepared : await startPreparedSemanticBlock(prepared)
+        if (!isCurrent()) return
         navigate(semanticRunPath(active.run))
         return
       }
       const active = prepared.kind === 'resume' ? prepared : await startPreparedVocabularyBlock(prepared)
+      if (!isCurrent()) return
       const record = active.record
       const runtime = active.runtime
       if (!runtime.currentBlock) throw new Error('smart_session_block_missing')
@@ -226,11 +256,12 @@ export default function SmartSessionDock() {
       setChapter(0)
       navigate(`/?smartSession=${encodeURIComponent(runtime.id)}&smartBlock=${encodeURIComponent(runtime.currentBlock.id)}`)
     } catch (cause) {
+      if (!isCurrent()) return
       setError(userFacingError(cause))
       if (cause instanceof Error && cause.message.includes('session_intent_bound_elsewhere')) await refresh()
-      setBusy(false)
     } finally {
-      setBusy(false)
+      if (starting.current === request) starting.current = undefined
+      if (isCurrent()) setBusy(false)
     }
   }
 
@@ -299,7 +330,7 @@ export default function SmartSessionDock() {
 
         <div className="flex w-full shrink-0 flex-col items-start gap-2.5 sm:w-auto sm:items-end">
           {error && (
-            <button type="button" aria-label="重新安排" onClick={() => void refresh()} className="wenyan-button-secondary">
+            <button type="button" disabled={busy} aria-label="重新安排" onClick={() => void refresh()} className="wenyan-button-secondary">
               重试
             </button>
           )}
