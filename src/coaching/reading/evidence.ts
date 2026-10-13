@@ -144,6 +144,7 @@ export function buildReadingEvidence(input: ReadingEvidenceInput) {
     !incompleteAttempts && !rejectedAttempts && !orphanQuestionRows
   return {
     contractVersion: 'reading-evidence-v1' as const,
+    sourceVersions: [3],
     activity: 'reading' as const,
     measurement: 'versioned_reference_single_choice' as const,
     snapshotId: input.snapshotId,

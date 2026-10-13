@@ -8,6 +8,7 @@
 
 - 分支 `astra/reading-intelligence-v1`，基于 PR #97 封口 head `993f75029e071b2d37e5ec95b0d58416cb1719da`；不修改 main 或 PR #97。
 - 首批落地纯 TS reading evidence core：v3 事实完整对账后才纳入计数，明确窗口/覆盖/重复练习/墙钟时间/证据样本边界。
+- 已补只读本地 adapter 与独立 Coaching Context composer（可调用，尚无应用调用点）；未加载 Reading 返回 null，保留词汇统计口径和执行权限，策略 hook 仅 advisory。
 - 合同见 `docs/READING_INTELLIGENCE_V1.md`。没有能力总分、错因判定、标签诊断或私人正文输出。
 - 尚未接生产 MCP、自动 Reading executor 或新 Intent 写权限；本轮未运行测试/构建/lint，未部署。
 
