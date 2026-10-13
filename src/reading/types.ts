@@ -4,6 +4,8 @@ export interface ReadingSource {
   kind: 'wenyan-original' | 'private-import' | 'public-domain'
   label: string
   reference?: string
+  license?: string
+  revision?: string
 }
 
 export interface ReadingOption {
@@ -32,6 +34,7 @@ export interface ReadingPassage {
   version: string
   title: string
   source: ReadingSource
+  exam?: { paper: 'english-1' | 'english-2'; year: number }
   paragraphs: readonly string[]
   estimatedMinutes: number
   questions: readonly ReadingQuestion[]

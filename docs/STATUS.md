@@ -21,6 +21,14 @@
 - 类型检查与改动文件 lint 通过；没有重跑全量测试。executionAvailability 后端持久化新鲜度仍待独立审计，不能把本次前端刷新修复描述为该项已解决。
 - 代码通过 GitHub connector 保存到 `fix/reading-and-study-continuity`；命令行 push 缺少凭据，不影响 connector 提交。生产 main 未改变。
 
+## 2026-10-13 题库接入推进（分支开发，未合并）
+
+- 新增 Reading Pack v1 解析与本地存储：纯文本、标准答案校验、账号隔离、原子导入、重复跳过、同版本不同内容拒绝覆盖。
+- Dexie v10 只新增 readingPassages，原学习表不变；完整备份自动包含题库。私人正文不上传学习事件或 GitHub。
+- 保留题源链接、使用声明、来源版本、考试年份与英一/英二信息；导入内容不自动进入 Smart Session。
+- 下一批接题库界面与实际阅读路由，再增加 ESQ 转换工具和英语/文学扩展文档。
+- 用户明确要求不测试、不合并；本轮不运行测试、构建或 lint，不声称通过验证。
+
 ## 当前生产基线
 
 - 仓库：`qbjsdsb/wenyan-English`。

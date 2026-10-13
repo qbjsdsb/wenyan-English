@@ -1,3 +1,4 @@
+import type { StoredReadingPassage } from '@/reading/pack'
 import type { IChapterRecord, IReviewRecord, IRevisionDictRecord, IWordRecord, LetterMistakes } from './record'
 import { ChapterRecord, ReviewRecord, WordRecord } from './record'
 import type {
@@ -23,6 +24,7 @@ import { useAtomValue } from 'jotai'
 import { useCallback, useContext } from 'react'
 
 class RecordDB extends Dexie {
+  readingPassages!: Table<StoredReadingPassage, string>
   typingCheckpoints!: Table<TypingCheckpoint, string>
   semanticRuns!: Table<SemanticRun, string>
   wordRecords!: Table<IWordRecord, number>
@@ -65,6 +67,7 @@ class RecordDB extends Dexie {
       learningSyncCursors: '&userId',
     })
     this.version(8).stores({ typingCheckpoints: '&id,updatedAt' })
+    this.version(10).stores({ readingPassages: '&key,ownerKey,importedAt' })
     this.version(9).stores({
       learningEvents: '&id,eventType,occurredAt,syncState,ownerUserId,[syncState+occurredAt],[ownerUserId+eventType],[ownerUserId+occurredAt]',
     })
