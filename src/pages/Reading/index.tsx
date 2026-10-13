@@ -1,16 +1,36 @@
-import { getReadingPassage } from '@/reading/content'
+import { useLearningOwner } from '@/hooks/useLearningOwner'
+import { loadReadingPassage } from '@/reading/repository'
+import type { ReadingPassage } from '@/reading/types'
 import { draftKey, readDraft } from '@/reading/draft'
 import { saveReadingAttempt } from '@/reading/events'
 import type { ReadingAnswerDraft, ReadingAttemptSummary } from '@/reading/types'
 import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 
 const primaryButton = 'wenyan-button-primary shrink-0'
 
 export default function ReadingPage() {
   const { contentId = '' } = useParams()
-  const passage = getReadingPassage(contentId)
+  const [params] = useSearchParams()
+  const version = params.get('v') ?? undefined
+  const owner = useLearningOwner()
+  const identity = JSON.stringify([owner, contentId, version])
+  const [loaded, setLoaded] = useState<{ identity: string; passage?: ReadingPassage; error?: string }>()
+  useEffect(() => {
+    let current = true
+    loadReadingPassage(contentId, version, owner).then(
+      (passage) => { if (current) setLoaded({ identity, passage }) },
+      () => { if (current) setLoaded({ identity, error: '本机阅读资料暂时无法读取，请返回题库后重试。' }) },
+    )
+    return () => { current = false }
+  }, [contentId, identity, owner, version])
+  if (loaded?.identity !== identity) return <main role="status" className="mx-auto max-w-5xl px-6 py-16">正在打开阅读…</main>
+  if (loaded.error) return <main role="alert" className="mx-auto max-w-5xl px-6 py-16"><p>{loaded.error}</p><Link to="/reading" className="wenyan-link mt-4 inline-block">返回题库</Link></main>
+  return <ReadingRunner key={identity} passage={loaded.passage} />
+}
+
+function ReadingRunner({ passage }: { passage?: ReadingPassage }) {
   const [ownerUserId, setOwnerUserId] = useState(() => getLocalLearningOwnerId())
   const ownerUserIdRef = useRef(ownerUserId)
   const restored = useMemo(
@@ -28,6 +48,10 @@ export default function ReadingPage() {
   const passageIdentity = passage ? `${passage.id}:${passage.version}` : ''
   const passageIdentityRef = useRef(passageIdentity)
   const attemptGenerationRef = useRef(0)
+
+  useEffect(() => {
+    return () => { attemptGenerationRef.current += 1 }
+  }, [])
 
   useEffect(() => {
     if (passageIdentityRef.current === passageIdentity) return
@@ -78,7 +102,7 @@ export default function ReadingPage() {
         <header className="border-b border-[var(--wenyan-line-soft)]">
           <div className="mx-auto flex h-[58px] max-w-5xl items-center justify-between px-6">
             <Link to="/today" className="wenyan-brand text-[20px] font-semibold no-underline">Wenyan</Link>
-            <Link to="/today" className="wenyan-link text-sm">返回</Link>
+            <Link to="/reading" className="wenyan-link text-sm">返回题库</Link>
           </div>
         </header>
         <main className="mx-auto w-full max-w-5xl px-6 py-16">
@@ -173,7 +197,7 @@ export default function ReadingPage() {
             >
               {articleFocus ? '显示题目' : '专注文章'}
             </button>
-            <Link to="/today" className="wenyan-link text-sm">结束阅读</Link>
+            <Link to="/reading" className="wenyan-link text-sm">返回题库</Link>
           </div>
         </div>
       </header>
@@ -189,7 +213,11 @@ export default function ReadingPage() {
         }`}
       >
         <article className={`min-w-0 ${articleFocus ? 'mx-auto w-full max-w-[720px]' : ''}`}>
-          <h1 className="mb-9 max-w-[680px] text-[31px] font-semibold leading-[1.22] tracking-[-0.038em] text-[var(--wenyan-ink)]">{passage.title}</h1>
+          <h1 className="mb-4 max-w-[680px] text-[31px] font-semibold leading-[1.22] tracking-[-0.038em] text-[var(--wenyan-ink)]">{passage.title}</h1>
+          <p className="wenyan-muted mb-8 text-xs leading-6">
+            {passage.source.label} · 内容版本 {passage.version}
+            {passage.source.reference && <> · <a href={passage.source.reference} target="_blank" rel="noreferrer" className="wenyan-link">查看来源</a></>}
+          </p>
           <div className="wenyan-reading-copy space-y-6">
             {passage.paragraphs.map((paragraph, index) => (
               <p key={`${passage.id}-${index}`}>{paragraph}</p>

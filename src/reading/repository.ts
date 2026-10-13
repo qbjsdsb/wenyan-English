@@ -1,5 +1,5 @@
 import { getReadingPassage, listReadingPassages } from './content'
-import { parseReadingPack, parseReadingPassage } from './pack'
+import { MAX_READING_PACK_BYTES, parseReadingPack, parseReadingPassage } from './pack'
 import type { ReadingPack, StoredReadingPassage } from './pack'
 import type { ReadingPassage } from './types'
 import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
@@ -51,11 +51,21 @@ export function readingPath(passage: ReadingPassage) {
   return `/reading/${encodeURIComponent(passage.id)}?v=${encodeURIComponent(passage.version)}`
 }
 
-export async function exportReadingPack(owner = getLocalLearningOwnerId()): Promise<ReadingPack> {
+export async function exportReadingPacks(owner = getLocalLearningOwnerId()): Promise<ReadingPack[]> {
   const rows = await listPrivateReadingPassages(owner)
   if (owner !== getLocalLearningOwnerId()) throw new Error('账号已切换，请重新导出。')
   if (rows.length === 0) throw new Error('当前账号还没有导入题目。')
-  return { format: 'wenyan-reading-pack', schemaVersion: 1, title: '我的阅读题库', passages: rows.map((row) => row.passage) }
+  const packs: ReadingPack[] = []
+  let current: ReadingPack = { format: 'wenyan-reading-pack', schemaVersion: 1, title: '我的阅读题库', passages: [] }
+  for (const { passage } of rows) {
+    const candidate = { ...current, passages: [...current.passages, passage] }
+    if (current.passages.length && (candidate.passages.length > 200 || new TextEncoder().encode(JSON.stringify(candidate, null, 2)).byteLength > MAX_READING_PACK_BYTES)) {
+      packs.push(current)
+      current = { ...current, passages: [passage] }
+    } else current = candidate
+  }
+  if (current.passages.length) packs.push(current)
+  return packs
 }
 
 export { listReadingPassages }

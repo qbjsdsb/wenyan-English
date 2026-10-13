@@ -408,8 +408,8 @@ export default function TodayPage() {
           <Link to="/error-book" className={quietLink}>
             错词
           </Link>
-          <Link to="/reading/wenyan-demo-reading-01" className={quietLink} title="阅读功能仍在实验阶段">
-            阅读实验
+          <Link to="/reading" className={quietLink}>
+            阅读题库
           </Link>
         </nav>
       </main>
