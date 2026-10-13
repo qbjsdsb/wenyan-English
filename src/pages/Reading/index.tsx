@@ -140,6 +140,7 @@ export default function ReadingPage() {
       } catch {
         // Draft cleanup is best-effort and only runs for the still-current attempt.
       }
+      setDraftWarning('')
       setSummary(saved)
     } catch (cause) {
       if (!submissionStillCurrent()) return
