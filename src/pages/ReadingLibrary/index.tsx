@@ -96,6 +96,13 @@ function ReadingLibrary({ owner }: { owner?: string }) {
               <input type="file" accept=".json,application/json" disabled={busy} className="sr-only"
                 onChange={(event) => { void selectFile(event.target.files?.[0]); event.target.value = '' }} />
             </label>
+            <button type="button" className="wenyan-link text-xs" onClick={() => {
+              const sample = listReadingPassages()[0]
+              const pack = { format: 'wenyan-reading-pack', schemaVersion: 1, title: 'Wenyan 阅读题包示例', passages: [{
+                ...sample, id: 'example-reading-01', source: { kind: 'private-import', label: 'Wenyan 原创演示文章，并非考试真题' },
+              }] }
+              saveAs(new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' }), 'wenyan-reading-example.json')
+            }}>下载示例题包</button>
             <button type="button" className="wenyan-button-secondary" disabled={busy || rows.length === 0} onClick={() => void exportPacks()}>导出题库</button>
             <span className="wenyan-muted text-xs">当前账号 · 本机保存 · 不自动同步正文</span>
           </div>
