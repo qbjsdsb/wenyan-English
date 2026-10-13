@@ -1,6 +1,7 @@
 import type { ReadingAnswerDraft, ReadingPassage } from './types'
 
 export interface StoredReadingDraft {
+  attemptId?: string
   ownerUserId?: string
   startedAt: number
   answers: ReadingAnswerDraft[]
@@ -34,6 +35,7 @@ export function readDraft(passage: ReadingPassage, ownerUserId?: string): Stored
     if (
       !value || typeof value !== 'object' || value.ownerUserId !== ownerUserId ||
       !Number.isSafeInteger(value.startedAt) || value.startedAt < 0 || value.startedAt > Date.now() ||
+      (value.attemptId !== undefined && (typeof value.attemptId !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value.attemptId))) ||
       !isReadingAnswers(value.answers, passage)
     ) return undefined
     return value
