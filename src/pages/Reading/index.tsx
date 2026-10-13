@@ -18,6 +18,7 @@ export default function ReadingPage() {
   const version = params.get('v') ?? undefined
   const attempt = params.get('attempt') ?? undefined
   const owner = useLearningOwner()
+  const [loadRevision, setLoadRevision] = useState(0)
   const identity = JSON.stringify([owner, contentId, version, attempt])
   const [loaded, setLoaded] = useState<{ identity: string; passage?: ReadingPassage; review?: ReadingReview; error?: string }>()
   useEffect(() => {
@@ -35,9 +36,9 @@ export default function ReadingPage() {
     }
     void load()
     return () => { current = false }
-  }, [attempt, contentId, identity, owner, version])
+  }, [attempt, contentId, identity, loadRevision, owner, version])
   if (loaded?.identity !== identity) return <main role="status" className="mx-auto max-w-5xl px-6 py-16">正在打开阅读…</main>
-  if (loaded.error) return <main role="alert" className="mx-auto max-w-5xl px-6 py-16"><p>{loaded.error}</p><Link to="/reading" className="wenyan-link mt-4 inline-block">返回题库</Link></main>
+  if (loaded.error) return <main role="alert" className="mx-auto max-w-5xl px-6 py-16"><p>{loaded.error}</p><button type="button" className="wenyan-button-secondary mt-4 mr-4" onClick={() => { setLoaded(undefined); setLoadRevision((value) => value + 1) }}>重新读取</button><Link to="/reading" className="wenyan-link mt-4 inline-block">返回题库</Link></main>
   return <ReadingRunner key={identity} passage={loaded.passage} initialReview={loaded.review} />
 }
 
@@ -45,13 +46,14 @@ function ReadingRunner({ passage, initialReview }: { passage?: ReadingPassage; i
   const navigate = useNavigate()
   const [ownerUserId, setOwnerUserId] = useState(() => getLocalLearningOwnerId())
   const ownerUserIdRef = useRef(ownerUserId)
+  const initialReviewOwner = useRef(ownerUserId)
   const restored = useMemo(
     () => (passage ? readDraft(passage, ownerUserId) : undefined),
     [ownerUserId, passage],
   )
   const [startedAt, setStartedAt] = useState(() => restored?.startedAt ?? Date.now())
   const [answers, setAnswers] = useState<ReadingAnswerDraft[]>(() => initialReview?.answers ?? restored?.answers ?? [])
-  const [summary, setSummary] = useState<ReadingAttemptSummary>(() => initialReview?.summary)
+  const [summary, setSummary] = useState<ReadingAttemptSummary | undefined>(() => initialReview?.summary)
   const attemptIdRef = useRef(restored?.attemptId ?? createReadingAttemptId())
   const [reviewFilter, setReviewFilter] = useState<'all' | 'missed'>('all')
   const [busy, setBusy] = useState(false)
@@ -98,8 +100,9 @@ function ReadingRunner({ passage, initialReview }: { passage?: ReadingPassage; i
       setOwnerUserId(nextOwner)
       attemptIdRef.current = nextDraft?.attemptId ?? createReadingAttemptId()
       setStartedAt(nextDraft?.startedAt ?? Date.now())
-      setAnswers(nextDraft?.answers ?? [])
-      setSummary(undefined)
+      const review = nextOwner === initialReviewOwner.current ? initialReview : undefined
+      setAnswers(review?.answers ?? nextDraft?.answers ?? [])
+      setSummary(review?.summary)
       setBusy(false)
       setDraftWarning('')
       setError('账号已切换。已为当前账号重新读取独立的阅读草稿。')
@@ -110,7 +113,7 @@ function ReadingRunner({ passage, initialReview }: { passage?: ReadingPassage; i
       window.removeEventListener('wenyan-learning-owner-changed', ownerChanged)
       window.removeEventListener('storage', ownerChanged)
     }
-  }, [passage])
+  }, [initialReview, passage])
 
   if (!passage) {
     return (
@@ -199,6 +202,27 @@ function ReadingRunner({ passage, initialReview }: { passage?: ReadingPassage; i
     }
   }
 
+  const restart = () => {
+    if (!passage || getLocalLearningOwnerId() !== ownerUserId) return
+    // Explicitly begin a fresh draft; never remove or alter the previous facts.
+    const attemptId = createReadingAttemptId()
+    try {
+      window.localStorage.setItem(draftKey(passage.id, passage.version, ownerUserId),
+        JSON.stringify({ ownerUserId, attemptId, startedAt: Date.now(), answers: [] }))
+      attemptGenerationRef.current += 1
+      attemptIdRef.current = attemptId
+      setStartedAt(Date.now())
+      setAnswers([])
+      setSummary(undefined)
+      setError('')
+      setDraftWarning('')
+      setReviewFilter('all')
+      navigate(readingPath(passage))
+    } catch {
+      setError('暂时无法建立新的草稿，请检查浏览器存储后再试。原来的作答记录仍保留。')
+    }
+  }
+
   const answeredCount = answers.filter((answer) => answer.selectedOptionId).length
   const progress = passage.questions.length ? Math.round((answeredCount / passage.questions.length) * 100) : 0
 
@@ -242,6 +266,14 @@ function ReadingRunner({ passage, initialReview }: { passage?: ReadingPassage; i
             {passage.source.label} · 内容版本 {passage.version}
             {passage.source.reference && <> · <a href={passage.source.reference} target="_blank" rel="noreferrer" className="wenyan-link">查看来源</a></>}
           </p>
+          {passage.source.kind === 'private-import' && (passage.source.license || passage.source.revision) && (
+            <details className="wenyan-muted mb-6 text-xs leading-6">
+              <summary className="cursor-pointer">题源与使用说明</summary>
+              {passage.source.revision && <p className="mt-2 break-words">来源版本：{passage.source.revision}</p>}
+              {passage.source.license && <p className="mt-2 whitespace-pre-wrap break-words">{passage.source.license}</p>}
+              <p className="mt-2">答案与解析随题包导入；显示结果以这份题目的参考答案为准。</p>
+            </details>
+          )}
           <div className="wenyan-reading-copy space-y-6">
             {passage.paragraphs.map((paragraph, index) => (
               <p key={`${passage.id}-${index}`}>{paragraph}</p>
@@ -255,13 +287,20 @@ function ReadingRunner({ passage, initialReview }: { passage?: ReadingPassage; i
               <div className="mb-6 border-b border-[var(--wenyan-line-soft)] pb-4">
                 <p className="text-sm font-medium">阅读复盘</p>
                 <p className="wenyan-muted mt-1 text-xs">{initialReview ? new Date(initialReview.occurredAt).toLocaleString('zh-CN') : ''} · 答对 {summary.correctCount} · 答错 {summary.answeredCount - summary.correctCount} · 未答 {summary.questionCount - summary.answeredCount}</p>
-                <div className="mt-3 flex gap-3">
+                <div className="mt-3 flex flex-wrap gap-3">
                   <button type="button" className="wenyan-button-secondary" aria-pressed={reviewFilter === 'all'} onClick={() => setReviewFilter('all')}>全部题目</button>
                   <button type="button" className="wenyan-button-secondary" aria-pressed={reviewFilter === 'missed'} onClick={() => setReviewFilter('missed')}>错题与未答</button>
+                  <button type="button" className="wenyan-link text-xs" onClick={restart}>重新练习</button>
                 </div>
                 {reviewFilter === 'missed' && summary.correctCount === summary.questionCount && <p className="wenyan-muted mt-3 text-xs">本次全部答对，可以回看全文或稍后重新练习。</p>}
               </div>
             )}
+            {!summary && <nav aria-label="题目导航" className="mb-6 flex flex-wrap gap-2">
+              {passage.questions.map((question, index) => {
+                const answered = answers.some((answer) => answer.questionId === question.id && answer.selectedOptionId)
+                return <a key={question.id} href={`#reading-question-${index}`} className="wenyan-button-secondary no-underline" aria-label={`第 ${index + 1} 题，${answered ? '已作答' : '未作答'}`}>{index + 1}{answered ? ' ·' : ''}</a>
+              })}
+            </nav>}
             <div>
               {passage.questions.map((question, index) => {
                 const answer = answers.find((item) => item.questionId === question.id)
@@ -270,6 +309,8 @@ function ReadingRunner({ passage, initialReview }: { passage?: ReadingPassage; i
                 return (
                   <article
                     key={question.id}
+                    id={`reading-question-${index}`}
+                    style={{ scrollMarginTop: 90 }}
                     className={`${index > 0 ? 'border-t border-[var(--wenyan-line-soft)]' : ''} py-6 first:pt-0`}
                   >
                     <div className="mb-2 flex items-baseline gap-3">
@@ -310,7 +351,7 @@ function ReadingRunner({ passage, initialReview }: { passage?: ReadingPassage; i
                     </div>
                     {summary && (
                       <div className="ml-[26px] mt-4 border-l border-[var(--wenyan-line)] pl-3 text-xs leading-6 text-[var(--wenyan-ink-secondary)]">
-                        <p className="font-medium text-[var(--wenyan-ink)]">{correct ? '答对了' : `${answer?.selectedOptionId ? '' : '未作答 · '}正确答案：${question.correctOptionId}`}</p>
+                        <p className="font-medium text-[var(--wenyan-ink)]">{correct ? '答对了' : `${answer?.selectedOptionId ? `你的答案：${answer.selectedOptionId} · ` : '未作答 · '}正确答案：${question.correctOptionId}`}</p>
                         {question.explanation && <p className="mt-1">{question.explanation}</p>}
                       </div>
                     )}

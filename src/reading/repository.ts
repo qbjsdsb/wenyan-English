@@ -43,8 +43,15 @@ export async function listPrivateReadingPassages(owner = getLocalLearningOwnerId
 export async function loadReadingPassage(id: string, version: string | undefined, owner = getLocalLearningOwnerId()) {
   const builtIn = getReadingPassage(id)
   if (builtIn) return !version || builtIn.version === version ? builtIn : undefined
+  if (version) {
+    const row = await db.readingPassages.get(JSON.stringify([ownerKey(owner), id, version]))
+    if (!row || row.ownerKey !== ownerKey(owner)) return undefined
+    const passage = parseReadingPassage(row.passage)
+    if (passage.id !== id || passage.version !== version) throw new Error('题目索引与内容不一致，请重新导入对应版本。')
+    return passage
+  }
   const rows = await listPrivateReadingPassages(owner)
-  return rows.find((row) => row.passage.id === id && (!version || row.passage.version === version))?.passage
+  return rows.find((row) => row.passage.id === id)?.passage
 }
 
 export function readingPath(passage: ReadingPassage) {
@@ -58,6 +65,9 @@ export async function exportReadingPacks(owner = getLocalLearningOwnerId()): Pro
   const packs: ReadingPack[] = []
   let current: ReadingPack = { format: 'wenyan-reading-pack', schemaVersion: 1, title: '我的阅读题库', passages: [] }
   for (const { passage } of rows) {
+    if (new TextEncoder().encode(JSON.stringify({ ...current, passages: [passage] }, null, 2)).byteLength > MAX_READING_PACK_BYTES) {
+      throw new Error(`「${passage.title}」单篇导出超过题包大小限制，请先整理内容。`)
+    }
     const candidate = { ...current, passages: [...current.passages, passage] }
     if (current.passages.length && (candidate.passages.length > 200 || new TextEncoder().encode(JSON.stringify(candidate, null, 2)).byteLength > MAX_READING_PACK_BYTES)) {
       packs.push(current)

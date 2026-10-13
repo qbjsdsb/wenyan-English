@@ -1,6 +1,7 @@
 import Header from '@/components/Header'
 import PageHeading from '@/components/PageHeading'
 import { useLearningOwner } from '@/hooks/useLearningOwner'
+import type { ReadingPassage } from '@/reading/types'
 import { listReadingHistory } from '@/reading/history'
 import { listPrivateReadingPassages, listReadingPassages, readingPath } from '@/reading/repository'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -18,10 +19,10 @@ function ReadingHistory({ owner }: { owner?: string }) {
   const data = useLiveQuery(async () => {
     try {
       const [history, imported] = await Promise.all([listReadingHistory(owner), listPrivateReadingPassages(owner)])
-      const catalog = new Map([...listReadingPassages(), ...imported.map((row) => row.passage)]
-        .map((passage) => [JSON.stringify([passage.id, passage.version]), passage]))
+      const catalog = new Map<string, ReadingPassage>([...listReadingPassages(), ...imported.map((row) => row.passage)]
+        .map((passage): [string, ReadingPassage] => [JSON.stringify([passage.id, passage.version]), passage]))
       return { history, catalog, error: '' }
-    } catch { return { history: [], catalog: new Map(), error: '阅读记录暂时无法读取，请稍后重新打开。' } }
+    } catch { return { history: [], catalog: new Map<string, ReadingPassage>(), error: '阅读记录暂时无法读取，请稍后重新打开。' } }
   }, [owner])
   const filtered = data?.history.filter((entry) => !missedOnly || entry.correctCount < entry.questionCount) ?? []
   return (
