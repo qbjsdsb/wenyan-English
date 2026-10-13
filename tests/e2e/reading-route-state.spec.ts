@@ -83,6 +83,6 @@ test('reading rejects malformed saved answers and locks answers during submissio
   await page.getByRole('button', { name: '提交', exact: true }).click()
   await expect(page.locator('input[name="q1"][value="A"]')).toBeDisabled()
   await page.evaluate(() => (window as unknown as { __finishReadingSave: () => void }).__finishReadingSave())
-  await expect(page.getByText('答对 1 · 答错 0 · 未答 2')).toBeVisible()
+  await expect(page.getByText('答对 1 · 答错 0 · 未答 2', { exact: true })).toBeVisible()
   await expect(page.getByText('未作答 · 正确答案：C')).toHaveCount(2)
 })
