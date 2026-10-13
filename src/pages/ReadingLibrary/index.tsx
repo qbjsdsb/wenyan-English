@@ -87,6 +87,7 @@ function ReadingLibrary({ owner }: { owner?: string }) {
       <Header />
       <main className="mx-auto max-w-5xl px-6 pb-20 pt-10">
         <PageHeading title="阅读题库" description="按篇练习，完整作答，再回到原文复盘。">
+          <Link to="/reading/history" className="wenyan-link text-sm">阅读记录</Link>
           <Link to="/today" className="wenyan-link text-sm">回到今天</Link>
         </PageHeading>
         <section aria-label="我的阅读资料" className="mt-8 border-y border-[var(--wenyan-line-soft)] py-5">

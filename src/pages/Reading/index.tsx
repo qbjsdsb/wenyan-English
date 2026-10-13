@@ -1,12 +1,14 @@
 import { useLearningOwner } from '@/hooks/useLearningOwner'
-import { loadReadingPassage } from '@/reading/repository'
+import { loadReadingPassage, readingPath } from '@/reading/repository'
 import type { ReadingPassage } from '@/reading/types'
 import { draftKey, readDraft } from '@/reading/draft'
-import { saveReadingAttempt } from '@/reading/events'
+import { createReadingAttemptId, saveReadingAttempt } from '@/reading/events'
 import type { ReadingAnswerDraft, ReadingAttemptSummary } from '@/reading/types'
+import { loadReadingReview } from '@/reading/history'
+import type { ReadingReview } from '@/reading/history'
 import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 const primaryButton = 'wenyan-button-primary shrink-0'
 
@@ -14,23 +16,33 @@ export default function ReadingPage() {
   const { contentId = '' } = useParams()
   const [params] = useSearchParams()
   const version = params.get('v') ?? undefined
+  const attempt = params.get('attempt') ?? undefined
   const owner = useLearningOwner()
-  const identity = JSON.stringify([owner, contentId, version])
-  const [loaded, setLoaded] = useState<{ identity: string; passage?: ReadingPassage; error?: string }>()
+  const identity = JSON.stringify([owner, contentId, version, attempt])
+  const [loaded, setLoaded] = useState<{ identity: string; passage?: ReadingPassage; review?: ReadingReview; error?: string }>()
   useEffect(() => {
     let current = true
-    loadReadingPassage(contentId, version, owner).then(
-      (passage) => { if (current) setLoaded({ identity, passage }) },
-      () => { if (current) setLoaded({ identity, error: '本机阅读资料暂时无法读取，请返回题库后重试。' }) },
-    )
+    const load = async () => {
+      try {
+        const passage = await loadReadingPassage(contentId, version, owner)
+        const savedAttempt = attempt ?? (passage ? readDraft(passage, owner)?.attemptId : undefined)
+        const review = passage && savedAttempt ? await loadReadingReview(passage, savedAttempt, owner) : undefined
+        if (attempt && passage && !review) throw new Error('这次作答记录尚未在本机找到，请先同步学习记录。')
+        if (current) setLoaded({ identity, passage, review })
+      } catch (cause) {
+        if (current) setLoaded({ identity, error: cause instanceof Error ? cause.message : '本机阅读资料暂时无法读取，请返回题库后重试。' })
+      }
+    }
+    void load()
     return () => { current = false }
-  }, [contentId, identity, owner, version])
+  }, [attempt, contentId, identity, owner, version])
   if (loaded?.identity !== identity) return <main role="status" className="mx-auto max-w-5xl px-6 py-16">正在打开阅读…</main>
   if (loaded.error) return <main role="alert" className="mx-auto max-w-5xl px-6 py-16"><p>{loaded.error}</p><Link to="/reading" className="wenyan-link mt-4 inline-block">返回题库</Link></main>
-  return <ReadingRunner key={identity} passage={loaded.passage} />
+  return <ReadingRunner key={identity} passage={loaded.passage} initialReview={loaded.review} />
 }
 
-function ReadingRunner({ passage }: { passage?: ReadingPassage }) {
+function ReadingRunner({ passage, initialReview }: { passage?: ReadingPassage; initialReview?: ReadingReview }) {
+  const navigate = useNavigate()
   const [ownerUserId, setOwnerUserId] = useState(() => getLocalLearningOwnerId())
   const ownerUserIdRef = useRef(ownerUserId)
   const restored = useMemo(
@@ -38,8 +50,10 @@ function ReadingRunner({ passage }: { passage?: ReadingPassage }) {
     [ownerUserId, passage],
   )
   const [startedAt, setStartedAt] = useState(() => restored?.startedAt ?? Date.now())
-  const [answers, setAnswers] = useState<ReadingAnswerDraft[]>(() => restored?.answers ?? [])
-  const [summary, setSummary] = useState<ReadingAttemptSummary>()
+  const [answers, setAnswers] = useState<ReadingAnswerDraft[]>(() => initialReview?.answers ?? restored?.answers ?? [])
+  const [summary, setSummary] = useState<ReadingAttemptSummary>(() => initialReview?.summary)
+  const attemptIdRef = useRef(restored?.attemptId ?? createReadingAttemptId())
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'missed'>('all')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [articleFocus, setArticleFocus] = useState(false)
@@ -61,6 +75,7 @@ function ReadingRunner({ passage }: { passage?: ReadingPassage }) {
     ownerUserIdRef.current = nextOwner
     const nextDraft = passage ? readDraft(passage, nextOwner) : undefined
     setOwnerUserId(nextOwner)
+    attemptIdRef.current = nextDraft?.attemptId ?? createReadingAttemptId()
     setStartedAt(nextDraft?.startedAt ?? Date.now())
     setAnswers(nextDraft?.answers ?? [])
     setSummary(undefined)
@@ -81,6 +96,7 @@ function ReadingRunner({ passage }: { passage?: ReadingPassage }) {
       attemptGenerationRef.current += 1
       const nextDraft = passage ? readDraft(passage, nextOwner) : undefined
       setOwnerUserId(nextOwner)
+      attemptIdRef.current = nextDraft?.attemptId ?? createReadingAttemptId()
       setStartedAt(nextDraft?.startedAt ?? Date.now())
       setAnswers(nextDraft?.answers ?? [])
       setSummary(undefined)
@@ -131,7 +147,7 @@ function ReadingRunner({ passage }: { passage?: ReadingPassage }) {
     try {
       window.localStorage.setItem(
         draftKey(passage.id, passage.version, ownerUserId),
-        JSON.stringify({ ownerUserId, startedAt, answers: merged }),
+        JSON.stringify({ ownerUserId, startedAt, answers: merged, attemptId: attemptIdRef.current }),
       )
       setDraftWarning('')
     } catch {
@@ -157,15 +173,23 @@ function ReadingRunner({ passage }: { passage?: ReadingPassage }) {
     setBusy(true)
     setError('')
     try {
-      const saved = await saveReadingAttempt(passage, answers, Math.max(0, Date.now() - startedAt), submittedOwnerUserId)
+      const attemptId = attemptIdRef.current
+      // Persist the request identity before committing facts, including an entirely unanswered attempt.
+      try {
+        window.localStorage.setItem(draftKey(passage.id, passage.version, submittedOwnerUserId),
+          JSON.stringify({ ownerUserId: submittedOwnerUserId, startedAt, answers, attemptId }))
+      } catch { /* Submission can still succeed when localStorage is unavailable. */ }
+      const saved = await saveReadingAttempt(passage, answers, Math.max(0, Date.now() - startedAt), submittedOwnerUserId, attemptId)
       if (!submissionStillCurrent()) return
       try {
-        window.localStorage.removeItem(draftKey(passage.id, passage.version, submittedOwnerUserId))
+        if (readDraft(passage, submittedOwnerUserId)?.attemptId === saved.attemptId) {
+          window.localStorage.removeItem(draftKey(passage.id, passage.version, submittedOwnerUserId))
+        }
       } catch {
         // Draft cleanup is best-effort and only runs for the still-current attempt.
       }
       setDraftWarning('')
-      setSummary(saved)
+      navigate(`${readingPath(passage)}&attempt=${encodeURIComponent(saved.attemptId)}`, { replace: true })
     } catch (cause) {
       if (!submissionStillCurrent()) return
       setError(cause instanceof Error ? cause.message : '暂时无法保存这次阅读。')
@@ -227,10 +251,22 @@ function ReadingRunner({ passage }: { passage?: ReadingPassage }) {
 
         {!articleFocus && (
           <section aria-label="阅读题目" className="min-w-0 lg:pt-[2px]">
+            {summary && (
+              <div className="mb-6 border-b border-[var(--wenyan-line-soft)] pb-4">
+                <p className="text-sm font-medium">阅读复盘</p>
+                <p className="wenyan-muted mt-1 text-xs">{initialReview ? new Date(initialReview.occurredAt).toLocaleString('zh-CN') : ''} · 答对 {summary.correctCount} · 答错 {summary.answeredCount - summary.correctCount} · 未答 {summary.questionCount - summary.answeredCount}</p>
+                <div className="mt-3 flex gap-3">
+                  <button type="button" className="wenyan-button-secondary" aria-pressed={reviewFilter === 'all'} onClick={() => setReviewFilter('all')}>全部题目</button>
+                  <button type="button" className="wenyan-button-secondary" aria-pressed={reviewFilter === 'missed'} onClick={() => setReviewFilter('missed')}>错题与未答</button>
+                </div>
+                {reviewFilter === 'missed' && summary.correctCount === summary.questionCount && <p className="wenyan-muted mt-3 text-xs">本次全部答对，可以回看全文或稍后重新练习。</p>}
+              </div>
+            )}
             <div>
               {passage.questions.map((question, index) => {
                 const answer = answers.find((item) => item.questionId === question.id)
                 const correct = summary ? answer?.selectedOptionId === question.correctOptionId : undefined
+                if (summary && reviewFilter === 'missed' && correct) return null
                 return (
                   <article
                     key={question.id}
@@ -291,7 +327,7 @@ function ReadingRunner({ passage }: { passage?: ReadingPassage }) {
                     <p className="mt-1 text-lg font-semibold tabular-nums text-[var(--wenyan-ink)]">{summary.correctCount} / {summary.questionCount}</p>
                     <p className="wenyan-muted mt-1 text-xs">答对 {summary.correctCount} · 答错 {summary.answeredCount - summary.correctCount} · 未答 {summary.questionCount - summary.answeredCount}</p>
                   </div>
-                  <Link to="/today" className={`${primaryButton} flex items-center no-underline`}>回到今天</Link>
+                  <Link to="/reading/history" className={`${primaryButton} flex items-center no-underline`}>阅读记录</Link>
                 </div>
               ) : (
                 <div className="flex items-center justify-between gap-5">

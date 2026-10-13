@@ -27,6 +27,7 @@ const PreferencesPage = lazy(() => import('./pages/Preferences'))
 const SemanticPage = lazy(() => import('./pages/Semantic'))
 const SemanticCheckPage = lazy(() => import('./pages/SemanticCheck'))
 const SemanticProductionPage = lazy(() => import('./pages/SemanticProduction'))
+const ReadingHistoryPage = lazy(() => import('./pages/ReadingHistory'))
 const ReadingLibraryPage = lazy(() => import('./pages/ReadingLibrary'))
 const ReadingPage = lazy(() => import('./pages/Reading'))
 const TodayPage = lazy(() => import('./pages/Today'))
@@ -63,6 +64,7 @@ function Root() {
             <Route path="/semantic-check/:runId" element={<SemanticCheckPage />} />
             <Route path="/semantic-production/:runId" element={<SemanticProductionPage />} />
             <Route path="/reading" element={<ReadingLibraryPage />} />
+            <Route path="/reading/history" element={<ReadingHistoryPage />} />
             <Route path="/reading/:contentId" element={<ReadingPage />} />
             <Route path="/gallery" element={<GalleryPage />} />
             <Route path="/analysis" element={<AnalysisPage />} />
