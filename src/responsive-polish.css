@@ -35,10 +35,18 @@
     grid-template-columns: 7.5rem minmax(0, 1fr);
     gap: 1rem;
   }
+  /* A wrapping sticky toolbar can change height in split-screen. Let category
+   * navigation move with the document instead of sliding underneath it. */
+  .wenyan-library-tags {
+    position: static;
+  }
 }
 
 /* Only truly narrow windows become a two-row header. */
 @media (max-width: 760px) {
+  :root {
+    --wenyan-header-height: 112px;
+  }
   .wenyan-header-row {
     flex-wrap: wrap;
     gap: 0;
