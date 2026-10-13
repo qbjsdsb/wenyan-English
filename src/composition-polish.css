@@ -283,7 +283,7 @@
 
 .wenyan-library-tags {
   position: sticky;
-  top: 5.5rem;
+  top: calc(var(--wenyan-sticky-offset) + 4.75rem);
   display: flex;
   flex-direction: column;
   gap: 0.25rem;

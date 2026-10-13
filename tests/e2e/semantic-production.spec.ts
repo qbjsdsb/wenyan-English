@@ -58,3 +58,24 @@ test('meaning-to-headword production hides answers, excludes leaked cues, commit
   expect(proof.run.index).toBe(2)
   expect(proof.run.completedAt).toBeTruthy()
 })
+
+test('meaning-to-headword production does not submit while an IME composition is active', async ({ page }) => {
+  await page.goto('/practice?mode=production&limit=6')
+  await page.getByRole('button', { name: '开始看义写词', exact: true }).click()
+  await expect(page).toHaveURL(/\/semantic-production\//)
+
+  const input = page.getByLabel('英文词头')
+  await input.fill('alpha')
+  await input.evaluate((element) => {
+    element.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true, data: 'a' }))
+  })
+  await input.press('Enter')
+  await expect(page.getByText('写对了', { exact: true })).toHaveCount(0)
+  await expect(input).toHaveValue('alpha')
+
+  await input.evaluate((element) => {
+    element.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: 'alpha' }))
+  })
+  await input.press('Enter')
+  await expect(page.getByText('写对了', { exact: true })).toBeVisible()
+})

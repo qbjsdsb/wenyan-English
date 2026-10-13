@@ -25,6 +25,7 @@ function SemanticProductionRun({ runId }: { runId: string }) {
   const [busy, setBusy] = useState(false)
   const [stopped, setStopped] = useState(false)
   const lock = useRef(false)
+  const composing = useRef(false)
   const input = useRef<HTMLInputElement>(null)
 
   const restore = useCallback(async () => {
@@ -58,7 +59,7 @@ function SemanticProductionRun({ runId }: { runId: string }) {
   const item = run?.items[run.index]
 
   const submit = useCallback(async () => {
-    if (!active.current || !run || !item || feedback || stopped || lock.current || !response.trim()) return
+    if (!active.current || !run || !item || feedback || stopped || lock.current || composing.current || !response.trim()) return
     lock.current = true
     setBusy(true)
     setError('')
@@ -211,6 +212,7 @@ function SemanticProductionRun({ runId }: { runId: string }) {
             <form
               onSubmit={(event) => {
                 event.preventDefault()
+                if (composing.current) return
                 void submit()
               }}
             >
@@ -223,6 +225,12 @@ function SemanticProductionRun({ runId }: { runId: string }) {
                   ref={input}
                   value={response}
                   onChange={(event) => setResponse(event.target.value)}
+                  onCompositionStart={() => {
+                    composing.current = true
+                  }}
+                  onCompositionEnd={() => {
+                    composing.current = false
+                  }}
                   autoComplete="off"
                   autoCapitalize="none"
                   spellCheck={false}
