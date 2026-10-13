@@ -1,31 +1,10 @@
 import { getReadingPassage } from '@/reading/content'
+import { draftKey, readDraft } from '@/reading/draft'
 import { saveReadingAttempt } from '@/reading/events'
 import type { ReadingAnswerDraft, ReadingAttemptSummary } from '@/reading/types'
 import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-
-interface StoredReadingDraft {
-  ownerUserId?: string
-  startedAt: number
-  answers: ReadingAnswerDraft[]
-}
-
-function draftKey(passageId: string, version: string, ownerUserId?: string) {
-  return `wenyanReadingDraft:${encodeURIComponent(ownerUserId ?? 'anonymous')}:${passageId}:${version}`
-}
-
-function readDraft(passageId: string, version: string, ownerUserId?: string): StoredReadingDraft | undefined {
-  try {
-    const raw = window.localStorage.getItem(draftKey(passageId, version, ownerUserId))
-    if (!raw) return undefined
-    const value = JSON.parse(raw) as StoredReadingDraft
-    if (value.ownerUserId !== ownerUserId || !Number.isFinite(value.startedAt) || !Array.isArray(value.answers)) return undefined
-    return value
-  } catch {
-    return undefined
-  }
-}
 
 const primaryButton = 'wenyan-button-primary shrink-0'
 
@@ -35,7 +14,7 @@ export default function ReadingPage() {
   const [ownerUserId, setOwnerUserId] = useState(() => getLocalLearningOwnerId())
   const ownerUserIdRef = useRef(ownerUserId)
   const restored = useMemo(
-    () => (passage ? readDraft(passage.id, passage.version, ownerUserId) : undefined),
+    () => (passage ? readDraft(passage, ownerUserId) : undefined),
     [ownerUserId, passage],
   )
   const [startedAt, setStartedAt] = useState(() => restored?.startedAt ?? Date.now())
@@ -44,6 +23,8 @@ export default function ReadingPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [articleFocus, setArticleFocus] = useState(false)
+  const [draftWarning, setDraftWarning] = useState('')
+  const submittingGeneration = useRef<number>()
   const passageIdentity = passage ? `${passage.id}:${passage.version}` : ''
   const passageIdentityRef = useRef(passageIdentity)
   const attemptGenerationRef = useRef(0)
@@ -54,13 +35,14 @@ export default function ReadingPage() {
     attemptGenerationRef.current += 1
     const nextOwner = getLocalLearningOwnerId()
     ownerUserIdRef.current = nextOwner
-    const nextDraft = passage ? readDraft(passage.id, passage.version, nextOwner) : undefined
+    const nextDraft = passage ? readDraft(passage, nextOwner) : undefined
     setOwnerUserId(nextOwner)
     setStartedAt(nextDraft?.startedAt ?? Date.now())
     setAnswers(nextDraft?.answers ?? [])
     setSummary(undefined)
     setBusy(false)
     setError('')
+    setDraftWarning('')
     setArticleFocus(false)
   }, [passage, passageIdentity])
 
@@ -73,16 +55,21 @@ export default function ReadingPage() {
       // only against the render closure would otherwise miss the return to A.
       ownerUserIdRef.current = nextOwner
       attemptGenerationRef.current += 1
-      const nextDraft = passage ? readDraft(passage.id, passage.version, nextOwner) : undefined
+      const nextDraft = passage ? readDraft(passage, nextOwner) : undefined
       setOwnerUserId(nextOwner)
       setStartedAt(nextDraft?.startedAt ?? Date.now())
       setAnswers(nextDraft?.answers ?? [])
       setSummary(undefined)
       setBusy(false)
+      setDraftWarning('')
       setError('账号已切换。已为当前账号重新读取独立的阅读草稿。')
     }
     window.addEventListener('wenyan-learning-owner-changed', ownerChanged)
-    return () => window.removeEventListener('wenyan-learning-owner-changed', ownerChanged)
+    window.addEventListener('storage', ownerChanged)
+    return () => {
+      window.removeEventListener('wenyan-learning-owner-changed', ownerChanged)
+      window.removeEventListener('storage', ownerChanged)
+    }
   }, [passage])
 
   if (!passage) {
@@ -103,41 +90,39 @@ export default function ReadingPage() {
   }
 
   const updateAnswer = (questionId: string, selectedOptionId: string) => {
-    if (summary) return
+    if (busy || summary || submittingGeneration.current === attemptGenerationRef.current) return
     if (getLocalLearningOwnerId() !== ownerUserId) {
       setError('账号刚刚发生变化。请重新选择答案，避免把草稿写入错误账号。')
       return
     }
-    setAnswers((current) => {
-      const previous = current.find((answer) => answer.questionId === questionId)
-      const next: ReadingAnswerDraft = {
-        questionId,
-        selectedOptionId,
-        answerChangeCount:
-          previous?.selectedOptionId && previous.selectedOptionId !== selectedOptionId
-            ? previous.answerChangeCount + 1
-            : previous?.answerChangeCount ?? 0,
-      }
-      const merged = [...current.filter((answer) => answer.questionId !== questionId), next]
-      try {
-        window.localStorage.setItem(
-          draftKey(passage.id, passage.version, ownerUserId),
-          JSON.stringify({ ownerUserId, startedAt, answers: merged }),
-        )
-      } catch {
-        // Draft recovery is helpful, but storage failure must not block answering.
-      }
-      return merged
-    })
+    const previous = answers.find((answer) => answer.questionId === questionId)
+    if (previous?.selectedOptionId === selectedOptionId) return
+    const next: ReadingAnswerDraft = {
+      questionId,
+      selectedOptionId,
+      answerChangeCount: previous?.selectedOptionId ? previous.answerChangeCount + 1 : previous?.answerChangeCount ?? 0,
+    }
+    const merged = [...answers.filter((answer) => answer.questionId !== questionId), next]
+    setAnswers(merged)
+    try {
+      window.localStorage.setItem(
+        draftKey(passage.id, passage.version, ownerUserId),
+        JSON.stringify({ ownerUserId, startedAt, answers: merged }),
+      )
+      setDraftWarning('')
+    } catch {
+      setDraftWarning('草稿暂时无法保存；请保持此页打开，完成后提交。')
+    }
   }
 
   const submit = async () => {
-    if (busy || summary) return
+    if (busy || summary || submittingGeneration.current === attemptGenerationRef.current) return
     if (getLocalLearningOwnerId() !== ownerUserId) {
       setError('账号已经切换。这次阅读不会提交到新的账号；请重新打开当前阅读。')
       return
     }
     const submittedGeneration = attemptGenerationRef.current
+    submittingGeneration.current = submittedGeneration
     const submittedOwnerUserId = ownerUserId
     const submissionStillCurrent = () => (
       attemptGenerationRef.current === submittedGeneration
@@ -160,6 +145,7 @@ export default function ReadingPage() {
       if (!submissionStillCurrent()) return
       setError(cause instanceof Error ? cause.message : '暂时无法保存这次阅读。')
     } finally {
+      if (submittingGeneration.current === submittedGeneration) submittingGeneration.current = undefined
       if (submissionStillCurrent()) setBusy(false)
     }
   }
@@ -191,6 +177,11 @@ export default function ReadingPage() {
         </div>
       </header>
 
+      {(error || draftWarning) && (
+        <div role="alert" className="mx-auto max-w-6xl px-6 pt-4 text-sm text-[var(--wenyan-danger)]">
+          {error || draftWarning}
+        </div>
+      )}
       <main
         className={`mx-auto w-full px-6 pb-24 pt-12 ${
           articleFocus ? 'max-w-3xl' : 'grid max-w-6xl gap-14 lg:grid-cols-[minmax(0,1fr)_360px]'
@@ -243,7 +234,7 @@ export default function ReadingPage() {
                               name={question.id}
                               value={option.id}
                               checked={selected}
-                              disabled={Boolean(summary)}
+                              disabled={busy || Boolean(summary)}
                               onChange={() => updateAnswer(question.id, option.id)}
                               className="mt-1 accent-[var(--wenyan-accent)]"
                             />
@@ -254,7 +245,7 @@ export default function ReadingPage() {
                     </div>
                     {summary && (
                       <div className="ml-[26px] mt-4 border-l border-[var(--wenyan-line)] pl-3 text-xs leading-6 text-[var(--wenyan-ink-secondary)]">
-                        <p className="font-medium text-[var(--wenyan-ink)]">{correct ? '答对了' : `正确答案：${question.correctOptionId}`}</p>
+                        <p className="font-medium text-[var(--wenyan-ink)]">{correct ? '答对了' : `${answer?.selectedOptionId ? '' : '未作答 · '}正确答案：${question.correctOptionId}`}</p>
                         {question.explanation && <p className="mt-1">{question.explanation}</p>}
                       </div>
                     )}
@@ -269,6 +260,7 @@ export default function ReadingPage() {
                   <div>
                     <p className="wenyan-muted text-xs">本次结果</p>
                     <p className="mt-1 text-lg font-semibold tabular-nums text-[var(--wenyan-ink)]">{summary.correctCount} / {summary.questionCount}</p>
+                    <p className="wenyan-muted mt-1 text-xs">答对 {summary.correctCount} · 答错 {summary.answeredCount - summary.correctCount} · 未答 {summary.questionCount - summary.answeredCount}</p>
                   </div>
                   <Link to="/today" className={`${primaryButton} flex items-center no-underline`}>回到今天</Link>
                 </div>
@@ -276,7 +268,7 @@ export default function ReadingPage() {
                 <div className="flex items-center justify-between gap-5">
                   <div>
                     <p className="text-sm font-medium text-[var(--wenyan-ink)]">已作答 {answeredCount} / {passage.questions.length}</p>
-                    {error && <p role="alert" className="mt-1 text-xs text-[var(--wenyan-danger)]">{error}</p>}
+                    {answeredCount < passage.questions.length && <p className="wenyan-muted mt-1 text-xs">还有 {passage.questions.length - answeredCount} 题未答，将按未作答保存。</p>}
                   </div>
                   <button type="button" disabled={busy} onClick={() => void submit()} className={primaryButton}>
                     {busy ? '正在保存…' : '提交'}

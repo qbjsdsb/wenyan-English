@@ -3,6 +3,7 @@ import { createLearningEvent } from '@/learning/types'
 import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
 import { db } from '@/utils/db'
 import type { ReadingAnswerDraft, ReadingAttemptSummary, ReadingPassage } from './types'
+import { isReadingAnswers } from './draft'
 
 function createAttemptId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
@@ -16,6 +17,7 @@ export async function saveReadingAttempt(
   ownerUserId = getLocalLearningOwnerId(),
 ): Promise<ReadingAttemptSummary> {
   if (!Number.isFinite(durationMs) || durationMs < 0) throw new Error('reading_duration_invalid')
+  if (!isReadingAnswers(answers, passage)) throw new Error('阅读答案与当前题目不一致，请重新打开这篇阅读。')
 
   const attemptId = createAttemptId()
   const answerByQuestion = new Map(answers.map((answer) => [answer.questionId, answer]))
