@@ -50,7 +50,7 @@ async function fetchJson(url: URL, token: string, publishableKey: string, range?
 
 function sanitizePayload(eventType: unknown, payload: unknown) {
   const row = record(payload)
-  if (!row) return payload
+  if (!row) return null
   if (eventType === 'reading_completed') {
     return {
       attemptId: row.attemptId,
