@@ -87,7 +87,7 @@ test('reading rejects malformed saved answers and locks answers during submissio
   await expect(page.getByText('未作答 · 正确答案：C')).toHaveCount(2)
 })
 
-test('reading keeps draft-save warning visible after an account-switch notice', async ({ page }) => {
+test('reading keeps draft-save warning visible after a rapid account-switch notice', async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('wenyanLearningOwnerId', 'owner-a')
   })
@@ -105,6 +105,7 @@ test('reading keeps draft-save warning visible after an account-switch notice', 
   await page.evaluate(() => {
     const controls = window as unknown as { __switchReadingOwner: (owner: string) => void }
     controls.__switchReadingOwner('owner-b')
+    controls.__switchReadingOwner('owner-a')
   })
   await expect(page.getByText('账号已切换。已为当前账号重新读取独立的阅读草稿。')).toBeVisible()
 
