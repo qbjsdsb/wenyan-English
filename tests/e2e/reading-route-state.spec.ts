@@ -60,3 +60,59 @@ test('stale reading submission persists for captured owner without overwriting a
   expect(replacementDraft).toContain('123456')
   expect(replacementDraft).toContain('"selectedOptionId":"B"')
 })
+
+test('reading rejects malformed saved answers and locks answers during submission', async ({ page }) => {
+  await page.route('**/*.supabase.co/**', (route) => route.abort())
+  await page.addInitScript(() => {
+    localStorage.setItem('wenyanReadingDraft:anonymous:wenyan-demo-reading-01:1', JSON.stringify({
+      startedAt: Date.now() - 1000,
+      answers: [null, { questionId: 'q1', selectedOptionId: 'invented', answerChangeCount: -1 }],
+    }))
+  })
+  await page.goto('/reading/wenyan-demo-reading-01')
+  await expect(page.getByText('已作答 0 / 3')).toBeVisible()
+  await page.locator('input[name="q1"][value="B"]').check()
+  await page.addScriptTag({ type: 'module', content: `
+    import { db } from '/src/utils/db/index.ts'
+    const originalTransaction = db.transaction.bind(db)
+    let release
+    const gate = new Promise(resolve => { release = resolve })
+    db.transaction = async (...args) => { await gate; return originalTransaction(...args) }
+    window.__finishReadingSave = release
+  ` })
+  await page.getByRole('button', { name: '提交', exact: true }).click()
+  await expect(page.locator('input[name="q1"][value="A"]')).toBeDisabled()
+  await page.evaluate(() => (window as unknown as { __finishReadingSave: () => void }).__finishReadingSave())
+  await expect(page.getByText('答对 1 · 答错 0 · 未答 2', { exact: true })).toBeVisible()
+  await expect(page.getByText('未作答 · 正确答案：C')).toHaveCount(2)
+})
+
+test('reading keeps draft-save warning visible beside an existing error', async ({ page }) => {
+  await page.route('**/*.supabase.co/**', (route) => route.abort())
+  await page.goto('/reading/wenyan-demo-reading-01')
+  await page.locator('input[name="q1"][value="B"]').check()
+
+  await page.addScriptTag({
+    type: 'module',
+    content: `
+      import { db } from '/src/utils/db/index.ts'
+      db.transaction = async () => { throw new Error('模拟阅读提交失败') }
+    `,
+  })
+  await page.getByRole('button', { name: '提交', exact: true }).click()
+  await expect(page.getByText('模拟阅读提交失败')).toBeVisible()
+
+  await page.evaluate(() => {
+    const originalSetItem = Storage.prototype.setItem
+    Storage.prototype.setItem = function setItem(key: string, value: string) {
+      if (key.startsWith('wenyanReadingDraft:')) {
+        throw new DOMException('quota exceeded', 'QuotaExceededError')
+      }
+      return originalSetItem.call(this, key, value)
+    }
+  })
+  await page.locator('input[name="q1"][value="A"]').check()
+
+  await expect(page.getByText('模拟阅读提交失败')).toBeVisible()
+  await expect(page.getByText('草稿暂时无法保存；请保持此页打开，完成后提交。')).toBeVisible()
+})

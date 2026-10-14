@@ -3,10 +3,12 @@ import { createLearningEvent } from '@/learning/types'
 import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
 import { db } from '@/utils/db'
 import type { ReadingAnswerDraft, ReadingAttemptSummary, ReadingPassage } from './types'
+import { isReadingAnswers } from './draft'
+import { readingSummary } from './history'
 
-function createAttemptId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
-  return `reading-${Date.now()}-${Math.random().toString(36).slice(2)}`
+/** Also serves as the completion event UUID, so a retry cannot add a second completion. */
+export function createReadingAttemptId() {
+  return createLearningEvent('reading_completed', null, 3).id
 }
 
 export async function saveReadingAttempt(
@@ -14,10 +16,12 @@ export async function saveReadingAttempt(
   answers: readonly ReadingAnswerDraft[],
   durationMs: number,
   ownerUserId = getLocalLearningOwnerId(),
+  attemptId = createReadingAttemptId(),
 ): Promise<ReadingAttemptSummary> {
   if (!Number.isFinite(durationMs) || durationMs < 0) throw new Error('reading_duration_invalid')
+  if (!isReadingAnswers(answers, passage)) throw new Error('阅读答案与当前题目不一致，请重新打开这篇阅读。')
 
-  const attemptId = createAttemptId()
+  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(attemptId)) throw new Error('阅读提交标识无效，请重新打开。')
   const answerByQuestion = new Map(answers.map((answer) => [answer.questionId, answer]))
   let answeredCount = 0
   let correctCount = 0
@@ -68,18 +72,20 @@ export async function saveReadingAttempt(
     3,
   )
   completedEvent.ownerUserId = ownerUserId
+  completedEvent.id = attemptId
 
-  await db.transaction('rw', db.learningEvents, async () => {
+  return db.transaction('rw', db.learningEvents, async () => {
+    const existing = await db.learningEvents.get(attemptId)
+    if (existing) {
+      const saved = readingSummary(existing)
+      if (!saved || saved.attemptId !== attemptId || existing.ownerUserId !== ownerUserId ||
+        saved.passageId !== passage.id || saved.passageVersion !== passage.version) {
+        throw new Error('阅读提交标识发生冲突，原记录未修改。')
+      }
+      return saved
+    }
     await db.learningEvents.bulkAdd([...questionEvents, completedEvent])
+    return { attemptId, passageId: passage.id, passageVersion: passage.version,
+      durationMs: Math.floor(durationMs), questionCount: passage.questions.length, answeredCount, correctCount }
   })
-
-  return {
-    attemptId,
-    passageId: passage.id,
-    passageVersion: passage.version,
-    durationMs: Math.floor(durationMs),
-    questionCount: passage.questions.length,
-    answeredCount,
-    correctCount,
-  }
 }

@@ -16,7 +16,7 @@ test('Reading Runner saves question facts separately from passage completion', a
   await page.getByRole('radio', { name: /Convenience can gradually change/ }).check()
   await page.getByRole('radio', { name: /decision about what deserves attention/ }).check()
   await page.getByRole('radio', { name: /remove every decision/ }).check()
-  await page.getByRole('button', { name: '提交这一篇' }).click()
+  await page.getByRole('button', { name: '提交', exact: true }).click()
 
   await expect(page.getByText('2 / 3', { exact: true })).toBeVisible()
   await expect(page.getByText('正确答案：C', { exact: true })).toBeVisible()

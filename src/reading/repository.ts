@@ -1,0 +1,81 @@
+import { getReadingPassage, listReadingPassages } from './content'
+import { MAX_READING_PACK_BYTES, parseReadingPack, parseReadingPassage } from './pack'
+import type { ReadingPack, StoredReadingPassage } from './pack'
+import type { ReadingPassage } from './types'
+import { getLocalLearningOwnerId } from '@/sync/localLearningOwner'
+import { db } from '@/utils/db'
+
+const ownerKey = (owner?: string) => owner === undefined ? 'anonymous' : `user:${owner}`
+const key = (owner: string | undefined, passage: ReadingPassage) => JSON.stringify([ownerKey(owner), passage.id, passage.version])
+
+export async function importReadingPack(json: string, owner = getLocalLearningOwnerId()) {
+  const pack = parseReadingPack(json)
+  const importedAt = Date.now()
+  const rows: StoredReadingPassage[] = pack.passages.map((passage) => ({
+    key: key(owner, passage), ownerKey: ownerKey(owner), importedAt, packTitle: pack.title, passage,
+  }))
+  let added = 0
+  await db.transaction('rw', db.readingPassages, async () => {
+    if (owner !== getLocalLearningOwnerId()) throw new Error('账号已切换，请重新导入。')
+    for (const row of rows) {
+      const existing = await db.readingPassages.get(row.key)
+      if (existing) {
+        if (JSON.stringify(parseReadingPassage(existing.passage)) !== JSON.stringify(row.passage)) {
+          throw new Error(`「${row.passage.title}」同一版本已存在不同内容；请提升版本号，本次未导入任何篇目。`)
+        }
+        continue
+      }
+      await db.readingPassages.add(row)
+      added++
+    }
+    if (owner !== getLocalLearningOwnerId()) throw new Error('账号已切换，本次导入已取消。')
+  })
+  return { added, unchanged: rows.length - added }
+}
+
+export async function listPrivateReadingPassages(owner = getLocalLearningOwnerId()) {
+  const rows = await db.readingPassages.where('ownerKey').equals(ownerKey(owner)).toArray()
+  // Backups are another input boundary: validate content again before showing or running it.
+  return rows.map((row) => ({ ...row, passage: parseReadingPassage(row.passage) }))
+    .sort((a, b) => b.importedAt - a.importedAt || a.passage.id.localeCompare(b.passage.id) || a.passage.version.localeCompare(b.passage.version))
+}
+
+export async function loadReadingPassage(id: string, version: string | undefined, owner = getLocalLearningOwnerId()) {
+  const builtIn = getReadingPassage(id)
+  if (builtIn) return !version || builtIn.version === version ? builtIn : undefined
+  if (version) {
+    const row = await db.readingPassages.get(JSON.stringify([ownerKey(owner), id, version]))
+    if (!row || row.ownerKey !== ownerKey(owner)) return undefined
+    const passage = parseReadingPassage(row.passage)
+    if (passage.id !== id || passage.version !== version) throw new Error('题目索引与内容不一致，请重新导入对应版本。')
+    return passage
+  }
+  const rows = await listPrivateReadingPassages(owner)
+  return rows.find((row) => row.passage.id === id)?.passage
+}
+
+export function readingPath(passage: ReadingPassage) {
+  return `/reading/${encodeURIComponent(passage.id)}?v=${encodeURIComponent(passage.version)}`
+}
+
+export async function exportReadingPacks(owner = getLocalLearningOwnerId()): Promise<ReadingPack[]> {
+  const rows = await listPrivateReadingPassages(owner)
+  if (owner !== getLocalLearningOwnerId()) throw new Error('账号已切换，请重新导出。')
+  if (rows.length === 0) throw new Error('当前账号还没有导入题目。')
+  const packs: ReadingPack[] = []
+  let current: ReadingPack = { format: 'wenyan-reading-pack', schemaVersion: 1, title: '我的阅读题库', passages: [] }
+  for (const { passage } of rows) {
+    if (new TextEncoder().encode(JSON.stringify({ ...current, passages: [passage] }, null, 2)).byteLength > MAX_READING_PACK_BYTES) {
+      throw new Error(`「${passage.title}」单篇导出超过题包大小限制，请先整理内容。`)
+    }
+    const candidate = { ...current, passages: [...current.passages, passage] }
+    if (current.passages.length && (candidate.passages.length > 200 || new TextEncoder().encode(JSON.stringify(candidate, null, 2)).byteLength > MAX_READING_PACK_BYTES)) {
+      packs.push(current)
+      current = { ...current, passages: [passage] }
+    } else current = candidate
+  }
+  if (current.passages.length) packs.push(current)
+  return packs
+}
+
+export { listReadingPassages }
