@@ -251,8 +251,9 @@ function ReadingRunner({ passage, initialReview }: { passage?: ReadingPassage; i
       </header>
 
       {(error || draftWarning) && (
-        <div role="alert" className="mx-auto max-w-6xl px-6 pt-4 text-sm text-[var(--wenyan-danger)]">
-          {error || draftWarning}
+        <div role="alert" className="mx-auto max-w-6xl space-y-1 px-6 pt-4 text-sm text-[var(--wenyan-danger)]">
+          {error && <p>{error}</p>}
+          {draftWarning && <p>{draftWarning}</p>}
         </div>
       )}
       <main
