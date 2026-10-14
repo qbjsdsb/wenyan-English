@@ -113,8 +113,6 @@ export async function readCloudReadingEvidence(options: ReadingAdapterOptions, n
   completionUrl.searchParams.set('event_type', 'eq.reading_completed')
   completionUrl.searchParams.set('created_at', `lte.${throughIso}`)
   completionUrl.searchParams.set('occurred_at', `gte.${new Date(since).toISOString()}`)
-  completionUrl.searchParams.set('occurred_at', `gte.${new Date(since).toISOString()}`)
-  completionUrl.searchParams.append('occurred_at', `lte.${throughIso}`)
   completionUrl.searchParams.set('order', 'occurred_at.desc,id.desc')
   completionUrl.searchParams.set('limit', String(MAX_COMPLETIONS + 1))
 
