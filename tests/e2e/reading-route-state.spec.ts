@@ -87,21 +87,22 @@ test('reading rejects malformed saved answers and locks answers during submissio
   await expect(page.getByText('未作答 · 正确答案：C')).toHaveCount(2)
 })
 
-test('reading keeps draft-save warning visible beside an existing owner error', async ({ page }) => {
-  await page.addInitScript(() => {
-    window.localStorage.setItem('wenyanLearningOwnerId', 'owner-a')
-  })
+test('reading keeps draft-save warning visible beside an existing error', async ({ page }) => {
   await page.route('**/*.supabase.co/**', (route) => route.abort())
   await page.goto('/reading/wenyan-demo-reading-01')
-
-  await page.evaluate(() => {
-    window.localStorage.setItem('wenyanLearningOwnerId', 'owner-b')
-  })
   await page.locator('input[name="q1"][value="B"]').check()
-  await expect(page.getByText('账号刚刚发生变化。请重新选择答案，避免把草稿写入错误账号。')).toBeVisible()
+
+  await page.addScriptTag({
+    type: 'module',
+    content: `
+      import { db } from '/src/utils/db/index.ts'
+      db.transaction = async () => { throw new Error('模拟阅读提交失败') }
+    `,
+  })
+  await page.getByRole('button', { name: '提交', exact: true }).click()
+  await expect(page.getByText('模拟阅读提交失败')).toBeVisible()
 
   await page.evaluate(() => {
-    window.localStorage.setItem('wenyanLearningOwnerId', 'owner-a')
     const originalSetItem = Storage.prototype.setItem
     Storage.prototype.setItem = function setItem(key: string, value: string) {
       if (key.startsWith('wenyanReadingDraft:')) {
@@ -110,9 +111,8 @@ test('reading keeps draft-save warning visible beside an existing owner error', 
       return originalSetItem.call(this, key, value)
     }
   })
+  await page.locator('input[name="q1"][value="A"]').check()
 
-  await page.locator('input[name="q1"][value="B"]').check()
-
-  await expect(page.getByText('账号刚刚发生变化。请重新选择答案，避免把草稿写入错误账号。')).toBeVisible()
+  await expect(page.getByText('模拟阅读提交失败')).toBeVisible()
   await expect(page.getByText('草稿暂时无法保存；请保持此页打开，完成后提交。')).toBeVisible()
 })
